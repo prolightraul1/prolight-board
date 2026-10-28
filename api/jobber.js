@@ -171,7 +171,8 @@ async function notesSel(token, nf) {
     const pick = ["url", "fileName", "contentType", "name", "fileSize"].filter(has);
     if (!pick.includes("url")) { const u = ft.fields.find((f) => /url/i.test(f.name)); if (u) pick.push(u.name); else continue; }
     const args = af.args && af.args.some((x) => x.name === "first") ? "(first:8)" : "";
-    frags.push(`... on ${m.name} { __typename ${af.name}${args} { ${viaNodes ? `nodes { ${pick.join(" ")} }` : pick.join(" ")} } }`);
+    const msg = (m.fields || []).some((f) => f.name === "message") ? " message" : "";
+    frags.push(`... on ${m.name} { __typename${msg} ${af.name}${args} { ${viaNodes ? `nodes { ${pick.join(" ")} }` : pick.join(" ")} } }`);
   }
   if (!frags.length) return "";
   const nargs = nf.args && nf.args.some((x) => x.name === "first") ? "(first:15)" : "";
@@ -180,10 +181,11 @@ async function notesSel(token, nf) {
 async function noteQuery(token) {
   if (NOTEQ) return NOTEQ;
   // Photos can live on the job's notes or on notes from its client, quote, request or property.
+  // Each is asked for separately so a missing permission on one doesn't block the others.
   const job = await typeQ(token, "Job");
   const parts = [];
   const nf = job.fields.find((f) => f.name === "notes");
-  if (nf) { const sel = await notesSel(token, nf); if (sel) parts.push(sel); }
+  if (nf) { const sel = await notesSel(token, nf); if (sel) parts.push({ where: "job", q: `query($id:EncodedId!){ job(id:$id){ ${sel} } }` }); }
   for (const rel of ["client", "quote", "request", "property"]) {
     const rf = job.fields.find((f) => f.name === rel);
     if (!rf) continue;
@@ -191,20 +193,23 @@ async function noteQuery(token) {
     const rn = rt && rt.fields && rt.fields.find((f) => f.name === "notes");
     if (!rn) continue;
     const sel = await notesSel(token, rn).catch(() => "");
-    if (sel) parts.push(`${rel} { ${sel} }`);
+    if (sel) parts.push({ where: rel, q: `query($id:EncodedId!){ job(id:$id){ ${rel} { ${sel} } } }` });
   }
   if (!parts.length) throw new Error("Couldn't find photo attachments on Jobber notes");
-  NOTEQ = `query($id:EncodedId!){ job(id:$id){ ${parts.join(" ")} } }`;
+  NOTEQ = parts;
   return NOTEQ;
 }
-function filesFrom(d) {
+const NO_ACCESS = new Set();
+function filesFrom(list) {
   const out = [], seen = new Set(), by = {};
-  const scan = (where, notes) => {
+  for (const [where, notes] of list) {
+    by[where] = by[where] || { notes: 0, files: 0, text: [] };
     for (const n of ((notes && notes.nodes) || [])) {
       if (!n) continue;
-      by[where] = by[where] || { notes: 0, files: 0 }; by[where].notes++;
+      by[where].notes++;
+      if (n.message) by[where].text.push(String(n.message).replace(/\s+/g, " ").slice(0, 80));
       for (const [k, v] of Object.entries(n)) {
-        if (k === "__typename" || !v) continue;
+        if (k === "__typename" || k === "message" || !v || typeof v !== "object") continue;
         for (const f of (Array.isArray(v) ? v : v.nodes || [])) {
           const url = f && (f.url || Object.entries(f).find(([kk, vv]) => /url/i.test(kk) && vv)?.[1]);
           if (!url) continue;
@@ -215,15 +220,25 @@ function filesFrom(d) {
         }
       }
     }
-  };
-  const j = d.job || {};
-  scan("job", j.notes);
-  for (const rel of ["client", "quote", "request", "property"]) if (j[rel]) scan(rel, j[rel].notes);
+  }
   out.by = by;
   return out;
 }
 async function jobFiles(token, jobId) {
-  return filesFrom(await gql(token, await noteQuery(token), { id: jobId }));
+  const got = [];
+  for (const p of await noteQuery(token)) {
+    if (NO_ACCESS.has(p.where)) continue;
+    try {
+      const d = await gql(token, p.q, { id: jobId });
+      const j = (d && d.job) || {};
+      got.push([p.where, p.where === "job" ? j.notes : j[p.where] && j[p.where].notes]);
+    } catch (e) {
+      if (/permission|hidden|access|unauthori[sz]ed/i.test(e.message)) { NO_ACCESS.add(p.where); continue; }
+      throw e;
+    }
+  }
+  const out = filesFrom(got); out.noAccess = [...NO_ACCESS];
+  return out;
 }
 const kindOf = (f) => /^image\//.test(f.contentType || "") || /\.(jpe?g|png|heic|webp|gif)$/i.test(f.fileName || "") ? "image"
   : /pdf/.test(f.contentType || "") || /\.pdf$/i.test(f.fileName || "") ? "pdf"
@@ -277,7 +292,7 @@ async function sync(trigger, quick) {
       if ((!f || !f.price) && price > 0) { rows.push({ coll: "fin", id: existing.id, data: { ...(f || { invoiceNo: "", collected: false, ssPaid: false }), price, privateNote: (f && f.privateNote) || "From Jobber #" + j.jobNumber } }); ch = true; }
       if (j.completedAt && !done.has(existing.id)) { rows.push({ coll: "log", id: "jbdone-" + wid, data: { jobId: existing.id, visitId: (v && v.id) || "inst", kind: "done", by: "jobber", at: j.completedAt } }); ch = true; }
       if (ch) res.updated++;
-      if (!(d.mockups || []).length && d.jobberMediaV !== 3) media.push([j, wid, existing.id, d]);
+      if (!(d.mockups || []).length && d.jobberMediaV !== 4) media.push([j, wid, existing.id, d]);
       continue;
     }
     const cname = (j.client && j.client.name) || "Customer", jcid = j.client && j.client.id;
@@ -309,11 +324,12 @@ async function sync(trigger, quick) {
       const files = await copyFiles(token, j, wid);
       const fresh = (await sb(`/rest/v1/docs?coll=eq.jobs&id=eq.${encodeURIComponent(id)}&select=data`))[0];
       const cur = (fresh && fresh.data) || d;
-      await putDocs([{ coll: "jobs", id, data: { ...cur, mockups: [...(cur.mockups || []), ...files], jobberMediaAt: new Date().toISOString(), jobberMediaV: 3 } }]);
+      await putDocs([{ coll: "jobs", id, data: { ...cur, mockups: [...(cur.mockups || []), ...files], jobberMediaAt: new Date().toISOString(), jobberMediaV: NO_ACCESS.size ? 3 : 4 } }]);
       res.photos += files.length;
       if (copyFiles.fail) { res.photoError = copyFiles.fail; copyFiles.fail = null; }
     } catch (e) { res.photoError = e.message.slice(0, 200); break; }
   }
+  if (NO_ACCESS.size && !res.photoError) res.photoError = `Your Jobber app can't read ${[...NO_ACCESS].join(" and ")} notes yet. Add read access for them in the Jobber Developer Center, then tap Reconnect.`;
   const out = { at: now, trigger, seen: jobs.length, ...res, names: res.names.slice(0, 30) };
   await putInt("jobber", { ...(await getInt("jobber")), last: out, lastError: null });
   return out;
@@ -363,10 +379,10 @@ module.exports = async (req, res) => {
       if (jobNo && !String(q).startsWith("ERR")) {
         const d = await gql(token, `query($s:String!){ jobs(first:5, searchTerm:$s){ nodes{ id jobNumber title } } }`, { s: jobNo }).catch((e) => ({ err: e.message }));
         const hit = d && d.jobs && d.jobs.nodes.find((x) => String(x.jobNumber) === jobNo);
-        if (hit) { const raw = await gql(token, q, { id: hit.id }).catch((e) => ({ err: e.message })); if (raw.err) sample = raw; else { const f = filesFrom(raw); sample = { job: hit.jobNumber + " " + (hit.title || ""), whereNotesAre: f.by, photosFound: f.map((x) => x.fileName || x.contentType) }; } }
+        if (hit) { try { const f = await jobFiles(token, hit.id); sample = { job: hit.jobNumber + " " + (hit.title || ""), notes: f.by, photosFound: f.map((x) => x.fileName || x.contentType), noAccessTo: f.noAccess }; } catch (e) { sample = { err: e.message }; } }
         else sample = d;
       }
-      return res.status(200).json({ query: q, sample });
+      return res.status(200).json({ sample, sources: Array.isArray(q) ? q.map((x) => x.where) : q });
     }
     if (action === "disconnect") {
       const c = (await getInt("jobber")) || {};
