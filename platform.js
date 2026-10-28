@@ -33,18 +33,23 @@
       return ME;
     },
     async add(p) {
-      const { error } = await sb.rpc("staff_add", { p_name: p.name, p_pin: p.pin, p_crew: p.crew || "", p_edit: !!p.can_edit, p_money: !!p.can_money, p_manage: !!p.can_manage, p_log: !!p.can_log, p_all: !!p.all_crews });
+      const { error } = await sb.rpc("staff_add", { p_name: p.name, p_pin: p.pin, p_crew: p.crew || "", p_edit: !!p.can_edit, p_money: !!p.can_money, p_manage: !!p.can_manage, p_log: !!p.can_log, p_all: !!p.all_crews, p_partner: p.partner || "" });
       if (error) throw new Error(error.message);
       await PL.reloadStaff();
     },
     async update(p) {
-      const { error } = await sb.rpc("staff_update", { p_id: p.id, p_name: p.name, p_crew: p.crew || "", p_edit: !!p.can_edit, p_money: !!p.can_money, p_manage: !!p.can_manage, p_log: !!p.can_log, p_all: !!p.all_crews, p_active: !!p.active });
+      const { error } = await sb.rpc("staff_update", { p_id: p.id, p_name: p.name, p_crew: p.crew || "", p_edit: !!p.can_edit, p_money: !!p.can_money, p_manage: !!p.can_manage, p_log: !!p.can_log, p_all: !!p.all_crews, p_active: !!p.active, p_partner: p.partner || "" });
       if (error) throw new Error(error.message);
       await PL.reloadStaff();
     },
     async setPin(id, pin) {
       const { error } = await sb.rpc("staff_set_pin", { p_id: id, p_pin: pin });
       if (error) throw new Error(error.message);
+    },
+    async statement() {
+      const { data, error } = await sb.rpc("partner_statement");
+      if (error) throw new Error(error.message);
+      return data;
     },
     async signOut() {
       await sb.auth.signOut();

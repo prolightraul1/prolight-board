@@ -216,6 +216,28 @@ main{padding-block:16px 32px}
 .route-tools{display:grid;gap:8px}
 .wxline{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:14px;color:var(--ink-2)}
 .wxline b{font-family:var(--f-mono);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-right:6px}
+.mhero{background:var(--night);color:var(--night-ink);border-radius:var(--r);padding:18px 18px 16px;display:grid;gap:4px}
+.mhero .eyebrow{color:var(--night-dim)}
+.mhero-v{font-family:var(--f-sign);font-weight:900;font-size:52px;line-height:1;color:var(--amber);font-variant-numeric:tabular-nums}
+.mhero span:last-child{color:var(--night-dim);font-size:14px}
+.mgrid{display:grid;grid-template-columns:1fr;gap:12px}
+.mcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:10px;align-content:start;min-width:0}
+.mcard header{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.mbig{font-family:var(--f-sign);font-weight:800;font-size:36px;line-height:1.05;font-variant-numeric:tabular-nums}
+.mlogo{height:44px;width:auto;flex:none}
+.mcard .mlogo.ss{height:30px;background:var(--night);padding:6px 8px;border-radius:4px}
+.mhero .mlogo.ss{background:none;padding:0}
+.pbar{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.pbar span{display:block;height:100%;background:var(--cord)}
+.mstat-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px}
+tfoot td{border-top:2px solid var(--line);border-bottom:0}
+.truckline{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;font-size:14px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:8px 12px}
+.truckline b{font-family:var(--f-mono);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-right:6px;color:var(--ink-2)}
+.stop.lunch .ticket{background:var(--cord-soft);border-style:dashed}
+.lunch-dot{width:16px;height:16px;border-radius:50%;background:var(--cord);margin-top:22px;box-shadow:0 0 0 4px var(--bg)}
+.vt.lunchtag{background:var(--cord);color:#fff}
+.row.food .m .n{white-space:normal}
+@media (min-width:960px){ .mgrid{grid-template-columns:repeat(3,minmax(0,1fr))} }
 .who-btn{background:none;border:1px solid #2a3832;border-radius:999px;color:var(--night-ink);font-size:12px;font-weight:700;padding:5px 10px;max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .checks{display:grid;gap:8px}
 .checks label{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;font-size:15px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
@@ -460,7 +482,7 @@ const clientOf = j => S.clients.get(j.clientId) || {};
 const addrOf = j => j.address || clientOf(j).address || "";
 const crewOf = (j,v) => normCrew((v && v.crew) || j.crew);
 const isDone = (jid,vid) => doneMap.get(jid+"|"+vid);
-const mapsUrl = a => "https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(a);
+const mapsUrl = a => dirUrl(a);
 function label(j){
   const co=coOf(j.crew), crew = co==="shipshape" ? "ShipShape" : co==="prolight" ? "ProLight" : "";
   if(j.source==="tcl") return "TCL / " + (crew || "Unassigned");
@@ -500,7 +522,7 @@ async function fetchNames(){
 }
 
 /* ---------- nav ---------- */
-function navItems(){ const v=[["route","Route"],["jobs","Jobs"],["map","Map"],["week","Week"],["clients","Clients"]]; if(S.me.owner||S.me.money||S.me.manage) v.push(["office","Office"]); return v; }
+function navItems(){ const v=[["route","Route"],["jobs","Jobs"],["map","Map"],["week","Week"],["clients","Clients"]]; if(S.me.owner||S.me.money||S.me.manage||S.me.partner) v.push(["office",S.me.partner&&!S.me.money&&!S.me.owner?"Payouts":"Office"]); return v; }
 function renderNav(){
   const items=navItems();
   $("#railNav").innerHTML=items.map(([k,l])=>`<button type="button" data-act="view" data-v="${k}" aria-current="${S.view===k?"page":"false"}">${ICON[k]}${l}</button>`).join("");
@@ -538,7 +560,7 @@ function vRoute(){
       <h3>No stops ${r?r.toLowerCase():"this day"}</h3>
       <p>${S.jobs.size? "Nothing is scheduled for this crew on this day. Use the arrows to check another day." : S.me.owner? "Start by adding a client and a job, then give the job an install date and a crew. It shows up here as a stop on that crew's route." : "Once the office schedules jobs for your crew, they show up here in route order."}</p>
       ${S.me.owner&&!S.jobs.size?`<div><button type="button" class="btn amber" data-act="new-job">Add the first job</button></div>`:""}</div>`;
-  } else list=`<div class="stops">${stops.map((s,i)=>stopCard(s,i,stops.length)).join("")}</div>`;
+  } else list=`<div class="stops">${stops.map((s,i)=>stopCard(s,i,stops.length)+(S._eta&&S._eta.lunch&&S._eta.lunch.after===i?lunchCard(S._eta.lunch,d):"")).join("")}</div>`;
   const side = S.me.owner ? `<div class="side-card"><span class="eyebrow">Night-before text</span><p class="lede" style="font-size:14px">Copy each crew's run sheet for ${esc(fmtDay(addDays(d,0),{weekday:"short",month:"short",day:"numeric"}))} into their group chat.</p><button type="button" class="btn ink" data-act="texts" data-v="${d}">Open texts for this day</button></div>` : "";
   h+= side ? `<div class="route-cols"><div>${list}</div>${side}</div>` : list;
   return h;
@@ -638,11 +660,11 @@ function vWeek(){
 }
 
 function vOffice(){
-  if(!(S.me.owner||S.me.money||S.me.manage)) return `<h1 class="h-view">Office</h1><p class="lede">You don't have access to the office tools.</p>`;
-  const subs=[S.me.money&&["money","Money"],S.me.owner&&["texts","Night texts"],S.me.owner&&["hours","Hours"],S.me.manage&&["team","Team"],S.me.owner&&["settings","Settings"]].filter(Boolean);
+  if(!(S.me.owner||S.me.money||S.me.manage||S.me.partner)) return `<h1 class="h-view">Office</h1><p class="lede">You don't have access to the office tools.</p>`;
+  const subs=[S.me.money&&["money","Money"],S.me.owner&&["texts","Night texts"],S.me.owner&&["hours","Hours"],S.me.manage&&["team","Team"],S.me.owner&&["settings","Settings"],(S.me.partner||S.me.money)&&["statement",S.me.money?"ShipShape view":"My payouts"]].filter(Boolean);
   if(!subs.some(x=>x[0]===S.office)) S.office=subs[0][0];
   let h=`<h1 class="h-view">Office</h1><div class="seg" role="group">${subs.map(([k,l])=>`<button type="button" data-act="office" data-v="${k}" aria-pressed="${S.office===k}">${l}</button>`).join("")}</div>`;
-  if(S.office==="money") h+=vMoney(); else if(S.office==="texts") h+=vTexts(); else if(S.office==="team") h+=vTeam(); else if(S.office==="hours") h+=vHours(); else h+=vSettings();
+  if(S.office==="money") h+=vMoney(); else if(S.office==="texts") h+=vTexts(); else if(S.office==="team") h+=vTeam(); else if(S.office==="hours") h+=vHours(); else if(S.office==="statement") h+=vStatement(); else h+=vSettings();
   return h;
 }
 const hasPct = v => v!==undefined && v!==null && v!=="" && !isNaN(Number(v));
@@ -653,35 +675,6 @@ function split(j,f){
   const inc = j.source==="tcl" ? p*R.tcl : p, ss=p*sp;
   return {price:p,incoming:inc,ss,net:inc-ss,ssPct:sp,custom};
 }
-function vMoney(){
-  const R=rates(), jobs=jobsArr().filter(j=>j.stage!=="cancelled");
-  const T={in:0,col:0,ssOwed:0,ssPaid:0,net:0,price:0}, by={tcl:0,pl:0,tclSS:0}; let noPrice=0;
-  for(const j of jobs){ const f=S.fin.get(j.id)||{}, s=split(j,f); if(!s.price){ noPrice++; continue; }
-    T.price+=s.price; T.in+=s.incoming; if(f.collected) T.col+=s.incoming; if(s.ss){ f.ssPaid?T.ssPaid+=s.ss:T.ssOwed+=s.ss; } T.net+=s.net;
-    if(j.source==="tcl"){ coOf(j.crew)==="shipshape"?by.tclSS+=s.net:by.tcl+=s.net; } else by.pl+=s.net; }
-  let h=`<p class="lede">TCL pays ProLight ${R.tcl*100}% of each TCL job. On TCL / ShipShape jobs, ShipShape gets ${R.ss*100}% and ProLight keeps ${Math.round((R.tcl-R.ss)*100)}% for management and storage.</p>
-  <div class="tiles">
-    <div class="tile hero"><span class="l">ProLight keeps this season</span><span class="v">${money(T.net)}</span></div>
-    <div class="tile"><span class="l">Coming in</span><span class="v">${money(T.in)}</span></div>
-    <div class="tile"><span class="l">Still to collect</span><span class="v" style="color:${T.in-T.col>0?"var(--amber-text)":"inherit"}">${money(T.in-T.col)}</span></div>
-    <div class="tile"><span class="l">Owe ShipShape</span><span class="v" style="color:${T.ssOwed>0?"var(--red)":"inherit"}">${money(T.ssOwed)}</span></div>
-    <div class="tile"><span class="l">Paid ShipShape</span><span class="v">${money(T.ssPaid)}</span></div>
-    <div class="tile"><span class="l">ProLight jobs</span><span class="v">${money(by.pl)}</span></div>
-    <div class="tile"><span class="l">TCL / ProLight</span><span class="v">${money(by.tcl)}</span></div>
-    <div class="tile"><span class="l">TCL / ShipShape</span><span class="v">${money(by.tclSS)}</span></div>
-  </div>`;
-  if(noPrice) h+=`<div class="note">${noPrice} job${noPrice>1?"s have":" has"} no price yet and ${noPrice>1?"aren't":"isn't"} counted.</div>`;
-  const priced=jobs.filter(j=>Number((S.fin.get(j.id)||{}).price)).sort((a,b)=>String(clientOf(a).name).localeCompare(String(clientOf(b).name)));
-  if(priced.length){
-    h+=`<div class="tbl"><table><thead><tr><th>Client</th><th>Label</th><th>Invoice</th><th class="r">Job price</th><th class="r">To ProLight</th><th class="r">ShipShape</th><th class="r">We keep</th><th>Collected</th><th>ShipShape paid</th></tr></thead><tbody>
-    ${priced.map(j=>{ const f=S.fin.get(j.id)||{}, s=split(j,f); return `<tr><td><button type="button" class="tog" style="border:0;padding:0;background:none;color:var(--ink)" data-act="job" data-id="${esc(j.id)}"><b>${esc(clientOf(j).name)}</b></button></td><td><span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span></td><td class="mono">${esc(f.invoiceNo||"—")}</td>
-      <td class="r">${money(s.price)}</td><td class="r">${money(s.incoming)}</td><td class="r">${s.ss?`${money(s.ss)} <span class="count" style="font-size:12px">${pctTxt(s.ssPct)}${s.custom?"*":""}</span>`:"—"}</td><td class="r"><b>${money(s.net)}</b></td>
-      <td><button type="button" class="tog" data-act="fin-tog" data-k="collected" data-id="${esc(j.id)}" aria-pressed="${!!f.collected}">${f.collected?"Collected":"Open"}</button></td>
-      <td>${s.ss?`<button type="button" class="tog" data-act="fin-tog" data-k="ssPaid" data-id="${esc(j.id)}" aria-pressed="${!!f.ssPaid}">${f.ssPaid?"Paid":"Owed"}</button>`:"—"}</td></tr>`; }).join("")}
-    </tbody></table></div>`;
-  }
-  return h;
-}
 function briefText(team,date){
   const stops=stopsFor(date,team), tn=team==="all"?"All crews":teamName(team);
   const L=[`${tn.toUpperCase()} · ${fmtDay(date,{weekday:"long",month:"short",day:"numeric"})}`];
@@ -690,7 +683,7 @@ function briefText(team,date){
   const eta=estTimes(stops), wx=wxText(date);
   if(wx) L.push(wx);
   L.push(`Leave from the shop: ${shop().address}`);
-  if(team!=="all"){ const u=dayRouteUrl(stops); if(u) L.push("Full route: "+u); }
+  if(team!=="all"){ const U=routeUrls(stops); if(U) L.push("Route in Apple Maps: "+U.apple, "Route in Google Maps: "+U.google); const ta=assignOf(date,team); if(ta) L.push(`Truck: ${ta.truck||"not set"}${ta.trailer?" + trailer "+ta.trailer:" · no trailer"}${ta.note?" · "+ta.note:""}`); }
   L.push("",`${stops.length} stop${stops.length>1?"s":""}, in this order:`,"");
   stops.forEach((s,i)=>{ const c=clientOf(s.j), a=addrOf(s.j);
     L.push(`${i+1}. ${VTYPE[s.v.type].toUpperCase()}${s.v.time?" @ "+fmtTime(s.v.time):""} · ${c.name||"Customer"} (${label(s.j)})`);
@@ -703,7 +696,8 @@ function briefText(team,date){
     const mk=(s.j.mockups||[]).length; if(mk) L.push(`   Mockup: ${mk} file${mk>1?"s":""} on the board`);
     (s.j.links||[]).forEach((u,k)=>L.push(`   Mockup${s.j.links.length>1?" "+(k+1):""}: ${u}`));
     if(team==="all") L.push("   Crew: "+teamName(crewOf(s.j,s.v)));
-    L.push(""); });
+    L.push("");
+    if(eta.lunch&&eta.lunch.after===i) L.push(`LUNCH ~${minTxt(eta.lunch.min)} (${LUNCH_MIN} min)`, ""); });
   if(team!=="all"){ const tt=truckText(truckList(stops)); if(tt) L.push("TRUCK LIST", tt, ""); }
   L.push("Mockups, photos and check-off:", BOARD_URL);
   return L.join("\n");
@@ -723,6 +717,9 @@ function vSettings(){
     <fieldset><legend>Shop</legend><div class="two">
       <div class="f"><label for="s-shop">Shop address</label><input id="s-shop" value="${esc(shop().address)}"><small>Routes start and end here.</small></div>
       <div class="f"><label for="s-leave">Crews leave at</label><input id="s-leave" type="time" value="${esc(shop().leave||"08:00")}"><small>Used for arrival estimates.</small></div></div></fieldset>
+    <fieldset><legend>Trucks &amp; trailers</legend><div class="two">
+      <div class="f"><label for="s-trucks">Trucks, one per line</label><textarea id="s-trucks" placeholder="F-250 #1&#10;F-250 #2&#10;Box truck">${esc((S.settings.trucks||[]).join("\n"))}</textarea></div>
+      <div class="f"><label for="s-trailers">Trailers, one per line</label><textarea id="s-trailers" placeholder="16 ft enclosed&#10;12 ft utility">${esc((S.settings.trailers||[]).join("\n"))}</textarea></div></div></fieldset>
     <fieldset><legend>Crews</legend><p class="lede" style="font-size:14px">Add the people on each crew, one name per line. Names show on the route and in the night-before text.</p>
     ${C.map(c=>`<div class="vedit"><div class="full"><span class="lbl ${c.co==="shipshape"?"":"pl"}">${c.co==="shipshape"?"ShipShape":"ProLight"}</span>${C.filter(x=>x.co===c.co).length>1&&!used(c.id)?`<button type="button" class="btn small danger" data-act="rm-crew" data-v="${esc(c.id)}">Remove crew</button>`:""}</div>
       <div class="f"><label for="s-${c.id}-name">Crew name</label><input id="s-${c.id}-name" value="${esc(c.name)}"></div>
@@ -862,7 +859,7 @@ function renderDrawer(){
   if(!D){ root.innerHTML=""; return; }
   const prev=$("#dbody"), top=prev?prev.scrollTop:0;
   const focusId=document.activeElement&&document.activeElement.id;
-  root.innerHTML = D.kind==="job"?dJob(D.id): D.kind==="client"?dClient(D.id): D.kind==="jobEdit"?dJobEdit(): D.kind==="truck"?dTruck(D.id): D.kind==="account"?dAccount(): D.kind==="person"?dPerson(): dClientEdit();
+  root.innerHTML = D.kind==="job"?dJob(D.id): D.kind==="client"?dClient(D.id): D.kind==="jobEdit"?dJobEdit(): D.kind==="truck"?dTruck(D.id): D.kind==="pay"?dPay(): D.kind==="assign"?dAssign(D.id): D.kind==="food"?dFood(D.id): D.kind==="account"?dAccount(): D.kind==="person"?dPerson(): dClientEdit();
   const nb=$("#dbody"); if(nb && D.keep) nb.scrollTop=top;
   if(focusId){ const el=document.getElementById(focusId); if(el && el.id==="compose-text"){ el.focus(); el.setSelectionRange(el.value.length,el.value.length); } }
   D.keep=true;
@@ -983,18 +980,18 @@ function partnerMarks(j){
   return m.join("");
 }
 /* ---------- people & sign-in ---------- */
-function applyPerms(P){ P=P||{}; S.me.owner=!!P.can_edit; S.me.money=!!P.can_money; S.me.manage=!!P.can_manage; S.me.canLog=!!P.can_log; S.me.name=P.name||""; }
+function applyPerms(P){ P=P||{}; S.me.owner=!!P.can_edit; S.me.money=!!P.can_money; S.me.manage=!!P.can_manage; S.me.canLog=!!P.can_log; S.me.name=P.name||""; S.me.partner=P.partner||""; }
 window.addEventListener("prolight:staff",()=>{ applyPerms(PL.me()); for(const p of PL.staff()) S.names.set(p.id,p.name); refresh(); if(S.drawer&&S.drawer.kind==="person"){} });
-const PRESETS={ member:{can_log:true,all_crews:false,can_edit:false,can_money:false,can_manage:false}, lead:{can_log:true,all_crews:true,can_edit:false,can_money:false,can_manage:false}, office:{can_log:true,all_crews:true,can_edit:true,can_money:false,can_manage:false}, manager:{can_log:true,all_crews:true,can_edit:true,can_money:true,can_manage:true} };
+const PRESETS={ ssowner:{can_log:true,all_crews:false,can_edit:false,can_money:false,can_manage:false,partner:"shipshape"}, member:{can_log:true,all_crews:false,can_edit:false,can_money:false,can_manage:false,partner:""}, lead:{can_log:true,all_crews:true,can_edit:false,can_money:false,can_manage:false,partner:""}, office:{can_log:true,all_crews:true,can_edit:true,can_money:false,can_manage:false,partner:""}, manager:{can_log:true,all_crews:true,can_edit:true,can_money:true,can_manage:true,partner:""} };
 const PERMS=[["can_log","Check off stops and post notes, photos and video",""],["all_crews","See every crew's jobs","Off: only jobs assigned to their own crew"],["can_edit","Edit jobs, clients, crews and the schedule",""],["can_money","See prices, payouts and the Money tab",""],["can_manage","Add people, change PINs and permissions",""]];
-function permSummary(p){ return [p.can_manage&&"Manager",!p.can_manage&&p.can_edit&&"Office",p.can_money&&"Money",p.can_log&&"Checks off",!p.all_crews&&"Own crew only"].filter(Boolean).join(" · ")||"Can only view"; }
+function permSummary(p){ return [p.can_manage&&"Manager",!p.can_manage&&p.can_edit&&"Office",p.can_money&&"Money",p.partner&&"ShipShape statement",p.can_log&&"Checks off",!p.all_crews&&"Own crew only"].filter(Boolean).join(" · ")||"Can only view"; }
 function vTeam(){
   const P=PL.staff();
   return `<div class="bar"><p class="lede grow">Everyone who can sign in. Each person picks their name and types their own 6-digit PIN.</p>${S.me.manage?`<button type="button" class="btn amber" data-act="person-new">+ Add person</button>`:""}</div>
   <div class="rows">${P.map(p=>`<button type="button" class="row" data-act="person" data-id="${esc(p.id)}"><span class="bulb ${p.active?"on":"red"}"></span>
     <span class="m"><span class="n">${esc(p.name)}${p.id===S.me.id?" (you)":""}</span><span class="s">${esc(permSummary(p))}</span></span>
     <span class="r"><span class="count" style="font-size:13px">${esc(p.crew?teamName(p.crew):"No crew")}</span>${p.active?"":`<span class="st cancelled">Turned off</span>`}</span></button>`).join("")}</div>
-  <div class="note">Quick presets when adding someone: <b>Crew member</b> checks off their crew's stops. <b>Crew lead</b> also sees every crew. <b>Office</b> edits jobs and the schedule. <b>Manager</b> does everything, including money and people.</div>`;
+  <div class="note">Quick presets when adding someone: <b>ShipShape owner</b> sees ShipShape's jobs and only ShipShape's payouts. <b>Crew member</b> checks off their crew's stops. <b>Crew lead</b> also sees every crew. <b>Office</b> edits jobs and the schedule. <b>Manager</b> does everything, including money and people.</div>`;
 }
 function dPerson(){
   const p=S.form.person, isNew=!p.id;
@@ -1006,8 +1003,8 @@ function dPerson(){
       <div class="f"><label for="pp-pin">${isNew?"6-digit PIN":"New PIN (leave blank to keep theirs)"}</label><input id="pp-pin" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" ${isNew?"required":""} placeholder="${isNew?"":"••••••"}"><small>Give them this PIN in person or by text. They can change it from Account.</small></div>
     </fieldset>
     <fieldset><legend>What they can do</legend>
-      <div class="bar">${[["member","Crew member"],["lead","Crew lead"],["office","Office"],["manager","Manager"]].map(([k,l])=>`<button type="button" class="chip" data-act="preset" data-v="${k}">${l}</button>`).join("")}</div>
-      <div class="checks">${PERMS.map(([k,l,h])=>`<label><input type="checkbox" id="pp-${k}" ${p[k]?"checked":""}><span>${l}${h?`<small>${h}</small>`:""}</span></label>`).join("")}</div>
+      <div class="bar">${[["member","Crew member"],["lead","Crew lead"],["office","Office"],["manager","Manager"],["ssowner","ShipShape owner"]].map(([k,l])=>`<button type="button" class="chip" data-act="preset" data-v="${k}">${l}</button>`).join("")}</div>
+      <div class="checks">${PERMS.map(([k,l,h])=>`<label><input type="checkbox" id="pp-${k}" ${p[k]?"checked":""}><span>${l}${h?`<small>${h}</small>`:""}</span></label>`).join("")}<label><input type="checkbox" id="pp-partner" ${p.partner==="shipshape"?"checked":""}><span>ShipShape owner statement<small>Sees ShipShape's payout on each ShipShape job and the payments made to ShipShape. Never sees job prices or ProLight's numbers.</small></span></label></div>
     </fieldset>
     ${isNew?"":`<fieldset><legend>Access</legend><div class="checks"><label><input type="checkbox" id="pp-active" ${p.active?"checked":""}><span>Can sign in<small>Turn off when someone leaves. Their check-offs and notes stay on the board.</small></span></label></div></fieldset>`}
     <div class="actions"><span class="count" id="pp-err" style="color:var(--red)"></span><button type="submit" class="btn amber" ${S.busy?"disabled":""}>${isNew?"Add person":"Save changes"}</button></div>
@@ -1018,6 +1015,7 @@ async function savePerson(){
   const p=S.form.person, g=id=>document.getElementById(id);
   const out={ id:p.id, name:g("pp-name").value.trim(), crew:g("pp-crew").value, active:p.id?g("pp-active").checked:true };
   for(const [k] of PERMS) out[k]=g("pp-"+k).checked;
+  out.partner=g("pp-partner").checked?"shipshape":"";
   const pin=g("pp-pin").value.trim();
   if(!out.name){ g("pp-err").textContent="Add their name."; return; }
   if((!p.id||pin) && !/^[0-9]{6}$/.test(pin)){ g("pp-err").textContent="The PIN needs exactly 6 digits."; return; }
@@ -1030,6 +1028,7 @@ async function savePerson(){
 function dAccount(){
   const me=PL.me()||{};
   return drawerShell("Signed in", me.name||"You", `<p class="lede">${esc(permSummary(me))}${me.crew?" · "+esc(teamName(me.crew)):""}</p>
+  <div class="f"><label>Directions open in</label><div class="seg" role="group">${[["apple","Apple Maps"],["google","Google Maps"]].map(([k,l])=>`<button type="button" data-act="maps-app" data-v="${k}" aria-pressed="${MAPS_APP()===k}">${l}</button>`).join("")}</div></div>
   <form class="form" id="pinForm" autocomplete="off"><fieldset><legend>Change my PIN</legend><div class="two">
     <div class="f"><label for="np1">New 6-digit PIN</label><input id="np1" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required></div>
     <div class="f"><label for="np2">Type it again</label><input id="np2" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required></div></div></fieldset>
@@ -1079,12 +1078,15 @@ function dayRouteUrl(stops){
 }
 function estTimes(stops){
   const m=new Map(), lv=(shop().leave||"08:00").split(":").map(Number); let t=lv[0]*60+(lv[1]||0), prev=shop();
-  for(const s of stops){
+  let lunch=null;
+  stops.forEach((s,i)=>{
     if(hasLL(s.j)){ t+=Math.round(legMiles(prev,s.j)/MPH*60); prev=s.j; } else t+=15;
     const key=s.j.id+"|"+s.v.id;
     if(s.v.time){ const [h,mi]=s.v.time.split(":").map(Number); t=h*60+mi; m.set(key,{min:t,fixed:true}); } else m.set(key,{min:t,fixed:false});
     t+=ON_SITE[s.v.type]||60;
-  }
+    if(!lunch && t>=LUNCH_AT && i<stops.length-1){ const nx=stops[i+1]; lunch={after:i,min:t,a:hasLL(s.j)?s.j:null,b:hasLL(nx.j)?nx.j:null,aName:clientOf(s.j).name,bName:clientOf(nx.j).name}; t+=LUNCH_MIN; }
+  });
+  m.lunch=lunch;
   return m;
 }
 const minTxt=min=>{ const h=Math.floor(min/60)%24, mm=min%60; return `${((h+11)%12)+1}:${pad(mm)} ${h<12?"AM":"PM"}`; };
@@ -1143,10 +1145,12 @@ function routeTools(d,stops){
     ${wx||mi?`<div class="wxline">${wx}${mi?`<span><b>Drive</b>≈${Math.round(mi)} mi, shop and back</span>`:""}</div>`:""}
     ${stops.length?`<div class="bar">
       ${S.me.owner&&multi.length?`<button type="button" class="btn small amber" data-act="best-order" data-v="${d}">Best order from shop</button>`:""}
-      ${team!=="all"?`<a class="btn small" href="${esc(dayRouteUrl(stops))}" target="_blank" rel="noopener">Full route ↗</a>`:""}
+      ${team!=="all"&&routeUrls(stops)?`<a class="btn small" href="${esc(routeUrls(stops).apple)}" target="_blank" rel="noopener">Apple Maps route ↗</a><a class="btn small" href="${esc(routeUrls(stops).google)}" target="_blank" rel="noopener">Google Maps route ↗</a>`:""}
       <button type="button" class="btn small" data-act="truck" data-v="${d}">Truck list</button>
+      ${d===todayISO()?`<button type="button" class="btn small" data-act="hungry" data-v="live">I'm hungry</button>`:""}
       ${S.me.canLog&&d===todayISO()?`<button type="button" class="chip" data-act="auto-clock" aria-pressed="${AUTO.on}">Auto clock-in${AUTO.on?" · on":""}</button>`:""}
     </div>`:""}
+    ${stops.length?(team!=="all"?truckLine(d,team):truckAllLines(d)):""}
     ${AUTO.on&&d===todayISO()?`<div class="count" style="font-size:13px">${esc(autoStatus())}</div>`:""}
   </div>`;
 }
@@ -1204,8 +1208,8 @@ function truckHTML(t){
 }
 function dTruck(d){
   const groups = S.team==="all" ? crews().map(c=>[c,stopsFor(d,c.id)]).filter(([,st])=>st.length) : [[crewObj(S.team)||{id:S.team,name:teamName(S.team)},stopsFor(d,S.team)]];
-  const txt=groups.map(([c,st])=>`${c.name.toUpperCase()} TRUCK · ${fmtDay(d,{weekday:"short",month:"short",day:"numeric"})}\n`+truckText(truckList(st))).join("\n\n");
-  const b=`${groups.length?groups.map(([c,st])=>`<section class="blk"><h3 class="h-sec">${esc(c.name)} · ${st.length} stop${st.length>1?"s":""}</h3>${truckHTML(truckList(st))}</section>`).join(""):`<p class="lede">No stops this day.</p>`}
+  const txt=groups.map(([c,st])=>`${c.name.toUpperCase()} TRUCK · ${fmtDay(d,{weekday:"short",month:"short",day:"numeric"})}\n`+(assignOf(d,c.id)?`Truck: ${assignOf(d,c.id).truck||"not set"}${assignOf(d,c.id).trailer?" + trailer "+assignOf(d,c.id).trailer:" · no trailer"}\n`:"")+truckText(truckList(st))).join("\n\n");
+  const b=`${groups.length?groups.map(([c,st])=>`<section class="blk"><h3 class="h-sec">${esc(c.name)} · ${st.length} stop${st.length>1?"s":""}</h3>${truckLine(d,c.id)}${truckHTML(truckList(st))}</section>`).join(""):`<p class="lede">No stops this day.</p>`}
     <p class="count" style="font-size:13px">Built from each job's "what goes where" list. Bring extra bulbs and clips. Footage only counts where it's on the job.</p>
     <textarea id="truck-text" class="search" style="min-height:120px;font-family:var(--f-mono);font-size:12px" readonly>${esc(txt)}</textarea>
     <div><button type="button" class="btn amber" data-act="copy" data-v="truck-text">Copy truck list</button></div>`;
@@ -1300,6 +1304,279 @@ async function shopFromForm(){
   const r=await PL.geocode(a).catch(()=>null);
   if(!r){ toast("Couldn't find the shop address. Kept the old one."); return out; }
   return {...out,address:a,lat:+(+r.lat).toFixed(5),lng:+(+r.lng).toFixed(5)};
+}
+
+/* ---------- maps app preference (Apple or Google) ---------- */
+const MAPS_APP = () => ls("mapsApp") || (/iPhone|iPad|Macintosh/.test(navigator.userAgent) ? "apple" : "google");
+const appleDir = (dest, waypoints=[], source) => "https://maps.apple.com/directions?" + [source?"source="+encodeURIComponent(source):"", "destination="+encodeURIComponent(dest), ...waypoints.map(w=>"waypoint="+encodeURIComponent(w)), "mode=driving"].filter(Boolean).join("&");
+const googleDir = (dest, waypoints=[], source) => "https://www.google.com/maps/dir/?api=1" + (source?"&origin="+encodeURIComponent(source):"") + "&destination="+encodeURIComponent(dest) + (waypoints.length?"&waypoints="+encodeURIComponent(waypoints.join("|")):"") + "&travelmode=driving";
+const dirUrl = (dest, waypoints, source) => MAPS_APP()==="apple" ? appleDir(dest, waypoints, source) : googleDir(dest, waypoints, source);
+function routeUrls(stops){
+  const a=stops.map(s=>addrOf(s.j)).filter(Boolean); if(!a.length) return null; const sh=shop().address;
+  return { apple: appleDir(sh, a.slice(0,14), sh), google: googleDir(sh, a.slice(0,9), sh), capped: a.length>9 };
+}
+
+/* ---------- payments + money totals ---------- */
+S.pays = S.pays || new Map();
+const money2 = n => "$" + (Math.round((n||0)*100)/100).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const firstDate = j => (j.visits||[]).map(v=>v.date).filter(Boolean).sort()[0] || "";
+const installedOn = j => { const d=[...S.log.values()].filter(e=>e.kind==="done"&&e.jobId===j.id).map(e=>e.at).sort()[0]; return d?isoOf(d):""; };
+function ledger(party){ return [...S.pays.entries()].map(([id,p])=>({id,...p})).filter(p=>p.party===party).sort((a,b)=>String(b.date).localeCompare(String(a.date))); }
+function paidSet(party){ const s=new Set(); for(const p of ledger(party)) (p.jobs||[]).forEach(x=>s.add(x)); return s; }
+function moneyRows(){
+  return jobsArr().filter(j=>j.stage!=="cancelled").map(j=>{ const f=S.fin.get(j.id)||{}, s=split(j,f), st=status(j);
+    return {j,f,s,st,done:st==="lit"||st==="down",client:clientOf(j).name||"Customer",date:firstDate(j)}; });
+}
+function moneyTotals(){
+  const R=moneyRows(), sum=(a,fn)=>a.reduce((t,x)=>t+(fn(x)||0),0);
+  const tcl=R.filter(r=>r.j.source==="tcl"&&r.s.price), own=R.filter(r=>r.j.source!=="tcl"&&r.s.price), ss=R.filter(r=>r.s.ss>0);
+  const tPaid=paidSet("tcl"), sPaid=paidSet("shipshape");
+  const T={ R,
+    tcl:{rows:tcl, booked:sum(tcl,r=>r.s.incoming), earned:sum(tcl.filter(r=>r.done),r=>r.s.incoming), paid:sum(ledger("tcl"),p=>+p.amount), paidSet:tPaid},
+    ss:{rows:ss, booked:sum(ss,r=>r.s.ss), earned:sum(ss.filter(r=>r.done),r=>r.s.ss), paid:sum(ledger("shipshape"),p=>+p.amount), paidSet:sPaid},
+    own:{rows:own, booked:sum(own,r=>r.s.price), earned:sum(own.filter(r=>r.done),r=>r.s.price), paid:sum(own.filter(r=>r.f.collected),r=>r.s.price)},
+    noPrice:R.filter(r=>!r.s.price).length };
+  T.tcl.due=T.tcl.earned-T.tcl.paid; T.ss.due=T.ss.earned-T.ss.paid; T.own.due=T.own.earned-T.own.paid;
+  T.net={booked:T.tcl.booked-T.ss.booked+T.own.booked, earned:T.tcl.earned-T.ss.earned+T.own.earned};
+  T.legacyT=tcl.filter(r=>r.f.collected&&!tPaid.has(r.j.id)).length; T.legacyS=ss.filter(r=>r.f.ssPaid&&!sPaid.has(r.j.id)).length;
+  return T;
+}
+const isPaid = (party, r, T) => party==="tcl" ? (T.tcl.paidSet.has(r.j.id)||!!r.f.collected) : (T.ss.paidSet.has(r.j.id)||!!r.f.ssPaid);
+const pctBar = (a,b) => `<div class="pbar"><span style="width:${b>0?Math.min(100,Math.max(0,a/b*100)):0}%"></span></div>`;
+
+function vMoney(){
+  const T=moneyTotals(), tab=S.mtab||"overview";
+  const tabs=[["overview","Overview"],["tcl","TCL"],["ss","ShipShape"],["own","ProLight jobs"],["pays","Payments"]];
+  let h=`<div class="chips" role="group" aria-label="Money">${tabs.map(([k,l])=>`<button type="button" class="chip" data-act="mtab" data-v="${k}" aria-pressed="${tab===k}">${l}</button>`).join("")}</div>`;
+  if(tab==="overview") h+=mOverview(T); else if(tab==="tcl") h+=mStatement("tcl",T); else if(tab==="ss") h+=mStatement("shipshape",T); else if(tab==="own") h+=mOwn(T); else h+=mPayments(T);
+  return h;
+}
+function mOverview(T){
+  const R=rates();
+  const card=(title,logo,big,bigLbl,lines,party,paid,earned)=>`<section class="mcard"><header><div><span class="eyebrow">${title}</span><div class="mbig">${money2(big)}</div><span class="count" style="font-size:13px">${bigLbl}</span></div>${logo}</header>
+    ${pctBar(paid,earned)}<dl class="kv">${lines.map(([k,v])=>`<dt>${k}</dt><dd class="mono">${v}</dd>`).join("")}</dl>
+    ${party?`<div class="bar"><button type="button" class="btn small amber" data-act="pay-new" data-v="${party}">Record ${party==="tcl"?"payment from TCL":"payment to ShipShape"}</button><button type="button" class="btn small" data-act="mtab" data-v="${party==="tcl"?"tcl":"ss"}">Statement</button></div>`:""}</section>`;
+  return `<div class="mhero"><div><span class="eyebrow">ProLight keeps this season</span><div class="mhero-v">${money2(T.net.booked)}</div><span>${money2(T.net.earned)} earned on installed jobs · ${money2(T.net.booked-T.net.earned)} still to install</span></div></div>
+  <div class="mgrid">
+    ${card("TCL owes ProLight",`<img src="/brand/tcl.png" alt="" class="mlogo">`,T.tcl.due,"balance due on installed jobs",[["Earned (installed)",money2(T.tcl.earned)],["Paid to us",money2(T.tcl.paid)],["Still to install",money2(T.tcl.booked-T.tcl.earned)],["Whole season",money2(T.tcl.booked)]],"tcl",T.tcl.paid,T.tcl.earned)}
+    ${card("ProLight owes ShipShape",`<img src="/brand/shipshape.png" alt="" class="mlogo ss">`,T.ss.due,"balance on installed jobs",[["Earned (installed)",money2(T.ss.earned)],["Paid to them",money2(T.ss.paid)],["Still to install",money2(T.ss.booked-T.ss.earned)],["Whole season",money2(T.ss.booked)]],"shipshape",T.ss.paid,T.ss.earned)}
+    ${card("ProLight's own jobs","",T.own.due,"to collect on installed jobs",[["Installed",money2(T.own.earned)],["Collected",money2(T.own.paid)],["Still to install",money2(T.own.booked-T.own.earned)],["Whole season",money2(T.own.booked)]],"",T.own.paid,T.own.earned)}
+  </div>
+  <p class="lede" style="font-size:14px">TCL pays ProLight ${R.tcl*100}% of each TCL job. ShipShape gets ${R.ss*100}% of the TCL price on jobs they do, unless a job has its own split. Balances count installed jobs only, minus recorded payments.</p>
+  ${T.noPrice?`<div class="note">${T.noPrice} job${T.noPrice>1?"s have":" has"} no price and ${T.noPrice>1?"aren't":"isn't"} counted.</div>`:""}
+  ${T.legacyT||T.legacyS?`<div class="note">${[T.legacyT&&`${T.legacyT} TCL job${T.legacyT>1?"s are":" is"} marked paid`,T.legacyS&&`${T.legacyS} ShipShape job${T.legacyS>1?"s are":" is"} marked paid`].filter(Boolean).join(" and ")} without a payment record, so ${T.legacyT+T.legacyS>1?"they don't":"it doesn't"} count toward "Paid". Record the payment to fix the balance.</div>`:""}`;
+}
+function mStatement(party,T){
+  const P=party==="tcl"?T.tcl:T.ss, f=S.mfilter||"open";
+  let rows=P.rows.slice().sort((a,b)=>String(a.date||"9").localeCompare(String(b.date||"9"))||a.client.localeCompare(b.client));
+  if(f==="open") rows=rows.filter(r=>r.done&&!isPaid(party,r,T)); else if(f==="installed") rows=rows.filter(r=>r.done); else if(f==="upcoming") rows=rows.filter(r=>!r.done);
+  const amt=r=>party==="tcl"?r.s.incoming:r.s.ss, tot=rows.reduce((t,r)=>t+amt(r),0);
+  const chips=[["open","Installed, unpaid"],["installed","Installed"],["upcoming","Not installed yet"],["all","All"]];
+  return `<div class="mstat-head"><div><span class="eyebrow">${party==="tcl"?"TCL owes ProLight":"ProLight owes ShipShape"}</span><div class="mbig">${money2(P.due)}</div><span class="count">${money2(P.earned)} earned · ${money2(P.paid)} paid</span></div>
+    <div class="bar"><button type="button" class="btn amber small" data-act="pay-new" data-v="${party}">Record payment</button><button type="button" class="btn small" data-act="stmt-copy" data-v="${party}">Copy statement</button><button type="button" class="btn small" data-act="stmt-csv" data-v="${party}">Download CSV</button>${party==="shipshape"?`<button type="button" class="btn small" data-act="office" data-v="statement">See ShipShape's view</button>`:""}</div></div>
+  <div class="chips">${chips.map(([k,l])=>`<button type="button" class="chip" data-act="mfilter" data-v="${k}" aria-pressed="${f===k}">${l}</button>`).join("")}</div>
+  <div class="tbl"><table><thead><tr><th>Client</th><th>Install</th>${party==="tcl"?`<th class="r">Job price</th><th class="r">ProLight ${rates().tcl*100}%</th>`:`<th>Crew</th><th class="r">Split</th><th class="r">Payout</th>`}<th>Status</th></tr></thead>
+  <tbody>${rows.map(r=>{ const paid=isPaid(party,r,T); return `<tr><td><button type="button" class="tog" style="border:0;padding:0;background:none;color:var(--ink)" data-act="job" data-id="${esc(r.j.id)}"><b>${esc(r.client)}</b></button></td><td class="mono">${r.done?esc(fmtDay(installedOn(r.j)||r.date)):r.date?"Sched. "+esc(fmtDay(r.date)):"—"}</td>
+    ${party==="tcl"?`<td class="r">${money2(r.s.price)}</td><td class="r"><b>${money2(r.s.incoming)}</b></td>`:`<td>${esc(teamName(r.j.crew))}</td><td class="r">${pctTxt(r.s.ssPct)}${r.s.custom?"*":""}</td><td class="r"><b>${money2(r.s.ss)}</b></td>`}
+    <td>${!r.done?`<span class="st scheduled">Not installed</span>`:paid?`<span class="st down">Paid</span>`:`<span class="st lit">Owed</span>`}</td></tr>`; }).join("")||`<tr><td colspan="6" class="count">Nothing here.</td></tr>`}</tbody>
+  <tfoot><tr><td colspan="${party==="tcl"?3:4}"><b>${rows.length} job${rows.length===1?"":"s"}</b></td><td class="r"><b>${money2(tot)}</b></td><td></td></tr></tfoot></table></div>
+  ${party==="shipshape"?`<p class="count" style="font-size:13px">* custom split set on that job.</p>`:""}
+  <h2 class="h-sec">Payments</h2>${payList(ledger(party))}`;
+}
+function mOwn(T){
+  const rows=T.own.rows.slice().sort((a,b)=>a.client.localeCompare(b.client));
+  return `<div class="mstat-head"><div><span class="eyebrow">ProLight's own jobs</span><div class="mbig">${money2(T.own.due)}</div><span class="count">to collect · ${money2(T.own.paid)} collected of ${money2(T.own.booked)}</span></div></div>
+  <div class="tbl"><table><thead><tr><th>Client</th><th>Install</th><th class="r">Price</th><th>Customer paid</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${esc(r.client)}</b></td><td class="mono">${r.done?esc(fmtDay(installedOn(r.j)||r.date)):"—"}</td><td class="r">${money2(r.s.price)}</td><td><button type="button" class="tog" data-act="fin-tog" data-k="collected" data-id="${esc(r.j.id)}" aria-pressed="${!!r.f.collected}">${r.f.collected?"Collected":"Open"}</button></td></tr>`).join("")||`<tr><td colspan="4" class="count">No ProLight jobs with a price yet.</td></tr>`}</tbody></table></div>`;
+}
+function payList(list){
+  if(!list.length) return `<p class="lede" style="font-size:14px">No payments recorded yet.</p>`;
+  return `<div class="rows">${list.map(p=>`<div class="row" style="cursor:default"><span class="lbl ${p.party==="tcl"?"tcl":"pl"}">${p.party==="tcl"?"From TCL":p.party==="shipshape"?"To ShipShape":"Other"}</span>
+    <span class="m"><span class="n mono">${money2(p.amount)}</span><span class="s">${esc(fmtDay(p.date,{month:"short",day:"numeric",year:"numeric"}))}${p.method?" · "+esc(p.method):""}${(p.jobs||[]).length?` · ${p.jobs.length} job${p.jobs.length>1?"s":""}`:""}${p.memo?" · "+esc(p.memo):""}</span></span>
+    <span class="r">${S.me.owner?(S.delPay===p.id?`<button type="button" class="btn small danger" data-act="pay-del" data-id="${esc(p.id)}">Tap to delete</button>`:`<button type="button" class="btn small" data-act="pay-del-ask" data-id="${esc(p.id)}">Delete</button>`):""}</span></div>`).join("")}</div>`;
+}
+function mPayments(T){
+  const all=[...ledger("tcl"),...ledger("shipshape")].sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  return `<div class="bar"><button type="button" class="btn amber small" data-act="pay-new" data-v="tcl">Payment from TCL</button><button type="button" class="btn amber small" data-act="pay-new" data-v="shipshape">Payment to ShipShape</button></div>
+  <div class="tiles"><div class="tile"><span class="l">Received from TCL</span><span class="v">${money2(T.tcl.paid)}</span></div><div class="tile"><span class="l">Paid to ShipShape</span><span class="v">${money2(T.ss.paid)}</span></div><div class="tile"><span class="l">Net cash so far</span><span class="v">${money2(T.tcl.paid-T.ss.paid+T.own.paid)}</span></div></div>
+  ${payList(all)}`;
+}
+function dPay(){
+  const F=S.form.pay, T=moneyTotals(), party=F.party, P=party==="tcl"?T.tcl:T.ss;
+  const open=P.rows.filter(r=>!isPaid(party,r,T)).sort((a,b)=>(b.done-a.done)||String(a.date).localeCompare(String(b.date)));
+  const amt=r=>party==="tcl"?r.s.incoming:r.s.ss;
+  const b=`<form class="form" id="payForm" autocomplete="off">
+    <fieldset><legend>${party==="tcl"?"Money in from TCL":"Money out to ShipShape"}</legend>
+      <div class="two"><div class="f"><label for="py-amount">Amount</label><input id="py-amount" inputmode="decimal" value="${esc(F.amount)}" placeholder="0.00"></div>
+      <div class="f"><label for="py-date">Date</label><input id="py-date" type="date" value="${esc(F.date)}"></div></div>
+      <div class="two"><div class="f"><label for="py-method">Method</label><select id="py-method">${["Check","Zelle","ACH / bank transfer","Cash","Venmo","Other"].map(m=>`<option ${F.method===m?"selected":""}>${m}</option>`).join("")}</select></div>
+      <div class="f"><label for="py-memo">Memo / check #</label><input id="py-memo" value="${esc(F.memo)}"></div></div>
+    </fieldset>
+    <fieldset><legend>Which jobs does it cover?</legend>
+      <p class="count" style="font-size:13px">Tick the jobs and the amount fills in. You can still type a different amount.</p>
+      <div class="checks">${open.map(r=>`<label><input type="checkbox" id="pj-${esc(r.j.id)}" data-jamt="${amt(r).toFixed(2)}" ${F.jobs.has(r.j.id)?"checked":""}><span><b>${esc(r.client)}</b> · <span class="mono">${money2(amt(r))}</span><small>${r.done?"Installed "+esc(fmtDay(installedOn(r.j)||r.date)):"Not installed yet"}</small></span></label>`).join("")||`<p class="count">Every job is already paid.</p>`}</div>
+    </fieldset>
+    <div class="actions"><span class="count" id="py-err" style="color:var(--red)"></span><button type="submit" class="btn amber">Save payment</button></div></form>`;
+  return drawerShell("Record payment", party==="tcl"?"From TCL":"To ShipShape", b);
+}
+async function savePay(){
+  const F=S.form.pay, amount=parseFloat(String($("#py-amount").value).replace(/[$,]/g,""));
+  if(!(amount>0)){ $("#py-err").textContent="Enter the amount."; return; }
+  const jobs=[...F.jobs], id="pay-"+uid()+uid().slice(0,4);
+  const doc={party:F.party,amount:Math.round(amount*100)/100,date:$("#py-date").value||todayISO(),method:$("#py-method").value,memo:$("#py-memo").value.trim(),jobs,at:new Date().toISOString(),by:S.me.id};
+  try{
+    await S.db.doc("fin/"+id).set(doc);
+    const flag=F.party==="tcl"?"collected":"ssPaid";
+    for(const jid of jobs){ const f=S.fin.get(jid)||{}; if(!f[flag]) await S.db.doc("fin/"+jid).set({...f,[flag]:true}); }
+    toast(`Saved ${money2(doc.amount)} ${F.party==="tcl"?"from TCL":"to ShipShape"}`); closeDrawer();
+  }catch(e){ fail(e,"save the payment"); }
+}
+async function delPay(id){
+  const p=S.pays.get(id); if(!p) return;
+  try{
+    await S.db.doc("fin/"+id).delete();
+    const still=new Set(); for(const [pid,q] of S.pays) if(pid!==id&&q.party===p.party) (q.jobs||[]).forEach(x=>still.add(x));
+    const flag=p.party==="tcl"?"collected":"ssPaid";
+    for(const jid of (p.jobs||[])) if(!still.has(jid)){ const f=S.fin.get(jid)||{}; if(f[flag]) await S.db.doc("fin/"+jid).set({...f,[flag]:false}); }
+    S.delPay=null; toast("Payment deleted");
+  }catch(e){ fail(e,"delete the payment"); }
+}
+function stmtRows(party){
+  const T=moneyTotals(), P=party==="tcl"?T.tcl:T.ss;
+  return P.rows.filter(r=>r.done).sort((a,b)=>String(installedOn(a.j)).localeCompare(String(installedOn(b.j)))).map(r=>({client:r.client,address:addrOf(r.j),installed:installedOn(r.j)||r.date,price:r.s.price,amount:party==="tcl"?r.s.incoming:r.s.ss,pct:party==="tcl"?rates().tcl*100:r.s.ssPct*100,paid:isPaid(party,r,T)}));
+}
+function stmtText(party){
+  const T=moneyTotals(), P=party==="tcl"?T.tcl:T.ss, rows=stmtRows(party), L=[];
+  L.push(party==="tcl"?"ProLight Tallahassee · Statement for Tallahassee Christmas Lights":"ProLight Tallahassee · ShipShape Exteriors payout statement", "As of "+fmtDay(todayISO(),{month:"long",day:"numeric",year:"numeric"}), "");
+  rows.forEach(r=>L.push(`${fmtDay(r.installed)}  ${r.client}  ${money2(r.amount)}${party==="shipshape"?` (${Math.round(r.pct*10)/10}%)`:""}  ${r.paid?"PAID":"OWED"}`));
+  L.push("", `Installed jobs: ${rows.length}`, `Total ${party==="tcl"?"due to ProLight":"earned by ShipShape"}: ${money2(P.earned)}`, `Paid so far: ${money2(P.paid)}`, `Balance: ${money2(P.due)}`);
+  return L.join("\n");
+}
+function stmtCsv(party){
+  const rows=stmtRows(party), q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
+  const head=party==="tcl"?["Installed","Client","Address","Job price","ProLight share","Status"]:["Installed","Client","Address","Split %","Payout","Status"];
+  const body=rows.map(r=>party==="tcl"?[r.installed,r.client,r.address,r.price.toFixed(2),r.amount.toFixed(2),r.paid?"Paid":"Owed"]:[r.installed,r.client,r.address,(Math.round(r.pct*10)/10),r.amount.toFixed(2),r.paid?"Paid":"Owed"]);
+  const blob=new Blob([[head,...body].map(r=>r.map(q).join(",")).join("\n")],{type:"text/csv"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`${party==="tcl"?"TCL":"ShipShape"}-statement-${todayISO()}.csv`; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },500);
+}
+
+/* ---------- ShipShape owner's statement ---------- */
+S.stmt = S.stmt || null;
+function vStatement(){
+  if(!S.stmt){ PL.statement().then(d=>{ S.stmt=d||{jobs:[],payments:[]}; renderMain(); }).catch(e=>{ S.stmt={error:e.message}; renderMain(); }); return `<p class="lede">Loading ShipShape's statement…</p>`; }
+  if(S.stmt.error) return `<div class="note">Couldn't load the statement: ${esc(S.stmt.error)}</div>`;
+  const J=S.stmt.jobs||[], Pm=S.stmt.payments||[], sum=(a,f)=>a.reduce((t,x)=>t+(+f(x)||0),0);
+  const earned=sum(J.filter(j=>j.installed),j=>j.payout), paid=sum(Pm,p=>p.amount), upcoming=sum(J.filter(j=>!j.installed),j=>j.payout);
+  return `${S.me.money?`<div class="note">This is exactly what the ShipShape owner's login shows. No job prices, TCL or ProLight numbers.</div>`:""}
+  <div class="mhero ss"><div><img src="/brand/shipshape.png" alt="ShipShape Exteriors" class="mlogo ss" style="height:40px"><span class="eyebrow" style="display:block;margin-top:6px">Balance owed to ShipShape</span><div class="mhero-v">${money2(earned-paid)}</div><span>${money2(earned)} earned on installed jobs · ${money2(paid)} paid · ${money2(upcoming)} on jobs not installed yet</span></div></div>
+  <div class="rows">${J.map(j=>`<div class="row" style="cursor:default"><span class="bulb ${j.installed?"on":""}"></span><span class="m"><span class="n">${esc(j.client||"Customer")}</span><span class="s">${esc(j.address||"")}</span><span class="s">${j.date?esc(fmtDay(j.date)):"No date"} · ${Math.round(j.pct*10)/10}% split</span></span>
+    <span class="r"><span class="mono" style="font-weight:600">${money2(j.payout)}</span>${!j.installed?`<span class="st scheduled">Not installed</span>`:j.paid?`<span class="st down">Paid</span>`:`<span class="st lit">Owed</span>`}</span></div>`).join("")||`<p class="lede">No ShipShape jobs yet.</p>`}</div>
+  <h2 class="h-sec">Payments from ProLight</h2>
+  ${Pm.length?`<div class="rows">${Pm.slice().reverse().map(p=>`<div class="row" style="cursor:default"><span class="lbl">Paid</span><span class="m"><span class="n mono">${money2(p.amount)}</span><span class="s">${esc(fmtDay(p.date,{month:"short",day:"numeric",year:"numeric"}))}${p.method?" · "+esc(p.method):""}${p.memo?" · "+esc(p.memo):""}</span></span><span></span></div>`).join("")}</div>`:`<p class="lede" style="font-size:14px">No payments recorded yet.</p>`}
+  <div><button type="button" class="btn small" data-act="stmt-reload">Refresh</button></div>`;
+}
+
+/* ---------- trucks + trailers ---------- */
+S.dayCfg = S.dayCfg || new Map();
+const fleet = () => ({ trucks:S.settings.trucks||[], trailers:S.settings.trailers||[] });
+const assignOf = (d,c) => (((S.dayCfg.get(d)||{}).assign)||{})[c] || null;
+function truckLine(d,c){
+  const a=assignOf(d,c), F=fleet();
+  if(!a && !S.me.owner) return "";
+  const clash = a&&a.truck ? crews().filter(x=>x.id!==c && (assignOf(d,x.id)||{}).truck===a.truck).map(x=>x.name) : [];
+  return `<div class="truckline">${a?`<span><b>Truck</b>${esc(a.truck||"Not set")}</span><span><b>Trailer</b>${esc(a.trailer||"None")}</span>${a.note?`<span>${esc(a.note)}</span>`:""}`:`<span class="count">No truck assigned</span>`}
+    ${clash.length?`<span class="st cancelled">Also on ${esc(clash.join(", "))}</span>`:""}
+    ${S.me.owner?`<button type="button" class="btn small" data-act="assign-truck" data-v="${esc(d)}|${esc(c)}">${a?"Change":"Assign truck"}</button>`:""}
+    ${S.me.owner&&!F.trucks.length?`<span class="count" style="font-size:12px">Add your trucks in Office → Settings</span>`:""}</div>`;
+}
+function truckAllLines(d){
+  const rows=crews().filter(c=>stopsFor(d,c.id).length).map(c=>{ const a=assignOf(d,c.id); return `<span><b>${esc(c.name)}</b>${a?esc(a.truck||"—")+(a.trailer?" + "+esc(a.trailer):""):"No truck"}</span>`; });
+  return rows.length?`<div class="truckline">${rows.join("")}</div>`:"";
+}
+function dAssign(key){
+  const [d,c]=key.split("|"), a=assignOf(d,c)||{}, F=fleet(), prev=assignOf(addDays(d,-1),c);
+  const opt=(list,cur,none)=>`${none?`<option value="">${none}</option>`:""}${list.map(x=>`<option ${x===cur?"selected":""}>${esc(x)}</option>`).join("")}${cur&&!list.includes(cur)?`<option selected>${esc(cur)}</option>`:""}`;
+  const b=`<form class="form" id="assignForm" data-key="${esc(key)}"><fieldset><legend>${esc(teamName(c))} · ${esc(fmtDay(d,{weekday:"short",month:"short",day:"numeric"}))}</legend>
+    <div class="f"><label for="as-truck">Truck</label><select id="as-truck">${opt(F.trucks,a.truck,"Choose a truck…")}</select>${F.trucks.length?"":`<small>No trucks yet. Add them in Office → Settings.</small>`}</div>
+    <div class="f"><label for="as-trailer">Trailer</label><select id="as-trailer">${opt(F.trailers,a.trailer,"No trailer")}</select></div>
+    <div class="f"><label for="as-note">Note</label><input id="as-note" value="${esc(a.note||"")}" placeholder="e.g. grab the 32 ft ladder, fuel up"></div>
+    ${prev?`<button type="button" class="btn small" data-act="assign-copy" data-v="${esc(key)}">Same as yesterday: ${esc(prev.truck||"")}${prev.trailer?" + "+esc(prev.trailer):""}</button>`:""}
+  </fieldset><div class="actions"><span></span><button type="submit" class="btn amber">Save</button></div></form>`;
+  return drawerShell("Truck assignment", teamName(c), b);
+}
+async function saveAssign(key, vals){
+  const [d,c]=key.split("|"), cur=S.dayCfg.get(d)||{}, assign={...(cur.assign||{})};
+  assign[c]=vals;
+  try{ await S.db.doc("settings/day-"+d).set({...cur,assign}); toast("Truck saved"); closeDrawer(); }catch(e){ fail(e,"save the truck"); }
+}
+const linesOf = id => { const el=document.getElementById(id); return el ? el.value.split("\n").map(s=>s.trim()).filter(Boolean) : undefined; };
+
+/* ---------- lunch ---------- */
+const LUNCH_AT = 11*60+30, LUNCH_MIN = 30;
+function lunchCard(L,d){
+  const a=L.a, b=L.b, mid = a&&b ? {lat:(a.lat+b.lat)/2,lng:(a.lng+b.lng)/2} : (a||b||shop());
+  return `<article class="stop lunch"><div class="rail-c"><span class="lunch-dot" aria-hidden="true"></span></div>
+    <div class="ticket lunch-t"><div class="t-top"><span class="vt lunchtag">Lunch</span><span class="mono" style="font-size:13px">~${minTxt(L.min)} · ${LUNCH_MIN} min</span></div>
+    <div class="t-addr">${L.aName&&L.bName?`Between ${esc(L.aName)} and ${esc(L.bName)}`:"Midday break"}</div>
+    <div class="t-actions"><button type="button" class="btn amber" data-act="hungry" data-v="${d}|${L.after}">Quick food on the way</button>
+      <a class="btn" href="https://maps.apple.com/search?query=lunch&center=${mid.lat},${mid.lng}" target="_blank" rel="noopener">Apple Maps ↗</a>
+      <a class="btn" href="https://www.google.com/maps/search/lunch/@${mid.lat},${mid.lng},14z" target="_blank" rel="noopener">Google ↗</a></div></div></article>`;
+}
+const FOOD = { cache:new Map() };
+const QUICK = /burger|sandwich|chicken|mexican|tex-mex|pizza|bbq|barbecue|sub|deli|taco|wings|asian|chinese|bagel|coffee|donut|breakfast|hot ?dog|seafood|cajun/i;
+async function findFood(c){
+  const key=c.lat.toFixed(3)+","+c.lng.toFixed(3); if(FOOD.cache.has(key)) return FOOD.cache.get(key);
+  const q=`[out:json][timeout:20];nwr["amenity"~"^(fast_food|cafe|restaurant)$"](around:4000,${c.lat},${c.lng});out center tags 200;`;
+  const r=await fetch("https://overpass-api.de/api/interpreter",{method:"POST",body:"data="+encodeURIComponent(q)});
+  if(!r.ok) throw new Error("lookup failed");
+  const d=await r.json();
+  const list=d.elements.map(e=>{ const t=e.tags||{}; return {name:t.name||t.brand, brand:t.brand||"", amenity:t.amenity, cuisine:(t.cuisine||"").split(";")[0].replace(/_/g," "), drive:t.drive_through==="yes", hours:t.opening_hours||"", lat:e.lat??(e.center&&e.center.lat), lng:e.lon??(e.center&&e.center.lon), street:[t["addr:housenumber"],t["addr:street"]].filter(Boolean).join(" ")}; }).filter(p=>p.name&&p.lat);
+  FOOD.cache.set(key,list); return list;
+}
+function rankFood(list, from, to){
+  return list.map(p=>{ const det = to ? legMiles(from,p)+legMiles(p,to)-legMiles(from,to) : legMiles(from,p)*2;
+    const tier = p.amenity==="fast_food" ? 0 : (p.amenity==="cafe"||QUICK.test(p.cuisine)) ? 1 : 2;
+    return {...p, mins:Math.max(1,Math.round(det/MPH*60)), tier, dist:legMiles(from,p)}; })
+    .sort((a,b)=>(a.mins+a.tier*6)-(b.mins+b.tier*6)).slice(0,30);
+}
+function dFood(key){
+  const F=S.food||{};
+  const kinds=[["quick","Quick"],["drive","Drive-thru"],["all","Everything"]];
+  let b=`<p class="lede" style="font-size:14px">${esc(F.where||"Finding where you are…")}</p>
+    <div class="chips">${kinds.map(([k,l])=>`<button type="button" class="chip" data-act="food-kind" data-v="${k}" aria-pressed="${(F.kind||"quick")===k}">${l}</button>`).join("")}</div>`;
+  if(F.err) b+=`<div class="note">${esc(F.err)}</div>`;
+  if(!F.list && !F.err) b+=`<p class="lede">Looking up places…</p>`;
+  if(F.list){
+    let L=F.list; if((F.kind||"quick")==="quick") L=L.filter(p=>p.tier<2); if(F.kind==="drive") L=L.filter(p=>p.drive);
+    b+= L.length ? `<div class="rows">${L.slice(0,12).map(p=>{ const via=F.to&&F.toAddr;
+      const apple = via ? appleDir(F.toAddr,[`${p.lat},${p.lng}`]) : appleDir(`${p.lat},${p.lng}`);
+      const google = via ? googleDir(F.toAddr,[`${p.lat},${p.lng}`]) : googleDir(`${p.lat},${p.lng}`);
+      return `<div class="row food" style="cursor:default"><span class="lbl">${p.mins<=3?"+"+p.mins+" min":"+"+p.mins+" min"}</span>
+      <span class="m"><span class="n">${esc(p.name)}</span><span class="s">${esc([p.amenity==="fast_food"?"Fast food":p.amenity==="cafe"?"Café":"Restaurant", p.cuisine, p.drive?"drive-thru":""].filter(Boolean).join(" · "))} · ${p.dist.toFixed(1)} mi${p.hours?` · ${esc(p.hours.length>40?p.hours.slice(0,40)+"…":p.hours)}`:""}</span></span>
+      <span class="r" style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><a class="btn small" href="${esc(apple)}" target="_blank" rel="noopener">Apple</a><a class="btn small" href="${esc(google)}" target="_blank" rel="noopener">Google</a></span></div>`; }).join("")}</div>
+      <p class="count" style="font-size:12px">"+ min" is the extra drive time on the way${F.toName?` to ${esc(F.toName)}`:""}. Place list from OpenStreetMap, so hours can be out of date.</p>`
+      : `<p class="lede">Nothing like that nearby. Try "Everything".</p>`;
+  }
+  return drawerShell("Lunch","I'm hungry",b);
+}
+async function openFood(key){
+  S.food={kind:"quick"}; openDrawer("food",key);
+  const [d,after]=String(key||"").split("|");
+  let from=null, to=null, where="";
+  const stops=stopsFor(d||todayISO(),S.team!=="all"?S.team:((PL.me()||{}).crew||"all")).filter(s=>hasLL(s.j));
+  if(after!==undefined && after!=="live"){ const i=Number(after), A=stops[i], B=stops[i+1];
+    from=A?A.j:shop(); to=B?B.j:null; where=A?`After ${clientOf(A.j).name||"this stop"}${B?`, on the way to ${clientOf(B.j).name||"the next stop"}`:""}`:"Near the shop";
+    S.food.to=to; S.food.toAddr=B?addrOf(B.j):""; S.food.toName=B?clientOf(B.j).name:"";
+  } else {
+    try{ const p=await new Promise((res,rej)=>navigator.geolocation?navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:false,timeout:8000,maximumAge:120000}):rej(new Error("no gps")));
+      from={lat:p.coords.latitude,lng:p.coords.longitude}; where="Near you"; }
+    catch(e){ const nxt=stops.find(s=>!isDone(s.j.id,s.v.id)); from=nxt?nxt.j:shop(); where=nxt?`Near ${clientOf(nxt.j).name} (couldn't get your location)`:"Near the shop (couldn't get your location)"; }
+    const nxt=stops.find(s=>!isDone(s.j.id,s.v.id) && (!from.id || s.j.id!==from.id));
+    if(nxt){ to=nxt.j; S.food.to=to; S.food.toAddr=addrOf(nxt.j); S.food.toName=clientOf(nxt.j).name; where+=`, on the way to ${clientOf(nxt.j).name||"the next stop"}`; }
+  }
+  S.food.where=where; renderDrawer();
+  try{ const raw=await findFood(from); S.food.list=rankFood(raw,from,to); }
+  catch(e){ S.food.err="Couldn't load nearby places right now. Use the Apple Maps or Google search buttons on the lunch stop instead."; }
+  if(S.drawer&&S.drawer.kind==="food") renderDrawer();
 }
 
 /* ---------- render ---------- */
@@ -1438,7 +1715,7 @@ function collectCrews(){
 async function writeCrews(C,msg){ try{ await S.db.doc("settings/board").set({...S.settings,crews:C}); toast(msg); }catch(e){ fail(e,"update crews"); } }
 async function saveSettings(){
   const g=id=>document.getElementById(id).value;
-  try{ await S.db.doc("settings/board").set({...S.settings, crews:collectCrews(), shop: await shopFromForm()}); if(S.me.money) await S.db.doc("fin/settings").set({tclRate:Number(g("s-tcl"))||40,ssRate:Number(g("s-ss"))||30}); toast("Settings saved"); }
+  try{ await S.db.doc("settings/board").set({...S.settings, crews:collectCrews(), shop: await shopFromForm(), trucks: linesOf("s-trucks")??(S.settings.trucks||[]), trailers: linesOf("s-trailers")??(S.settings.trailers||[])}); if(S.me.money) await S.db.doc("fin/settings").set({tclRate:Number(g("s-tcl"))||40,ssRate:Number(g("s-ss"))||30}); toast("Settings saved"); }
   catch(e){ fail(e,"save settings"); }
 }
 
@@ -1451,6 +1728,19 @@ document.addEventListener("click", async ev=>{
     case "view": S.view=v; closeDrawer(); renderMain(); window.scrollTo(0,0); break;
     case "team": S.team=v; ls("team",v); renderMain(); break;
     case "account": openDrawer("account"); break;
+    case "maps-app": ls("mapsApp",v); renderDrawer(); renderMain(); toast(v==="apple"?"Directions will open in Apple Maps":"Directions will open in Google Maps"); break;
+    case "mtab": S.mtab=v; S.mfilter="open"; renderMain(); break;
+    case "mfilter": S.mfilter=v; renderMain(); break;
+    case "pay-new": S.form={pay:{party:v,amount:"",date:todayISO(),method:"Check",memo:"",jobs:new Set(),manual:false}}; openDrawer("pay"); break;
+    case "pay-del-ask": S.delPay=id; renderMain(); setTimeout(()=>{ if(S.delPay===id){ S.delPay=null; renderMain(); } },5000); break;
+    case "pay-del": await delPay(id); break;
+    case "stmt-copy": { const txt=stmtText(v); try{ await navigator.clipboard.writeText(txt); toast("Statement copied"); }catch(e){ toast("Couldn't copy. Use Download CSV instead."); } break; }
+    case "stmt-csv": stmtCsv(v); break;
+    case "stmt-reload": S.stmt=null; renderMain(); break;
+    case "assign-truck": openDrawer("assign",v); break;
+    case "assign-copy": { const [d,c]=v.split("|"); const pv=assignOf(addDays(d,-1),c)||{}; $("#as-truck").value=pv.truck||""; $("#as-trailer").value=pv.trailer||""; $("#as-note").value=pv.note||""; break; }
+    case "hungry": openFood(v); break;
+    case "food-kind": S.food.kind=v; renderDrawer(); break;
     case "clock-in": t.disabled=true; await clockIn(t.dataset.j,v,false); break;
     case "clock-out": t.disabled=true; await clockOut(id,false); break;
     case "auto-clock": await setAuto(!AUTO.on); break;
@@ -1515,16 +1805,21 @@ document.addEventListener("input", ev=>{
   if(t.id==="q-jobs"){ S.q.jobs=t.value; renderMain(); }
   else if(t.id==="q-clients"){ S.q.clients=t.value; renderMain(); }
   else if(t.id==="compose-text"){ S.compose.text=t.value; }
+  else if(t.id==="py-amount"&&S.form&&S.form.pay){ S.form.pay.manual=true; }
   else if((t.id==="m-price"||t.id==="m-ss") && S.form){ readJobForm(); const c=$("#calc"); const p=Number(String(S.form.fin.price||"").replace(/[$,]/g,"")); c.innerHTML=p?calcLines(S.form.job,p,S.form.fin.ssPct):`<span class="count">Enter a price to see the split.</span>`; }
 });
 document.addEventListener("change", async ev=>{
   const t=ev.target;
+  if(t.id&&t.id.startsWith("pj-")&&S.form&&S.form.pay){ const jid=t.id.slice(3); t.checked?S.form.pay.jobs.add(jid):S.form.pay.jobs.delete(jid);
+    if(!S.form.pay.manual){ let tot=0; document.querySelectorAll('#payForm input[id^="pj-"]:checked').forEach(x=>tot+=Number(x.dataset.jamt)); $("#py-amount").value=tot?tot.toFixed(2):""; } return; }
   if(t.id==="compose-files"){ S.compose.files.push(...t.files); renderDrawer(); }
   else if(t.id==="mockup-file"){ await addMockups([...t.files]); }
   else if(t.id==="f-client"){ readJobForm(); renderDrawer(); }
 });
 document.addEventListener("submit", ev=>{
   ev.preventDefault();
+  if(ev.target.id==="payForm") return savePay();
+  if(ev.target.id==="assignForm") return saveAssign(ev.target.dataset.key,{truck:$("#as-truck").value,trailer:$("#as-trailer").value,note:$("#as-note").value.trim()});
   if(ev.target.id==="pinForm") return saveMyPin(); if(ev.target.id==="personForm") return savePerson();
   if(ev.target.id==="jobForm") saveJob(); else if(ev.target.id==="clientForm") saveClient(); else if(ev.target.id==="settingsForm") saveSettings();
 });
@@ -1548,8 +1843,9 @@ renderMain();
   db.collection("jobs").onSnapshot(s=>{ S.jobs=new Map(s.docs.map(d=>[d.id,d.data()])); got.j=true; ready(); refresh(); }, e=>{ S.err="Lost connection to the board. Reload the page."; renderMain(); });
   db.collection("log").onSnapshot(s=>{ S.log=new Map(s.docs.map(d=>[d.id,d.data()])); recompute(); got.l=true; refresh(); fetchNames(); }, e=>{ got.l=true; refresh(); });
   db.doc("settings/board").onSnapshot(s=>{ S.settings=s.exists?s.data():{}; refresh(); }, e=>{});
+  db.collection("settings").onSnapshot(s=>{ S.dayCfg=new Map(s.docs.filter(d=>d.id.startsWith("day-")).map(d=>[d.id.slice(4),d.data()])); refresh(); }, e=>{});
   if(S.me.money){
-    db.collection("fin").onSnapshot(s=>{ const m=new Map(); for(const d of s.docs){ if(d.id==="settings") S.finSet=d.data(); else m.set(d.id,d.data()); } S.fin=m; refresh(); }, e=>{});
+    db.collection("fin").onSnapshot(s=>{ const m=new Map(), pays=new Map(); for(const d of s.docs){ if(d.id==="settings") S.finSet=d.data(); else if(d.id.startsWith("pay-")) pays.set(d.id,d.data()); else m.set(d.id,d.data()); } S.fin=m; S.pays=pays; S.stmt=null; refresh(); }, e=>{});
   }
 })();
 </script>
