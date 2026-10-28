@@ -51,6 +51,23 @@
       if (error) throw new Error(error.message);
       return data;
     },
+    async chatLoad() {
+      const since = new Date(Date.now() - 45 * 864e5).toISOString();
+      const { data, error } = await sb.from("messages").select("*").gte("at", since).order("at", { ascending: true }).limit(2000);
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    async chatSend(channel, body) {
+      const { data, error } = await sb.from("messages").insert({ channel, body, by: ME.id }).select().single();
+      if (error) throw new Error(error.message);
+      window.dispatchEvent(new CustomEvent("prolight:msg", { detail: { eventType: "INSERT", new: data } }));
+      return data;
+    },
+    async chatDelete(id) {
+      const { error } = await sb.from("messages").delete().eq("id", id);
+      if (error) throw new Error(error.message);
+      window.dispatchEvent(new CustomEvent("prolight:msg", { detail: { eventType: "DELETE", old: { id } } }));
+    },
     async signOut() {
       await sb.auth.signOut();
       try { localStorage.removeItem("prolight-last"); } catch (e) {}
@@ -107,12 +124,15 @@
         else cache.get(row.coll).set(row.id, row.data);
         emit(row.coll, row.id);
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, (p) => {
+        window.dispatchEvent(new CustomEvent("prolight:msg", { detail: p }));
+      })
       .on("postgres_changes", { event: "*", schema: "public", table: "staff" }, () => {
         PL.reloadStaff().then((me) => { if (!me || !me.active) PL.signOut(); }).catch(() => {});
       })
-      .subscribe((status) => { if (status === "SUBSCRIBED" && loaded) loadAll().catch(() => {}); });
+      .subscribe((status) => { if (status === "SUBSCRIBED" && loaded) { loadAll().catch(() => {}); window.dispatchEvent(new Event("prolight:chatreload")); } });
   }
-  document.addEventListener("visibilitychange", () => { if (!document.hidden && loaded) loadAll().catch(() => {}); });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && loaded) { loadAll().catch(() => {}); window.dispatchEvent(new Event("prolight:chatreload")); } });
 
   const asErr = (e) => {
     const x = new Error(e && e.message ? e.message : "Request failed");

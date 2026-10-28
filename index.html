@@ -171,7 +171,7 @@ main{padding-block:16px 32px}
 .lbl{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:3px;background:var(--sunk);color:var(--ink-2);white-space:nowrap}
 .lbl.tcl{background:var(--blue-soft);color:var(--blue)} .lbl.pl{background:var(--amber-soft);color:var(--amber-text)}
 .st{font-size:13px;font-weight:700;white-space:nowrap}
-.st.lit{color:var(--amber-text)} .st.down{color:var(--cord)} .st.cancelled{color:var(--red)} .st.scheduled{color:var(--ink)} .st.lead,.st.quoted,.st.booked{color:var(--ink-2)}
+.st.lit,.st.partial{color:var(--amber-text)} .st.down{color:var(--cord)} .st.cancelled{color:var(--red)} .st.scheduled{color:var(--ink)} .st.lead,.st.quoted,.st.booked{color:var(--ink-2)}
 .count{color:var(--ink-2);font-size:14px}
 
 /* ---- week ---- */
@@ -238,6 +238,55 @@ tfoot td{border-top:2px solid var(--line);border-bottom:0}
 .vt.lunchtag{background:var(--cord);color:#fff}
 .row.food .m .n{white-space:normal}
 @media (min-width:960px){ .mgrid{grid-template-columns:repeat(3,minmax(0,1fr))} }
+.crewtag+.crewtag{margin-left:-2px}
+.vt.returntag{background:var(--ink);color:var(--bg)}
+.btn.partial{border-color:var(--amber);color:var(--amber-text);cursor:default}
+.pt-line{display:block;margin-top:4px;color:var(--amber-text)}
+.entry.partial-e{border-left:3px solid var(--amber)}
+.linkbtn{background:none;border:0;padding:0;font:inherit;color:inherit;text-decoration:underline;cursor:pointer}
+.extras{display:grid;gap:8px;margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
+.xadd{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.nbadge{position:absolute;top:4px;right:calc(50% - 22px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--red);color:#fff;font:700 11px/18px var(--f-mono);font-style:normal;letter-spacing:0}
+#railNav button,#tabNav button{position:relative}
+#railNav .nbadge{position:static;margin-left:auto}
+.ann{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;background:var(--night);color:var(--night-ink);border-left:4px solid var(--amber);border-radius:var(--r);padding:12px 14px;margin-bottom:12px;white-space:pre-wrap}
+.ann .eyebrow{color:var(--amber)}
+.ann .btn{background:var(--amber);border-color:var(--amber);color:#14110b;flex:none}
+.chat{display:grid;grid-template-columns:1fr;gap:12px;min-height:0}
+.chat-list{display:grid;gap:4px;align-content:start}
+.chat-list .eyebrow{margin:10px 0 2px}
+.chat-ch{display:flex;align-items:center;gap:10px;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;color:inherit;font:inherit;cursor:pointer;min-width:0}
+.chat-ch.on{border-color:var(--ink)}
+.chat-ch .m{display:grid;min-width:0;flex:1}
+.chat-ch small{color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badge{background:var(--red);color:#fff;border-radius:9px;min-width:20px;padding:0 6px;font:700 12px/20px var(--f-mono);font-style:normal;text-align:center}
+.chat-thread{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:var(--r);min-height:60vh;max-height:calc(100dvh - 170px);overflow:hidden}
+.chat-thread.empty-t{display:none;align-items:center;justify-content:center}
+.chat-head{display:flex;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.chat-msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+.chat-day{align-self:center;font:600 11px var(--f-mono);text-transform:uppercase;letter-spacing:.08em;color:var(--ink-2);margin:6px 0}
+.bub{max-width:82%;align-self:flex-start;background:var(--bg);border:1px solid var(--line);border-radius:14px 14px 14px 4px;padding:8px 11px;display:grid;gap:2px}
+.bub.me{align-self:flex-end;background:var(--night);color:var(--night-ink);border-color:var(--night);border-radius:14px 14px 4px 14px}
+.bub b{font-size:12px;color:var(--ink-2)}
+.bub .txt{white-space:pre-wrap;word-break:break-word}
+.bub small{font-size:11px;opacity:.7}
+.chat-compose{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line);align-items:flex-end}
+.chat-compose textarea{flex:1;min-height:42px;max-height:160px;resize:none;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:20px;background:var(--bg);color:inherit}
+.chat-thread .note{border-radius:0}
+.chat .chat-thread{display:none}
+.chat.open .chat-list{display:none}
+.chat.open .chat-thread{display:flex}
+.phone-only{display:inline-flex}
+#tabNav [data-v="clients"]{display:none}
+@media (min-width:960px){
+  .phone-only{display:none}
+  .chat{grid-template-columns:300px minmax(0,1fr)}
+  .chat .chat-list,.chat.open .chat-list{display:grid}
+  .chat .chat-thread{display:flex}
+  .chat-thread.empty-t{display:flex}
+  .chat-back{display:none}
+  .chat-thread{max-height:calc(100dvh - 120px)}
+}
 .who-btn{background:none;border:1px solid #2a3832;border-radius:999px;color:var(--night-ink);font-size:12px;font-weight:700;padding:5px 10px;max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .checks{display:grid;gap:8px}
 .checks label{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;font-size:15px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
@@ -419,14 +468,15 @@ const DEFAULT_CREWS = [
   {id:"shipshape",name:"ShipShape",co:"shipshape",members:[],chat:""}];
 const VTYPE = {install:"Install",takedown:"Takedown",service:"Service"};
 const STAGES = [["lead","Lead"],["quoted","Quote sent"],["booked","Booked"],["cancelled","Cancelled"]];
-const STATUS = {lead:"Lead",quoted:"Quote sent",booked:"Booked",scheduled:"Scheduled",lit:"Installed",down:"Taken down",cancelled:"Cancelled"};
-const BULB = {lead:"",quoted:"blue",booked:"blue",scheduled:"dim",lit:"on",down:"green",cancelled:"red"};
+const STATUS = {lead:"Lead",quoted:"Quote sent",booked:"Booked",scheduled:"Scheduled",partial:"Partly done",lit:"Installed",down:"Taken down",cancelled:"Cancelled"};
+const BULB = {lead:"",quoted:"blue",booked:"blue",scheduled:"dim",partial:"dim",lit:"on",down:"green",cancelled:"red"};
 const ICON = {
   map:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0113 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/></svg>',
   route:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 3v4M18 3v4"/><path d="M3 7c3 3 6 3 9 0s6-3 9 0"/><path d="M7.5 9.5v3M12 7.5v3M16.5 9.5v3"/><circle cx="7.5" cy="15" r="2.2"/><circle cx="12" cy="13" r="2.2"/><circle cx="16.5" cy="15" r="2.2"/></svg>',
   jobs:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/></svg>',
   clients:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 010 6.8M18 14.8c2 .8 3.2 2.5 3.6 5.2"/></svg>',
   week:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+  chat:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg>',
   office:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v18M17 7.5c0-1.9-2.2-3-5-3s-5 1.1-5 3 2 2.8 5 3.5 5 1.6 5 3.5-2.2 3-5 3-5-1.1-5-3"/></svg>'
 };
 
@@ -439,7 +489,7 @@ const S = {
   q:{jobs:"",clients:""}, jf:"active", office:"money", briefDay:addDays(todayISO(),1),
   drawer:null, form:null, compose:{text:"",files:[]}, busy:false
 };
-let doneMap = new Map(), logByJob = new Map();
+let doneMap = new Map(), logByJob = new Map(), partialMap = new Map();
 
 function ls(k,v){ try{ if(v===undefined) return localStorage.getItem(k); localStorage.setItem(k,v); }catch(e){ return null; } }
 const $ = s => document.querySelector(s);
@@ -492,6 +542,7 @@ function status(j){
   if(j.stage==="cancelled") return "cancelled";
   const vs=j.visits||[];
   if(vs.some(v=>v.type==="takedown"&&isDone(j.id,v.id))) return "down";
+  if(vs.some(v=>isPartial(j.id,v.id)&&!isDone(j.id,v.id)&&!vs.some(x=>x.returnOf===v.id&&isDone(j.id,x.id)))) return "partial";
   if(vs.some(v=>v.type==="install"&&isDone(j.id,v.id))) return "lit";
   if(vs.some(v=>v.date)) return "scheduled";
   return j.stage||"lead";
@@ -504,14 +555,14 @@ function jobsArr(){ return [...S.jobs.entries()].map(([id,d])=>({id,...d})); }
 function stopsFor(date, team){
   const out=[];
   for(const j of jobsArr()){ if(j.stage==="cancelled") continue;
-    for(const v of (j.visits||[])) if(v.date===date && (team==="all"||crewOf(j,v)===team)) out.push({j,v}); }
-  return out.sort((a,b)=>(a.v.order??999)-(b.v.order??999) || String(a.v.time||"").localeCompare(String(b.v.time||"")) || String(clientOf(a.j).name).localeCompare(String(clientOf(b.j).name)));
+    for(const v of (j.visits||[])) if(v.date===date && (team==="all"||visitCrews(j,v).includes(team))) out.push({j,v}); }
+  return out.sort((a,b)=>ordOf(a.v,team)-ordOf(b.v,team) || String(a.v.time||"").localeCompare(String(b.v.time||"")) || String(clientOf(a.j).name).localeCompare(String(clientOf(b.j).name)));
 }
 function recompute(){
-  doneMap=new Map(); logByJob=new Map();
+  doneMap=new Map(); logByJob=new Map(); partialMap=new Map();
   for(const [id,e] of S.log){ const x={id,...e};
     if(!logByJob.has(e.jobId)) logByJob.set(e.jobId,[]); logByJob.get(e.jobId).push(x);
-    if(e.kind==="done") doneMap.set(e.jobId+"|"+e.visitId, x); }
+    if(e.kind==="done") doneMap.set(e.jobId+"|"+e.visitId, x); else if(e.kind==="partial"){ const k=e.jobId+"|"+e.visitId, o=partialMap.get(k); if(!o||String(o.at)<String(e.at)) partialMap.set(k,x); } }
   for(const a of logByJob.values()) a.sort((p,q)=>String(q.at).localeCompare(String(p.at)));
 }
 function who(id){ if(!id) return "TCL import"; if(id===S.me.id) return "You"; return S.names.get(id) || "Crew member"; }
@@ -522,11 +573,12 @@ async function fetchNames(){
 }
 
 /* ---------- nav ---------- */
-function navItems(){ const v=[["route","Route"],["jobs","Jobs"],["map","Map"],["week","Week"],["clients","Clients"]]; if(S.me.owner||S.me.money||S.me.manage||S.me.partner) v.push(["office",S.me.partner&&!S.me.money&&!S.me.owner?"Payouts":"Office"]); return v; }
+function navItems(){ const v=[["route","Route"],["jobs","Jobs"],["map","Map"],["week","Week"],["chat","Chat"],["clients","Clients"]]; if(S.me.owner||S.me.money||S.me.manage||S.me.partner) v.push(["office",S.me.partner&&!S.me.money&&!S.me.owner?"Payouts":"Office"]); return v; }
 function renderNav(){
   const items=navItems();
   $("#railNav").innerHTML=items.map(([k,l])=>`<button type="button" data-act="view" data-v="${k}" aria-current="${S.view===k?"page":"false"}">${ICON[k]}${l}</button>`).join("");
   $("#tabNav").innerHTML=items.map(([k,l])=>`<button type="button" data-act="view" data-v="${k}" aria-current="${S.view===k?"page":"false"}">${ICON[k]}${l}</button>`).join("");
+  { const un=S.chatOff?0:unreadTotal(); if(un) document.querySelectorAll('#railNav [data-v="chat"],#tabNav [data-v="chat"]').forEach(b=>b.insertAdjacentHTML("beforeend",`<i class="nbadge">${un>9?"9+":un}</i>`)); }
   const today=stopsFor(todayISO(),S.team), lit=today.filter(s=>isDone(s.j.id,s.v.id)).length;
   $("#railStrand").innerHTML = today.length ? today.map((s,i)=>`<span class="bulb ${i<lit?"on":""}"></span>`).join("") : "";
   const wt = S.team==="all" ? "All crews" : teamName(S.team);
@@ -543,7 +595,7 @@ function teamSeg(){
 function vRoute(){
   const d=S.day, stops=stopsFor(d,S.team), done=stops.filter(s=>isDone(s.j.id,s.v.id)).length, r=rel(d);
   S._eta=estTimes(stops);
-  let h=`<div class="dayhead">
+  let h=annBanner()+`<div class="dayhead">
     <div class="pager">
       <button type="button" class="btn icon" data-act="day" data-v="-1" aria-label="Previous day">‹</button>
       <div class="d"><span class="eyebrow">${r?fmtDay(d,{weekday:"long",month:"short",day:"numeric"}):"Route"}</span><h1 class="h-view">${r||fmtDay(d,{weekday:"short",month:"short",day:"numeric"})}</h1></div>
@@ -567,7 +619,7 @@ function vRoute(){
 }
 function stopCard(s,i,n){
   const {j,v}=s, c=clientOf(j), d=isDone(j.id,v.id), a=addrOf(j), crew=crewOf(j,v);
-  const notes=[c.gate?`Access: ${c.gate}`:"", j.notes||"", v.note||""].filter(Boolean).join("\n");
+  const pp=isPartial(j.id,v.id); const notes=[c.gate?`Access: ${c.gate}`:"", j.notes||"", v.note||"", pp&&!d?`Left to do: ${pp.left}`:""].filter(Boolean).join("\n");
   const media=(j.mockups||[]).filter(m=>m.type!=="pdf");
   const nLog=(logByJob.get(j.id)||[]).filter(e=>e.kind==="note").length;
   let doneBtn="";
@@ -576,14 +628,15 @@ function stopCard(s,i,n){
   return `<article class="stop ${d?"is-done":""}">
     <div class="rail-c"><span class="bulb lg ${d?"on":""}"></span></div>
     <div class="ticket">
-      <div class="t-top"><span class="ord">STOP ${pad(i+1)}</span><span class="vt ${v.type}">${VTYPE[v.type]}</span>${stopTimeTag(s)}${S.team==="all"?`<span class="crewtag">${esc(teamName(crew))}</span>`:""}<span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span><span class="sp"></span>
+      <div class="t-top"><span class="ord">STOP ${pad(i+1)}</span><span class="vt ${v.type}">${VTYPE[v.type]}</span>${stopTimeTag(s)}${crewTags(j,v)}<span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span><span class="sp"></span>
         ${S.me.owner&&n>1?`<button type="button" class="btn icon small" data-act="move" data-j="${esc(j.id)}" data-v="${esc(v.id)}" data-d="-1" ${i===0?"disabled":""} aria-label="Move up">↑</button><button type="button" class="btn icon small" data-act="move" data-j="${esc(j.id)}" data-v="${esc(v.id)}" data-d="1" ${i===n-1?"disabled":""} aria-label="Move down">↓</button>`:""}</div>
       <button type="button" class="t-name" data-act="job" data-id="${esc(j.id)}">${esc(c.name||"Customer")}</button>
       ${a?`<div class="t-addr">${esc(a)}</div>`:""}
+      ${visitExtrasLine(v)}
       ${(j.scope||j.rooflineFt)?`<div class="t-facts">${j.scope?`<span><b>Lights</b>${esc(j.scope)}</span>`:""}${j.rooflineFt?`<span><b>Roofline</b><span class="mono">${esc(j.rooflineFt)} ft</span></span>`:""}</div>`:""}
       ${notes?`<div class="t-notes">${esc(notes)}</div>`:""}
       ${media.length?`<div class="thumbs">${media.map(m=>mediaTag(m)).join("")}</div>`:""}
-      <div class="t-actions">${doneBtn}${clockBtn(j,v)}${a?`<a class="btn" href="${esc(mapsUrl(a))}" target="_blank" rel="noopener">Directions ↗</a>`:""}<button type="button" class="btn" data-act="job" data-id="${esc(j.id)}">Notes & photos${nLog?` · ${nLog}`:""}</button>${(j.links||[]).map((u,k)=>`<a class="btn" href="${esc(u)}" target="_blank" rel="noopener">Mockup${j.links.length>1?" "+(k+1):""} ↗</a>`).join("")}</div>
+      <div class="t-actions">${doneBtn}${d?"":partialBtn(j,v)}${clockBtn(j,v)}${a?`<a class="btn" href="${esc(mapsUrl(a))}" target="_blank" rel="noopener">Directions ↗</a>`:""}<button type="button" class="btn" data-act="job" data-id="${esc(j.id)}">Notes & photos${nLog?` · ${nLog}`:""}</button>${(j.links||[]).map((u,k)=>`<a class="btn" href="${esc(u)}" target="_blank" rel="noopener">Mockup${j.links.length>1?" "+(k+1):""} ↗</a>`).join("")}</div>
     </div>
   </article>`;
 }
@@ -606,7 +659,7 @@ function vJobs(){
   if(f.startsWith("co-")) list=list.filter(j=>coOf(j.crew)===f.slice(3));
   if(f==="unassigned") list=list.filter(j=>!j.crew && j.stage!=="cancelled");
   list.sort((a,b)=>{ const x=nextVisit(a), y=nextVisit(b); if(x&&y) return x.date.localeCompare(y.date); if(x) return -1; if(y) return 1; return String(clientOf(a).name).localeCompare(String(clientOf(b).name)); });
-  let h=`<div class="bar"><h1 class="h-view grow">Jobs</h1>${S.me.owner?`<button type="button" class="btn amber" data-act="new-job">+ New job</button>`:""}</div>
+  let h=`<div class="bar"><h1 class="h-view grow">Jobs</h1><button type="button" class="btn phone-only" data-act="view" data-v="clients">Clients</button>${S.me.owner?`<button type="button" class="btn amber" data-act="new-job">+ New job</button>`:""}</div>
     <input class="search" id="q-jobs" type="search" placeholder="Search name, address, TCL #, lights" value="${esc(S.q.jobs)}" aria-label="Search jobs">
     <div class="chips" role="group" aria-label="Filter jobs">${F.map(([k,l])=>`<button type="button" class="chip" data-act="jf" data-v="${k}" aria-pressed="${S.jf===k}">${l}</button>`).join("")}</div>`;
   if(!S.ready) return h+`<p class="lede">Loading…</p>`;
@@ -654,6 +707,7 @@ function vWeek(){
   const all=jobsArr().filter(j=>j.stage!=="cancelled");
   const needInstall=all.filter(j=>["lead","quoted","booked"].includes(status(j)) && j.stage==="booked");
   const needDown=all.filter(j=>status(j)==="lit" && !(j.visits||[]).some(v=>v.type==="takedown"&&v.date));
+  h+=returnBlock();
   if(needInstall.length) h+=`<h2 class="h-sec">Booked, no install date · ${needInstall.length}</h2><div class="rows">${needInstall.map(jobRow).join("")}</div>`;
   if(needDown.length) h+=`<h2 class="h-sec">Lit, no takedown date · ${needDown.length}</h2><div class="rows">${needDown.map(jobRow).join("")}</div>`;
   return h;
@@ -672,8 +726,8 @@ const pctTxt = x => (Math.round(x*1000)/10)+"%";
 function split(j,f){
   const R=rates(), p=Number(f&&f.price)||0, custom=hasPct(f&&f.ssPct);
   const sp = custom ? Number(f.ssPct)/100 : (j.source==="tcl"&&coOf(j.crew)==="shipshape" ? R.ss : 0);
-  const inc = j.source==="tcl" ? p*R.tcl : p, ss=p*sp;
-  return {price:p,incoming:inc,ss,net:inc-ss,ssPct:sp,custom};
+  const ex = j.source==="tcl" ? extraTotal(f) : 0, inc = (j.source==="tcl" ? p*R.tcl : p) + ex, ss=p*sp;
+  return {price:p,incoming:inc,ss,net:inc-ss,ssPct:sp,custom,extras:ex};
 }
 function briefText(team,date){
   const stops=stopsFor(date,team), tn=team==="all"?"All crews":teamName(team);
@@ -695,7 +749,9 @@ function briefText(team,date){
     if(s.v.note) L.push("   This visit: "+s.v.note);
     const mk=(s.j.mockups||[]).length; if(mk) L.push(`   Mockup: ${mk} file${mk>1?"s":""} on the board`);
     (s.j.links||[]).forEach((u,k)=>L.push(`   Mockup${s.j.links.length>1?" "+(k+1):""}: ${u}`));
-    if(team==="all") L.push("   Crew: "+teamName(crewOf(s.j,s.v)));
+    { const cs=visitCrews(s.j,s.v); if(team==="all") L.push("   Crew: "+(cs.map(teamName).join(" + ")||"Unassigned")); else if(cs.length>1) L.push("   Also on this job: "+cs.filter(c=>c!==team).map(teamName).join(", "));
+      const tk=visitTrucks(s.v); if(tk.length) L.push("   Trucks on this job: "+tk.join(", "));
+      if(s.v.returnOf) L.push("   RETURN VISIT, finish what was left"); }
     L.push("");
     if(eta.lunch&&eta.lunch.after===i) L.push(`LUNCH ~${minTxt(eta.lunch.min)} (${LUNCH_MIN} min)`, ""); });
   if(team!=="all"){ const tt=truckText(truckList(stops)); if(tt) L.push("TRUCK LIST", tt, ""); }
@@ -757,7 +813,7 @@ function dJob(id){
   if(S.me.money){ const s=split(j,f);
     b+=`<section class="blk"><h3 class="h-sec">Money</h3>${s.price?`<div class="calc">${calcLines(j,s.price,f.ssPct)}</div>
       <div class="bar"><button type="button" class="tog" data-act="fin-tog" data-k="collected" data-id="${esc(id)}" aria-pressed="${!!f.collected}">${f.collected?"Collected":"Not collected"}</button>${s.ss?`<button type="button" class="tog" data-act="fin-tog" data-k="ssPaid" data-id="${esc(id)}" aria-pressed="${!!f.ssPaid}">${f.ssPaid?"ShipShape paid":"ShipShape owed"}</button>`:""}${f.invoiceNo?`<span class="mono count">Invoice ${esc(f.invoiceNo)}</span>`:""}</div>`:`<p class="lede">No price yet. Edit the job to add one.</p>`}
-      ${f.privateNote?`<div class="note">${esc(f.privateNote)}</div>`:""}</section>`; }
+      ${f.privateNote?`<div class="note">${esc(f.privateNote)}</div>`:""}${j.source==="tcl"||extrasOf(f).length?extrasHTML(j,f):""}</section>`; }
   b+=`<section class="blk"><h3 class="h-sec">Notes & photos</h3>`;
   if(S.me.canLog) b+=`<div class="composer"><textarea id="compose-text" placeholder="What did you see or do? Burned-out bulbs, extra footage, customer requests…">${esc(S.compose.text)}</textarea>
     ${S.compose.files.length?`<div class="pend">${S.compose.files.map((x,i)=>`<span>${esc(x.name)} <button type="button" data-act="rm-pend" data-v="${i}" aria-label="Remove">×</button></span>`).join("")}</div>`:""}
@@ -773,11 +829,11 @@ function visitRow(j,v){
   if(d){ act = (S.me.owner||d.by===S.me.id) ? `<button type="button" class="btn done small" data-act="undone" data-id="${esc(d.id)}">✓ Undo</button>` : `<span class="st down">✓ Done</span>`; }
   else if(S.me.canLog && v.date) act=`<button type="button" class="btn amber small" data-act="done" data-j="${esc(j.id)}" data-v="${esc(v.id)}">Mark done</button>`;
   return `<div class="visit"><span class="bulb ${d?"on":""}"></span><div class="x"><b><span class="vt ${v.type}" style="font-size:13px">${VTYPE[v.type]}</span> ${v.date?fmtDay(v.date,{weekday:"short",month:"short",day:"numeric"}):"No date"}${v.time?" · "+fmtTime(v.time):""}</b>
-    <small>${esc(teamName(crewOf(j,v)))}${d?` · done by ${esc(who(d.by))}, ${esc(ago(d.at))}`:""}${v.note?` · ${esc(v.note)}`:""}${onSite(j.id,v.id)}</small></div>${act}</div>`;
+    <small>${esc(visitCrews(j,v).map(teamName).join(" + ")||"Unassigned")}${d?` · done by ${esc(who(d.by))}, ${esc(ago(d.at))}`:""}${v.note?` · ${esc(v.note)}`:""}${onSite(j.id,v.id)}</small>${visitMore(j,v)}</div>${act}</div>`;
 }
 function entryCard(e,j){
   const canDel=S.me.owner||e.by===S.me.id;
-  if(e.kind==="clock") return clockEntry(e); if(e.kind==="done"){ const v=(j.visits||[]).find(x=>x.id===e.visitId); return `<div class="entry done-e"><div class="meta"><span>✓ <b>${esc(who(e.by))}</b> marked ${v?VTYPE[v.type].toLowerCase():"a visit"} done</span><span>${esc(ago(e.at))}</span></div></div>`; }
+  if(e.kind==="partial") return partialEntry(e); if(e.kind==="clock") return clockEntry(e); if(e.kind==="done"){ const v=(j.visits||[]).find(x=>x.id===e.visitId); return `<div class="entry done-e"><div class="meta"><span>✓ <b>${esc(who(e.by))}</b> marked ${v?VTYPE[v.type].toLowerCase():"a visit"} done</span><span>${esc(ago(e.at))}</span></div></div>`; }
   return `<div class="entry"><div class="meta"><span><b>${esc(who(e.by))}</b></span><span>${esc(ago(e.at))}${canDel?` · <button type="button" class="tog" style="border:0;padding:0;background:none" data-act="del-entry" data-id="${esc(e.id)}">Delete</button>`:""}</span></div>
     ${e.text?`<div class="txt">${esc(e.text)}</div>`:""}${(e.media||[]).length?`<div class="media">${e.media.map(mediaTag).join("")}</div>`:""}</div>`;
 }
@@ -859,7 +915,7 @@ function renderDrawer(){
   if(!D){ root.innerHTML=""; return; }
   const prev=$("#dbody"), top=prev?prev.scrollTop:0;
   const focusId=document.activeElement&&document.activeElement.id;
-  root.innerHTML = D.kind==="job"?dJob(D.id): D.kind==="client"?dClient(D.id): D.kind==="jobEdit"?dJobEdit(): D.kind==="truck"?dTruck(D.id): D.kind==="pay"?dPay(): D.kind==="assign"?dAssign(D.id): D.kind==="food"?dFood(D.id): D.kind==="account"?dAccount(): D.kind==="person"?dPerson(): dClientEdit();
+  root.innerHTML = D.kind==="job"?dJob(D.id): D.kind==="client"?dClient(D.id): D.kind==="jobEdit"?dJobEdit(): D.kind==="truck"?dTruck(D.id): D.kind==="crewtruck"?dCrewTruck(D.id): D.kind==="partial"?dPartial(D.id): D.kind==="return"?dReturn(D.id): D.kind==="pay"?dPay(): D.kind==="assign"?dAssign(D.id): D.kind==="food"?dFood(D.id): D.kind==="account"?dAccount(): D.kind==="person"?dPerson(): dClientEdit();
   const nb=$("#dbody"); if(nb && D.keep) nb.scrollTop=top;
   if(focusId){ const el=document.getElementById(focusId); if(el && el.id==="compose-text"){ el.focus(); el.setSelectionRange(el.value.length,el.value.length); } }
   D.keep=true;
@@ -1068,7 +1124,7 @@ async function applyOrder(date, crewId){
   const stops=stopsFor(date,crewId); if(stops.length<2) return null;
   const before=routeMiles(stops.filter(s=>hasLL(s.j)).map(s=>s.j));
   const ord=bestOrder(stops), changes=new Map();
-  ord.forEach((s,idx)=>{ const base=changes.get(s.j.id)||(S.jobs.get(s.j.id).visits||[]).map(x=>({...x})); const t=base.find(x=>x.id===s.v.id); if(t&&t.order!==idx+1){ t.order=idx+1; changes.set(s.j.id,base); } });
+  ord.forEach((s,idx)=>{ const base=changes.get(s.j.id)||(S.jobs.get(s.j.id).visits||[]).map(x=>({...x})); const t=base.find(x=>x.id===s.v.id); if(t&&ordOf(t,crewId)!==idx+1){ setOrd(s.j,t,crewId,idx+1); changes.set(s.j.id,base); } });
   for(const [id,visits] of changes) await S.db.doc("jobs/"+id).update({visits,updatedAt:new Date().toISOString()});
   return {before, after:routeMiles(ord.filter(s=>hasLL(s.j)).map(s=>s.j)), unplaced:ord.filter(s=>!hasLL(s.j)).length};
 }
@@ -1329,7 +1385,7 @@ function moneyRows(){
 }
 function moneyTotals(){
   const R=moneyRows(), sum=(a,fn)=>a.reduce((t,x)=>t+(fn(x)||0),0);
-  const tcl=R.filter(r=>r.j.source==="tcl"&&r.s.price), own=R.filter(r=>r.j.source!=="tcl"&&r.s.price), ss=R.filter(r=>r.s.ss>0);
+  const tcl=R.filter(r=>r.j.source==="tcl"&&(r.s.price||r.s.extras)), own=R.filter(r=>r.j.source!=="tcl"&&r.s.price), ss=R.filter(r=>r.s.ss>0);
   const tPaid=paidSet("tcl"), sPaid=paidSet("shipshape");
   const T={ R,
     tcl:{rows:tcl, booked:sum(tcl,r=>r.s.incoming), earned:sum(tcl.filter(r=>r.done),r=>r.s.incoming), paid:sum(ledger("tcl"),p=>+p.amount), paidSet:tPaid},
@@ -1363,7 +1419,7 @@ function mOverview(T){
     ${card("ProLight's own jobs","",T.own.due,"to collect on installed jobs",[["Installed",money2(T.own.earned)],["Collected",money2(T.own.paid)],["Still to install",money2(T.own.booked-T.own.earned)],["Whole season",money2(T.own.booked)]],"",T.own.paid,T.own.earned)}
   </div>
   <p class="lede" style="font-size:14px">TCL pays ProLight ${R.tcl*100}% of each TCL job. ShipShape gets ${R.ss*100}% of the TCL price on jobs they do, unless a job has its own split. Balances count installed jobs only, minus recorded payments.</p>
-  ${T.noPrice?`<div class="note">${T.noPrice} job${T.noPrice>1?"s have":" has"} no price and ${T.noPrice>1?"aren't":"isn't"} counted.</div>`:""}
+  ${T.noPrice?`<div class="note">${T.noPrice} job${T.noPrice>1?"s have":" has"} no price and ${T.noPrice>1?"aren't":"isn't"} counted.</div>`:""}${extraNeedNote()}
   ${T.legacyT||T.legacyS?`<div class="note">${[T.legacyT&&`${T.legacyT} TCL job${T.legacyT>1?"s are":" is"} marked paid`,T.legacyS&&`${T.legacyS} ShipShape job${T.legacyS>1?"s are":" is"} marked paid`].filter(Boolean).join(" and ")} without a payment record, so ${T.legacyT+T.legacyS>1?"they don't":"it doesn't"} count toward "Paid". Record the payment to fix the balance.</div>`:""}`;
 }
 function mStatement(party,T){
@@ -1377,7 +1433,7 @@ function mStatement(party,T){
   <div class="chips">${chips.map(([k,l])=>`<button type="button" class="chip" data-act="mfilter" data-v="${k}" aria-pressed="${f===k}">${l}</button>`).join("")}</div>
   <div class="tbl"><table><thead><tr><th>Client</th><th>Install</th>${party==="tcl"?`<th class="r">Job price</th><th class="r">ProLight ${rates().tcl*100}%</th>`:`<th>Crew</th><th class="r">Split</th><th class="r">Payout</th>`}<th>Status</th></tr></thead>
   <tbody>${rows.map(r=>{ const paid=isPaid(party,r,T); return `<tr><td><button type="button" class="tog" style="border:0;padding:0;background:none;color:var(--ink)" data-act="job" data-id="${esc(r.j.id)}"><b>${esc(r.client)}</b></button></td><td class="mono">${r.done?esc(fmtDay(installedOn(r.j)||r.date)):r.date?"Sched. "+esc(fmtDay(r.date)):"—"}</td>
-    ${party==="tcl"?`<td class="r">${money2(r.s.price)}</td><td class="r"><b>${money2(r.s.incoming)}</b></td>`:`<td>${esc(teamName(r.j.crew))}</td><td class="r">${pctTxt(r.s.ssPct)}${r.s.custom?"*":""}</td><td class="r"><b>${money2(r.s.ss)}</b></td>`}
+    ${party==="tcl"?`<td class="r">${money2(r.s.price)}</td><td class="r"><b>${money2(r.s.incoming)}</b>${r.s.extras?`<small class="count" style="display:block">incl. ${money2(r.s.extras)} extras</small>`:""}</td>`:`<td>${esc(teamName(r.j.crew))}</td><td class="r">${pctTxt(r.s.ssPct)}${r.s.custom?"*":""}</td><td class="r"><b>${money2(r.s.ss)}</b></td>`}
     <td>${!r.done?`<span class="st scheduled">Not installed</span>`:paid?`<span class="st down">Paid</span>`:`<span class="st lit">Owed</span>`}</td></tr>`; }).join("")||`<tr><td colspan="6" class="count">Nothing here.</td></tr>`}</tbody>
   <tfoot><tr><td colspan="${party==="tcl"?3:4}"><b>${rows.length} job${rows.length===1?"":"s"}</b></td><td class="r"><b>${money2(tot)}</b></td><td></td></tr></tfoot></table></div>
   ${party==="shipshape"?`<p class="count" style="font-size:13px">* custom split set on that job.</p>`:""}
@@ -1579,12 +1635,210 @@ async function openFood(key){
   if(S.drawer&&S.drawer.kind==="food") renderDrawer();
 }
 
+/* ---------- several crews / trucks on one visit ---------- */
+const visitCrews = (j,v) => [...new Set([crewOf(j,v), ...(((v&&v.crews)||[]).map(normCrew))].filter(Boolean))];
+const ordOf = (v,team) => team&&team!=="all"&&v.orders&&v.orders[team]!=null ? v.orders[team] : (v.order??999);
+const visitTrucks = v => [...((v&&v.trucks)||[]), ...((v&&v.trailers)||[]).map(t=>t+" (trailer)")];
+function crewTags(j,v){
+  const cs=visitCrews(j,v), out=[];
+  if(v.returnOf) out.push(`<span class="vt returntag">Return</span>`);
+  if(S.team==="all") out.push(`<span class="crewtag">${esc(cs.map(teamName).join(" + ")||"Unassigned")}</span>`);
+  else if(cs.length>1) out.push(`<span class="crewtag">With ${esc(cs.filter(c=>c!==S.team).map(teamName).join(" + "))}</span>`);
+  return out.join("");
+}
+function visitExtrasLine(v){
+  const t=visitTrucks(v); return t.length?`<div class="t-facts"><span><b>Trucks</b>${esc(t.join(", "))}</span></div>`:"";
+}
+function dCrewTruck(key){
+  const [jid,vid]=key.split("|"), j=S.jobs.get(jid), v=(j&&j.visits||[]).find(x=>x.id===vid); if(!v) return drawerShell("Visit","Not found","");
+  const cs=visitCrews({...j,id:jid},v), F=fleet(), tr=v.trucks||[], tl=v.trailers||[];
+  const b=`<form class="form" id="ctForm" data-key="${esc(key)}"><fieldset><legend>Crews on this ${esc(VTYPE[v.type].toLowerCase())}</legend>
+    <p class="count" style="font-size:13px">The job shows on every checked crew's route. The first one checked leads.</p>
+    <div class="checks">${crews().map(c=>`<label><input type="checkbox" class="ct-crew" value="${esc(c.id)}" ${cs.includes(c.id)?"checked":""}><span>${esc(c.name)}${cs[0]===c.id?"<small>Lead crew</small>":""}</span></label>`).join("")}</div></fieldset>
+    <fieldset><legend>Trucks on this job</legend>${F.trucks.length?`<div class="checks">${F.trucks.map(t=>`<label><input type="checkbox" class="ct-truck" value="${esc(t)}" ${tr.includes(t)?"checked":""}><span>${esc(t)}</span></label>`).join("")}</div>`:`<p class="count">Add trucks in Office → Settings first.</p>`}
+      ${F.trailers.length?`<div class="checks">${F.trailers.map(t=>`<label><input type="checkbox" class="ct-trailer" value="${esc(t)}" ${tl.includes(t)?"checked":""}><span>${esc(t)}<small>Trailer</small></span></label>`).join("")}</div>`:""}</fieldset>
+    <div class="actions"><span></span><button type="submit" class="btn amber">Save</button></div></form>`;
+  return drawerShell(fmtDay(v.date||"")||"No date", (clientOf(j).name||"Job")+" · crews & trucks", b);
+}
+async function saveCrewTruck(form){
+  const [jid,vid]=form.dataset.key.split("|"), j=S.jobs.get(jid);
+  const picked=[...form.querySelectorAll(".ct-crew:checked")].map(x=>x.value);
+  const trucks=[...form.querySelectorAll(".ct-truck:checked")].map(x=>x.value), trailers=[...form.querySelectorAll(".ct-trailer:checked")].map(x=>x.value);
+  const visits=(j.visits||[]).map(x=>({...x}));
+  const v=visits.find(x=>x.id===vid); const lead=picked.includes(normCrew(v.crew||j.crew))?normCrew(v.crew||j.crew):(picked[0]||"");
+  v.crew=lead; v.crews=picked.filter(c=>c!==lead); v.trucks=trucks; v.trailers=trailers;
+  try{ await S.db.doc("jobs/"+jid).update({visits,updatedAt:new Date().toISOString()}); toast("Saved"); closeDrawer(); }catch(e){ fail(e,"save crews and trucks"); }
+}
+
+/* ---------- partly done ---------- */
+const isPartial = (jid,vid) => partialMap.get(jid+"|"+vid);
+const REASONS = ["Weather","Ran out of material","Ran out of time","Couldn't get access","Customer asked to stop","Equipment problem","Other"];
+function partialBtn(j,v){
+  const p=isPartial(j.id,v.id);
+  if(p) return `<span class="btn partial" title="${esc(p.left||"")}">Partly done · ${esc(p.reason)}</span>`;
+  return S.me.canLog ? `<button type="button" class="btn" data-act="partial" data-v="${esc(j.id)}|${esc(v.id)}">Partly done</button>` : "";
+}
+const hasReturn = (j,vid) => (j.visits||[]).some(x=>x.returnOf===vid);
+function needsReturn(){
+  const out=[]; for(const j of jobsArr()) for(const v of (j.visits||[])){ const p=isPartial(j.id,v.id); if(p && !isDone(j.id,v.id) && !hasReturn(j,v.id)) out.push({j,v,p}); }
+  return out;
+}
+function dPartial(key){
+  const [jid,vid]=key.split("|"), j=S.jobs.get(jid), v=(j&&j.visits||[]).find(x=>x.id===vid);
+  const F=S.form&&S.form.partial||{reason:""};
+  const b=`<form class="form" id="partialForm" data-key="${esc(key)}"><fieldset><legend>Why couldn't you finish?</legend>
+    <div class="chips" style="flex-wrap:wrap">${REASONS.map(r=>`<button type="button" class="chip" data-act="partial-reason" data-v="${esc(r)}" aria-pressed="${F.reason===r}">${esc(r)}</button>`).join("")}</div>
+    <div class="f"><label for="pt-left">What's left to do</label><textarea id="pt-left" placeholder="e.g. Right garage gable and the 2 porch columns. Need 2 more C9 strands.">${esc(F.left||"")}</textarea></div>
+    <div class="f"><label for="pt-why">Anything else? (optional)</label><input id="pt-why" value="${esc(F.why||"")}" placeholder="e.g. lightning at 3:40, called it"></div></fieldset>
+    ${S.me.owner?`<fieldset><legend>Return visit</legend><div class="two"><div class="f"><label for="pt-date">Date</label><input id="pt-date" type="date"><small>Leave blank to schedule later.</small></div>
+      <div class="f"><label for="pt-time">Time (optional)</label><input id="pt-time" type="time"></div></div></fieldset>`:`<p class="count">The office gets this right away and schedules the return visit.</p>`}
+    <div class="actions"><span class="count" id="pt-err" style="color:var(--red)"></span><button type="submit" class="btn amber">Save</button></div></form>`;
+  return drawerShell(VTYPE[(v||{}).type||"install"]+" · partly done", clientOf(j||{}).name||"Job", b);
+}
+async function savePartial(form){
+  const [jid,vid]=form.dataset.key.split("|"), F=S.form.partial, left=$("#pt-left").value.trim();
+  if(!F.reason){ $("#pt-err").textContent="Pick a reason."; return; }
+  if(!left){ $("#pt-err").textContent="Say what's left to do."; return; }
+  const now=new Date().toISOString();
+  try{
+    await S.db.collection("log").add({kind:"partial",jobId:jid,visitId:vid,by:S.me.id,at:now,reason:F.reason,left,why:$("#pt-why").value.trim()});
+    const oc=myOpenClock(); if(oc&&oc.jobId===jid&&oc.visitId===vid) await clockOut(oc.id,false,true);
+    if(S.me.owner){ const d=$("#pt-date")?$("#pt-date").value:""; await addReturn(jid,vid,d,$("#pt-time")?$("#pt-time").value:"",left,true); }
+    toast(S.me.owner?"Saved. Return visit added.":"Saved. The office will schedule the return."); S.form=null; closeDrawer();
+  }catch(e){ fail(e,"save that"); }
+}
+async function addReturn(jid,vid,date,time,left,quiet){
+  const j=S.jobs.get(jid), visits=(j.visits||[]).map(x=>({...x})), v=visits.find(x=>x.id===vid); if(!v) return;
+  if(visits.some(x=>x.returnOf===vid)) return;
+  const p=isPartial(jid,vid);
+  visits.push({id:uid(),type:v.type,date:date||"",time:time||"",crew:v.crew||"",crews:v.crews||[],trucks:v.trucks||[],trailers:v.trailers||[],note:"Finish: "+(left||(p&&p.left)||"see last visit"),returnOf:vid,order:null});
+  await S.db.doc("jobs/"+jid).update({visits,updatedAt:new Date().toISOString()});
+  if(!quiet) toast(date?"Return visit scheduled":"Return visit added. Set its date.");
+}
+function partialEntry(e){
+  return `<div class="entry partial-e"><div class="meta"><span><b>${esc(who(e.by))}</b> marked it partly done · ${esc(e.reason)}</span><span>${esc(ago(e.at))}</span></div>
+    <div class="txt"><b>Left to do:</b> ${esc(e.left)}${e.why?`<br>${esc(e.why)}`:""}</div></div>`;
+}
+function returnBlock(){
+  const L=needsReturn(); if(!L.length||!S.me.owner) return "";
+  return `<h2 class="h-sec">Partly done, needs a return visit · ${L.length}</h2><div class="rows">${L.map(({j,v,p})=>`<div class="row" style="cursor:default"><span class="bulb dim"></span>
+    <span class="m"><span class="n">${esc(clientOf(j).name||"Customer")}</span><span class="s">${esc(p.reason)} · ${esc(p.left)}</span></span>
+    <span class="r"><button type="button" class="btn small amber" data-act="add-return" data-v="${esc(j.id)}|${esc(v.id)}">Schedule return</button></span></div>`).join("")}</div>`;
+}
+
+/* ---------- charges to bill TCL ---------- */
+const EXTRA_PRESETS=["C9 bulbs, warm white","C9 bulbs, cool white","C9 bulbs, multicolor","C9 bulbs, red","Mini light strands","Net lights","Lit garland","Lit wreath","Gutter clips","Shingle tabs","Zip ties","Extension cord","Outdoor timer","Spritzer cone","Labor (hours)"];
+const extrasOf = f => (f&&f.extras)||[];
+const extraTotal = f => extrasOf(f).reduce((t,x)=>t+(x.price!=null&&x.price!==""?Number(x.qty||0)*Number(x.price):0),0);
+const extraNeed = f => extrasOf(f).filter(x=>x.price==null||x.price==="").length;
+function extrasHTML(j,f){
+  const X=extrasOf(f), canW=S.me.money&&S.me.owner;
+  return `<div class="extras"><div class="bar"><b class="eyebrow grow">Extra charges to bill TCL</b><span class="mono">${money2(extraTotal(f))}</span></div>
+    ${X.length?`<div class="rows">${X.map(x=>{ const priced=x.price!=null&&x.price!=="";
+      return `<div class="row" style="cursor:default"><span class="mono" style="font-weight:600">${esc(x.qty)}×</span><span class="m"><span class="n">${esc(x.desc)}</span><span class="s">${priced?`${money2(x.price)} each`:"Needs a price"}${x.note?" · "+esc(x.note):""}</span></span>
+      <span class="r">${priced?`<span class="mono">${money2(Number(x.qty)*Number(x.price))}</span>`:(canW?`<span style="display:flex;gap:6px"><input class="search" style="width:96px;min-height:34px" id="xp-${esc(x.id)}" inputmode="decimal" placeholder="$ each"><button type="button" class="btn small amber" data-act="x-price" data-v="${esc(j.id)}|${esc(x.id)}">Add</button></span>`:`<span class="st lit">No price</span>`)}
+      ${canW?`<button type="button" class="btn small" data-act="x-del" data-v="${esc(j.id)}|${esc(x.id)}" aria-label="Remove">×</button>`:""}</span></div>`; }).join("")}</div>`:`<p class="count" style="font-size:13px">Use this when you supply your own product or extra labor on a TCL job.</p>`}
+    ${canW?`<div class="xadd"><input class="search" id="x-qty" inputmode="decimal" placeholder="Qty" style="width:72px"><input class="search" id="x-desc" list="x-presets" placeholder="e.g. C9 bulbs, warm white" style="flex:1 1 180px;min-width:0"><input class="search" id="x-price" inputmode="decimal" placeholder="$ each (optional)" style="width:130px"><button type="button" class="btn amber small" data-act="x-add" data-v="${esc(j.id)}">Add charge</button>
+      <datalist id="x-presets">${EXTRA_PRESETS.map(p=>`<option value="${esc(p)}">`).join("")}</datalist></div>`:""}</div>`;
+}
+async function saveExtras(jid,list){
+  const f=S.fin.get(jid)||{};
+  try{ await S.db.doc("fin/"+jid).set({...f,extras:list}); }catch(e){ fail(e,"save the charge"); }
+}
+
+/* ---------- chat ---------- */
+S.msgs = S.msgs || new Map(); S.chat = S.chat || {ch:null, draft:{}};
+const dmId = (a,b) => "dm:"+[a,b].sort().join(":");
+function myChannels(){
+  const me=PL.me()||{}, wide=me.all_crews||me.can_edit||me.can_manage;
+  const list=[{id:"ann",name:"Announcements",kind:"ann"}];
+  for(const c of crews()) if(wide||me.crew===c.id) list.push({id:"crew:"+c.id,name:c.name,kind:"crew"});
+  for(const p of PL.staff()) if(p.active&&p.id!==me.id) list.push({id:dmId(me.id,p.id),name:p.name,kind:"dm",who:p.id});
+  return list;
+}
+const chanMsgs = ch => [...S.msgs.values()].filter(m=>m.channel===ch).sort((a,b)=>a.at.localeCompare(b.at));
+const lastRead = ch => ls("read:"+S.me.id+":"+ch) || "";
+const unreadIn = ch => chanMsgs(ch).filter(m=>m.by!==S.me.id && m.at>lastRead(ch)).length;
+function unreadTotal(){ return myChannels().reduce((t,c)=>t+unreadIn(c.id),0); }
+const canPost = ch => ch!=="ann" || S.me.owner || S.me.manage;
+function vChat(){
+  const chans=myChannels(), cur=S.chat.ch&&chans.find(c=>c.id===S.chat.ch)?S.chat.ch:null;
+  const last=ch=>{ const m=chanMsgs(ch); return m[m.length-1]; };
+  const groups=[["ann","Announcements"],["crew","Crew channels"],["dm","Direct messages"]];
+  const listHTML=`<div class="chat-list">${groups.map(([k,l])=>{ let cs=chans.filter(c=>c.kind===k); if(k==="dm") cs.sort((a,b)=>String((last(b.id)||{}).at||"").localeCompare(String((last(a.id)||{}).at||""))||a.name.localeCompare(b.name));
+    return `<span class="eyebrow">${l}</span>${cs.map(c=>{ const m=last(c.id), u=unreadIn(c.id); return `<button type="button" class="chat-ch ${cur===c.id?"on":""}" data-act="chat-open" data-v="${esc(c.id)}"><span class="m"><b>${esc(c.name)}</b><small>${m?esc((m.by===S.me.id?"You: ":"")+m.body.slice(0,60)):k==="dm"?"Send a message":"No messages yet"}</small></span>${u?`<i class="badge">${u}</i>`:""}</button>`; }).join("")}`; }).join("")}</div>`;
+  let thread="";
+  if(cur){
+    const c=chans.find(x=>x.id===cur), M=chanMsgs(cur); let day="";
+    thread=`<div class="chat-thread"><div class="chat-head"><button type="button" class="btn small chat-back" data-act="chat-open" data-v="">‹</button><b>${esc(c.name)}</b>${c.kind==="ann"?`<span class="count">Only the office posts here</span>`:c.kind==="crew"?`<span class="count">${esc(membersOf(cur.slice(5)).join(", ")||"Crew + office")}</span>`:`<span class="count">Private</span>`}</div>
+      <div class="chat-msgs" id="chat-msgs">${M.map(m=>{ const d=isoOf(m.at), sep=d!==day?`<div class="chat-day">${esc(rel(d)||fmtDay(d,{weekday:"short",month:"short",day:"numeric"}))}</div>`:""; day=d; const mine=m.by===S.me.id;
+        return `${sep}<div class="bub ${mine?"me":""}">${mine?"":`<b>${esc(who(m.by))}</b>`}<div class="txt">${esc(m.body)}</div><small>${new Date(m.at).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}${(mine||S.me.manage)?` · <button type="button" class="linkbtn" data-act="chat-del" data-id="${esc(m.id)}">Delete</button>`:""}</small></div>`; }).join("")||`<p class="count" style="text-align:center;margin:24px 0">No messages yet.</p>`}</div>
+      ${canPost(cur)?`<form class="chat-compose" id="chatForm"><textarea id="chat-text" rows="1" placeholder="${c.kind==="ann"?"Post an announcement to everyone":"Message "+esc(c.name)}">${esc(S.chat.draft[cur]||"")}</textarea><button type="submit" class="btn amber">Send</button></form>`:`<div class="note" style="margin:0">Only the office can post announcements.</div>`}</div>`;
+    const M2=chanMsgs(cur); if(M2.length) ls("read:"+S.me.id+":"+cur, M2[M2.length-1].at);
+  }
+  if(S.chatOff) return `<h1 class="h-view">Chat</h1><div class="note">Chat isn't switched on yet. ${S.me.manage?"Run update 3 in Supabase (SQL Editor), then reload.":"Ask the office to switch it on."}</div>`;
+  return `<div class="bar"><h1 class="h-view grow">Chat</h1></div><div class="chat ${cur?"open":""}">${listHTML}${thread||`<div class="chat-thread empty-t"><p class="lede">Pick a channel or a person.</p></div>`}</div>`;
+}
+function annBanner(){
+  const M=chanMsgs("ann"), m=M[M.length-1]; if(!m||m.by===S.me.id||m.at<=lastRead("ann")) return "";
+  return `<div class="ann"><div><span class="eyebrow">Announcement · ${esc(who(m.by))}</span><div>${esc(m.body)}</div></div><button type="button" class="btn small" data-act="ann-seen">Got it</button></div>`;
+}
+window.addEventListener("prolight:msg",e=>{
+  const p=e.detail; if(p.eventType==="DELETE"){ S.msgs.delete(p.old.id); } else { S.msgs.set(p.new.id,p.new); }
+  if(S.view==="chat"){ const t=$("#chat-text"); if(t) S.chat.draft[S.chat.ch]=t.value; renderMain(); scrollChat(); } else renderNav();
+  if(S.view==="route") renderMain();
+});
+function scrollChat(){ const el=$("#chat-msgs"); if(el) el.scrollTop=el.scrollHeight; const t=$("#chat-text"); if(t&&document.activeElement!==t&&window.innerWidth>=960) t.focus(); }
+async function sendChat(){
+  const t=$("#chat-text"), body=t.value.trim(), ch=S.chat.ch; if(!body||!ch) return;
+  t.value=""; S.chat.draft[ch]="";
+  try{ await PL.chatSend(ch,body); }catch(e){ t.value=body; toast(/security|policy/i.test(e.message)?"You can't post here.":"Couldn't send. Check your signal."); }
+}
+
+/* ---------- glue ---------- */
+function setOrd(j,t,crew,val){ if(crew==="all"||crewOf(j,t)===crew) t.order=val; else t.orders={...(t.orders||{}),[crew]:val}; }
+function visitMore(j,v){
+  const p=isPartial(j.id,v.id), dn=isDone(j.id,v.id), t=visitTrucks(v), out=[], btns=[];
+  if(t.length) out.push(`<small>Trucks: ${esc(t.join(", "))}</small>`);
+  if(v.returnOf) out.push(`<small><b>Return visit</b> to finish what was left</small>`);
+  if(p) out.push(`<small class="pt-line"><b>Partly done</b> · ${esc(p.reason)} · ${esc(who(p.by))}, ${esc(ago(p.at))}<br>Left: ${esc(p.left)}${p.why?` · ${esc(p.why)}`:""}${(S.me.owner||p.by===S.me.id)&&!hasReturn(j,v.id)?` · <button type="button" class="linkbtn" data-act="undone" data-id="${esc(p.id)}">Undo</button>`:""}</small>`);
+  if(S.me.owner) btns.push(`<button type="button" class="btn small" data-act="crewtruck" data-v="${esc(j.id)}|${esc(v.id)}">Crews & trucks</button>`);
+  if(!dn&&!p&&S.me.canLog&&v.date) btns.push(`<button type="button" class="btn small" data-act="partial" data-v="${esc(j.id)}|${esc(v.id)}">Partly done</button>`);
+  if(p&&!dn&&S.me.owner&&!hasReturn(j,v.id)) btns.push(`<button type="button" class="btn small amber" data-act="add-return" data-v="${esc(j.id)}|${esc(v.id)}">Schedule return visit</button>`);
+  return out.join("")+(btns.length?`<div class="bar" style="margin-top:6px">${btns.join("")}</div>`:"");
+}
+function dReturn(key){
+  const [jid,vid]=key.split("|"), j=S.jobs.get(jid), p=isPartial(jid,vid);
+  const b=`<form class="form" id="returnForm" data-key="${esc(key)}">${p?`<div class="note" style="margin:0"><b>Left to do:</b> ${esc(p.left)}</div>`:""}
+    <fieldset><legend>Return visit</legend><div class="two"><div class="f"><label for="rt-date">Date</label><input id="rt-date" type="date" value="${esc(addDays(todayISO(),1))}"></div>
+    <div class="f"><label for="rt-time">Time (optional)</label><input id="rt-time" type="time"></div></div>
+    <p class="count" style="font-size:13px">Same crews and trucks as the first visit. Change them after with Crews & trucks.</p></fieldset>
+    <div class="actions"><span></span><button type="submit" class="btn amber">Add return visit</button></div></form>`;
+  return drawerShell("Partly done", (clientOf(j||{}).name||"Job")+" · return visit", b);
+}
+function extraNeedNote(){
+  const L=jobsArr().filter(j=>j.stage!=="cancelled"&&extraNeed(S.fin.get(j.id)));
+  if(!L.length) return "";
+  return `<div class="note">${L.length} job${L.length>1?"s have":" has"} extra charges with no price yet, so ${L.length>1?"they aren't":"it isn't"} billed to TCL: ${L.map(j=>`<button type="button" class="linkbtn" data-act="job" data-id="${esc(j.id)}">${esc(clientOf(j).name||"Customer")}</button>`).join(", ")}</div>`;
+}
+async function loadChat(){
+  if(!window.PL||!PL.chatLoad) { S.chatOff=true; return; }
+  try{ const rows=await PL.chatLoad(); S.msgs=new Map(rows.map(r=>[r.id,r])); S.chatOff=false; }
+  catch(e){ S.chatOff=true; }
+  if(S.view==="chat"||S.view==="route") { renderMain(); if(S.view==="chat") scrollChat(); } else renderNav();
+}
+window.addEventListener("prolight:chatreload", ()=>loadChat());
+document.addEventListener("input", e=>{ if(e.target.id==="chat-text"){ S.chat.draft[S.chat.ch]=e.target.value; e.target.style.height="auto"; e.target.style.height=Math.min(160,e.target.scrollHeight)+"px"; } });
+document.addEventListener("keydown", e=>{ if(e.target.id==="chat-text"&&e.key==="Enter"&&!e.shiftKey&&window.innerWidth>=960){ e.preventDefault(); sendChat(); } });
+function readPartialForm(){ if(!S.form||!S.form.partial) return; const l=$("#pt-left"), w=$("#pt-why"); if(l) S.form.partial.left=l.value; if(w) S.form.partial.why=w.value; }
+
 /* ---------- render ---------- */
 function renderMain(){
   renderNav();
   const a=document.activeElement, fid=a&&a.id&&a.id.startsWith("q-")?a.id:null, pos=fid?a.selectionStart:0;
   const md=$("#map-date"); if(md && md.value) MAP.date=md.value;
-  $("#view").innerHTML = S.view==="route"?vRoute(): S.view==="jobs"?vJobs(): S.view==="map"?vMap(): S.view==="clients"?vClients(): S.view==="week"?vWeek(): vOffice();
+  $("#view").innerHTML = S.view==="route"?vRoute(): S.view==="jobs"?vJobs(): S.view==="map"?vMap(): S.view==="clients"?vClients(): S.view==="week"?vWeek(): S.view==="chat"?vChat(): vOffice();
+  if(S.view==="chat") scrollChat();
   if(S.view==="map") mountMap();
   if(fid){ const el=document.getElementById(fid); if(el){ el.focus(); try{el.setSelectionRange(pos,pos);}catch(e){} } }
 }
@@ -1647,12 +1901,12 @@ async function rmMockup(aid){
   try{ await S.db.doc("jobs/"+id).update({mockups:(j.mockups||[]).filter(m=>m.id!==aid)}); if(S.assets){ try{ await S.assets.delete(aid); }catch(e){} } }catch(e){ fail(e,"remove that mockup"); }
 }
 async function move(jobId,visitId,dir){
-  const j=S.jobs.get(jobId), v=(j.visits||[]).find(x=>x.id===visitId); const crew=crewOf(j,v);
+  const j=S.jobs.get(jobId), v=(j.visits||[]).find(x=>x.id===visitId); const crew=S.team!=="all"&&visitCrews(j,v).includes(S.team)?S.team:crewOf(j,v);
   const list=stopsFor(S.day,crew); const i=list.findIndex(s=>s.j.id===jobId&&s.v.id===visitId), k=i+dir;
   if(i<0||k<0||k>=list.length) return;
   [list[i],list[k]]=[list[k],list[i]];
   const changes=new Map();
-  list.forEach((s,idx)=>{ if(s.v.order!==idx+1){ const base=changes.get(s.j.id)||(S.jobs.get(s.j.id).visits||[]).map(x=>({...x})); const t=base.find(x=>x.id===s.v.id); t.order=idx+1; changes.set(s.j.id,base); } });
+  list.forEach((s,idx)=>{ if(ordOf(s.v,crew)!==idx+1){ const base=changes.get(s.j.id)||(S.jobs.get(s.j.id).visits||[]).map(x=>({...x})); const t=base.find(x=>x.id===s.v.id); setOrd(s.j,t,crew,idx+1); changes.set(s.j.id,base); } });
   try{ for(const [id,visits] of changes) await S.db.doc("jobs/"+id).update({visits}); }catch(e){ fail(e,"reorder"); }
 }
 async function finTog(id,k){
@@ -1728,6 +1982,19 @@ document.addEventListener("click", async ev=>{
     case "view": S.view=v; closeDrawer(); renderMain(); window.scrollTo(0,0); break;
     case "team": S.team=v; ls("team",v); renderMain(); break;
     case "account": openDrawer("account"); break;
+    case "crewtruck": openDrawer("crewtruck",v); break;
+    case "partial": S.form={partial:{reason:"",left:"",why:""}}; openDrawer("partial",v); S.form={partial:{reason:"",left:"",why:""}}; break;
+    case "partial-reason": readPartialForm(); if(S.form&&S.form.partial){ S.form.partial.reason=v; renderDrawer(); } break;
+    case "add-return": openDrawer("return",v); break;
+    case "x-add": { const qty=Number(($("#x-qty").value||"1").replace(/[^0-9.]/g,""))||1, desc=$("#x-desc").value.trim(), pr=$("#x-price").value.replace(/[^0-9.]/g,"");
+      if(!desc){ toast("Say what it was, like C9 bulbs, warm white"); $("#x-desc").focus(); break; }
+      const f=S.fin.get(v)||{}; await saveExtras(v,[...extrasOf(f),{id:uid(),qty,desc,price:pr===""?null:Number(pr),at:new Date().toISOString(),by:S.me.id}]); toast(pr===""?"Added. Add the price when you have it.":"Charge added"); break; }
+    case "x-price": { const [jid,xid]=v.split("|"), el=document.getElementById("xp-"+xid), pr=(el&&el.value||"").replace(/[^0-9.]/g,""); if(pr===""){ toast("Type the price for one"); break; }
+      const f=S.fin.get(jid)||{}; await saveExtras(jid,extrasOf(f).map(x=>x.id===xid?{...x,price:Number(pr)}:x)); toast("Price added"); break; }
+    case "x-del": { const [jid,xid]=v.split("|"), f=S.fin.get(jid)||{}; await saveExtras(jid,extrasOf(f).filter(x=>x.id!==xid)); toast("Removed"); break; }
+    case "chat-open": { const tx=$("#chat-text"); if(tx&&S.chat.ch) S.chat.draft[S.chat.ch]=tx.value; S.chat.ch=v||null; renderMain(); break; }
+    case "chat-del": try{ await PL.chatDelete(id); }catch(e){ toast("Couldn't delete that"); } break;
+    case "ann-seen": { const M=chanMsgs("ann"); if(M.length) ls("read:"+S.me.id+":ann",M[M.length-1].at); renderMain(); break; }
     case "maps-app": ls("mapsApp",v); renderDrawer(); renderMain(); toast(v==="apple"?"Directions will open in Apple Maps":"Directions will open in Google Maps"); break;
     case "mtab": S.mtab=v; S.mfilter="open"; renderMain(); break;
     case "mfilter": S.mfilter=v; renderMain(); break;
@@ -1818,6 +2085,10 @@ document.addEventListener("change", async ev=>{
 });
 document.addEventListener("submit", ev=>{
   ev.preventDefault();
+  if(ev.target.id==="ctForm") return saveCrewTruck(ev.target);
+  if(ev.target.id==="partialForm"){ readPartialForm(); return savePartial(ev.target); }
+  if(ev.target.id==="returnForm"){ const [a,b]=ev.target.dataset.key.split("|"); return addReturn(a,b,$("#rt-date").value,$("#rt-time").value,null,false).then(()=>openDrawer("job",a)).catch(e=>fail(e,"add the return visit")); }
+  if(ev.target.id==="chatForm") return sendChat();
   if(ev.target.id==="payForm") return savePay();
   if(ev.target.id==="assignForm") return saveAssign(ev.target.dataset.key,{truck:$("#as-truck").value,trailer:$("#as-trailer").value,note:$("#as-note").value.trim()});
   if(ev.target.id==="pinForm") return saveMyPin(); if(ev.target.id==="personForm") return savePerson();
@@ -1843,6 +2114,7 @@ renderMain();
   db.collection("jobs").onSnapshot(s=>{ S.jobs=new Map(s.docs.map(d=>[d.id,d.data()])); got.j=true; ready(); refresh(); }, e=>{ S.err="Lost connection to the board. Reload the page."; renderMain(); });
   db.collection("log").onSnapshot(s=>{ S.log=new Map(s.docs.map(d=>[d.id,d.data()])); recompute(); got.l=true; refresh(); fetchNames(); }, e=>{ got.l=true; refresh(); });
   db.doc("settings/board").onSnapshot(s=>{ S.settings=s.exists?s.data():{}; refresh(); }, e=>{});
+  loadChat();
   db.collection("settings").onSnapshot(s=>{ S.dayCfg=new Map(s.docs.filter(d=>d.id.startsWith("day-")).map(d=>[d.id.slice(4),d.data()])); refresh(); }, e=>{});
   if(S.me.money){
     db.collection("fin").onSnapshot(s=>{ const m=new Map(), pays=new Map(); for(const d of s.docs){ if(d.id==="settings") S.finSet=d.data(); else if(d.id.startsWith("pay-")) pays.set(d.id,d.data()); else m.set(d.id,d.data()); } S.fin=m; S.pays=pays; S.stmt=null; refresh(); }, e=>{});
