@@ -147,13 +147,11 @@ const unwrap = (t) => { while (t && (t.kind === "NON_NULL" || t.kind === "LIST")
 const isList = (t) => { for (; t; t = t.ofType) if (t.kind === "LIST") return true; return false; };
 const typeQ = async (token, name) => (await gql(token, `query($n:String!){ __type(name:$n){ name kind possibleTypes{ name } fields{ name args{ name } type{ ...T } } } } ${TT}`, { n: name })).__type;
 let NOTEQ = null;
-async function noteQuery(token) {
-  if (NOTEQ) return NOTEQ;
-  const job = await typeQ(token, "Job");
-  const nf = job.fields.find((f) => f.name === "notes");
-  if (!nf) throw new Error("Jobber jobs have no notes field");
+async function notesSel(token, nf) {
+  // returns "notes(first:30){ nodes { ...fragments } }" for a notes field, or "" if it has no attachments
   const conn = await typeQ(token, unwrap(nf.type).name);
-  const nodesF = conn.fields.find((f) => f.name === "nodes");
+  const nodesF = conn && conn.fields && conn.fields.find((f) => f.name === "nodes");
+  if (!nodesF) return "";
   const noteT = await typeQ(token, unwrap(nodesF.type).name);
   const members = noteT.kind === "OBJECT" ? [noteT] : await Promise.all((noteT.possibleTypes || []).map((t) => typeQ(token, t.name)));
   const frags = [];
@@ -169,25 +167,57 @@ async function noteQuery(token) {
     const args = af.args && af.args.some((x) => x.name === "first") ? "(first:20)" : "";
     frags.push(`... on ${m.name} { __typename ${af.name}${args} { ${viaNodes ? `nodes { ${pick.join(" ")} }` : pick.join(" ")} } }`);
   }
-  if (!frags.length) throw new Error("Couldn't find photo attachments on Jobber notes (types: " + members.map((m) => m.name).join(", ") + ")");
-  const nargs = nf.args && nf.args.some((x) => x.name === "first") ? "(first:30)" : "";
-  NOTEQ = `query($id:EncodedId!){ job(id:$id){ notes${nargs} { nodes { ${frags.join(" ")} } } } }`;
+  if (!frags.length) return "";
+  const nargs = nf.args && nf.args.some((x) => x.name === "first") ? "(first:40)" : "";
+  return `notes${nargs} { nodes { ${frags.join(" ")} } }`;
+}
+async function noteQuery(token) {
+  if (NOTEQ) return NOTEQ;
+  // Photos can live on the job's notes or on notes from its client, quote, request or property.
+  const job = await typeQ(token, "Job");
+  const parts = [];
+  const nf = job.fields.find((f) => f.name === "notes");
+  if (nf) { const sel = await notesSel(token, nf); if (sel) parts.push(sel); }
+  for (const rel of ["client", "quote", "request", "property"]) {
+    const rf = job.fields.find((f) => f.name === rel);
+    if (!rf) continue;
+    const rt = await typeQ(token, unwrap(rf.type).name);
+    const rn = rt && rt.fields && rt.fields.find((f) => f.name === "notes");
+    if (!rn) continue;
+    const sel = await notesSel(token, rn).catch(() => "");
+    if (sel) parts.push(`${rel} { ${sel} }`);
+  }
+  if (!parts.length) throw new Error("Couldn't find photo attachments on Jobber notes");
+  NOTEQ = `query($id:EncodedId!){ job(id:$id){ ${parts.join(" ")} } }`;
   return NOTEQ;
 }
-async function jobFiles(token, jobId) {
-  const d = await gql(token, await noteQuery(token), { id: jobId });
-  const files = [];
-  for (const n of ((d.job && d.job.notes && d.job.notes.nodes) || [])) {
-    if (!n) continue;
-    for (const [k, v] of Object.entries(n)) {
-      if (k === "__typename" || !v) continue;
-      for (const f of (Array.isArray(v) ? v : v.nodes || [])) {
-        const url = f && (f.url || Object.entries(f).find(([kk, vv]) => /url/i.test(kk) && vv)?.[1]);
-        if (url) files.push({ url, fileName: f.fileName || f.name || "", contentType: f.contentType || "" });
+function filesFrom(d) {
+  const out = [], seen = new Set(), by = {};
+  const scan = (where, notes) => {
+    for (const n of ((notes && notes.nodes) || [])) {
+      if (!n) continue;
+      by[where] = by[where] || { notes: 0, files: 0 }; by[where].notes++;
+      for (const [k, v] of Object.entries(n)) {
+        if (k === "__typename" || !v) continue;
+        for (const f of (Array.isArray(v) ? v : v.nodes || [])) {
+          const url = f && (f.url || Object.entries(f).find(([kk, vv]) => /url/i.test(kk) && vv)?.[1]);
+          if (!url) continue;
+          by[where].files++;
+          const key = (f.fileName || f.name || "") + "|" + (f.fileSize || url);
+          if (seen.has(key)) continue; seen.add(key);
+          out.push({ url, fileName: f.fileName || f.name || "", contentType: f.contentType || "" });
+        }
       }
     }
-  }
-  return files;
+  };
+  const j = d.job || {};
+  scan("job", j.notes);
+  for (const rel of ["client", "quote", "request", "property"]) if (j[rel]) scan(rel, j[rel].notes);
+  out.by = by;
+  return out;
+}
+async function jobFiles(token, jobId) {
+  return filesFrom(await gql(token, await noteQuery(token), { id: jobId }));
 }
 const kindOf = (f) => /^image\//.test(f.contentType || "") || /\.(jpe?g|png|heic|webp|gif)$/i.test(f.fileName || "") ? "image"
   : /pdf/.test(f.contentType || "") || /\.pdf$/i.test(f.fileName || "") ? "pdf"
@@ -240,7 +270,7 @@ async function sync(trigger) {
       if ((!f || !f.price) && price > 0) { rows.push({ coll: "fin", id: existing.id, data: { ...(f || { invoiceNo: "", collected: false, ssPaid: false }), price, privateNote: (f && f.privateNote) || "From Jobber #" + j.jobNumber } }); ch = true; }
       if (j.completedAt && !done.has(existing.id)) { rows.push({ coll: "log", id: "jbdone-" + wid, data: { jobId: existing.id, visitId: (v && v.id) || "inst", kind: "done", by: "jobber", at: j.completedAt } }); ch = true; }
       if (ch) res.updated++;
-      if (!(d.mockups || []).length && d.jobberMediaV !== 2) media.push([j, wid, existing.id, d]);
+      if (!(d.mockups || []).length && d.jobberMediaV !== 3) media.push([j, wid, existing.id, d]);
       continue;
     }
     const cname = (j.client && j.client.name) || "Customer", jcid = j.client && j.client.id;
@@ -273,7 +303,7 @@ async function sync(trigger) {
       const files = await copyFiles(token, j, wid);
       const fresh = (await sb(`/rest/v1/docs?coll=eq.jobs&id=eq.${encodeURIComponent(id)}&select=data`))[0];
       const cur = (fresh && fresh.data) || d;
-      await putDocs([{ coll: "jobs", id, data: { ...cur, mockups: [...(cur.mockups || []), ...files], jobberMediaAt: new Date().toISOString(), jobberMediaV: 2 } }]);
+      await putDocs([{ coll: "jobs", id, data: { ...cur, mockups: [...(cur.mockups || []), ...files], jobberMediaAt: new Date().toISOString(), jobberMediaV: 3 } }]);
       res.photos += files.length;
       if (copyFiles.fail) { res.photoError = copyFiles.fail; copyFiles.fail = null; }
     } catch (e) { res.photoError = e.message.slice(0, 200); break; }
@@ -327,7 +357,7 @@ module.exports = async (req, res) => {
       if (jobNo && !String(q).startsWith("ERR")) {
         const d = await gql(token, `query($s:String!){ jobs(first:5, searchTerm:$s){ nodes{ id jobNumber title } } }`, { s: jobNo }).catch((e) => ({ err: e.message }));
         const hit = d && d.jobs && d.jobs.nodes.find((x) => String(x.jobNumber) === jobNo);
-        if (hit) sample = await gql(token, q, { id: hit.id }).catch((e) => ({ err: e.message }));
+        if (hit) { const raw = await gql(token, q, { id: hit.id }).catch((e) => ({ err: e.message })); if (raw.err) sample = raw; else { const f = filesFrom(raw); sample = { job: hit.jobNumber + " " + (hit.title || ""), whereNotesAre: f.by, photosFound: f.map((x) => x.fileName || x.contentType) }; } }
         else sample = d;
       }
       return res.status(200).json({ query: q, sample });
