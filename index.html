@@ -1863,9 +1863,10 @@ function jobberCard(){
   const sum=L?[`${L.added} new`, L.updated?`${L.updated} filled in`:"", L.photos?`${L.photos} photo${L.photos>1?"s":""}`:"", `${L.prowash} ProWash and ${L.tcl} TCL skipped`].filter(Boolean).join(" · "):"";
   return `<fieldset><legend>Jobber</legend>
     ${st.connected?`<p style="margin:0">Connected. New ProLight jobs from Jobber land here on their own: every night, and whenever you open the board.</p>
-      ${L?`<p class="count" style="margin:6px 0 0">Last sync ${esc(when)}: ${esc(sum)}${L.photosLeft?` · ${L.photosLeft} jobs' photos still coming`:""}${L.names&&L.names.length?`<br>Added: ${esc(L.names.join(", "))}`:""}</p>`:""}
+      ${L?`<p class="count" style="margin:6px 0 0">Last sync ${esc(when)}: ${esc(sum)}${L.photosLeft?` · ${L.photosLeft} jobs' photos still coming`:""}${L.photoError?`<br><b>Photos:</b> ${esc(L.photoError)}`:""}${L.names&&L.names.length?`<br>Added: ${esc(L.names.join(", "))}`:""}</p>`:""}
       ${st.lastError?`<div class="note" style="margin:8px 0 0">Last try failed: ${esc(st.lastError)}</div>`:""}
-      <div class="bar" style="margin-top:10px"><button type="button" class="btn amber" data-act="jb-sync" ${S.jb.busy?"disabled":""}>${S.jb.busy?"Syncing…":"Sync now"}</button><button type="button" class="btn" data-act="jb-connect">Reconnect</button></div>`
+      <div class="bar" style="margin-top:10px"><button type="button" class="btn amber" data-act="jb-sync" ${S.jb.busy?"disabled":""}>${S.jb.busy?"Syncing…":"Sync now"}</button><button type="button" class="btn" data-act="jb-connect">Reconnect</button></div>
+      <details style="margin-top:10px"><summary class="count">Photos not showing? Check one job</summary><div class="bar" style="margin-top:6px"><input class="search" id="jb-probe" placeholder="Jobber job # (e.g. 752)" style="width:180px"><button type="button" class="btn small" data-act="jb-probe">Check</button></div>${S.jb.probe?`<pre style="white-space:pre-wrap;font-size:11px;max-height:260px;overflow:auto">${esc(S.jb.probe)}</pre>`:""}</details>`
     :`<p style="margin:0">Connect Jobber once and new ProLight jobs (name, address, scope, notes, mockup photos, price) come over on their own. ProWash and TCL jobs are never touched.</p>
       <div class="bar" style="margin-top:10px"><button type="button" class="btn amber" data-act="jb-connect">Connect Jobber</button></div>`}
   </fieldset>`;
@@ -1882,6 +1883,11 @@ function jobberAuto(){
   if(q){ history.replaceState(null,"",location.pathname); toast(q==="connected"?"Jobber connected. Pulling your ProLight jobs…":"Jobber connected, but the first sync hit a problem. See Office → Settings."); S.view="office"; S.office="settings"; renderMain(); return; }
   if(Date.now()-Number(ls("jbLast")||0) < 20*60e3) return;
   PL.jobber("status").then(st=>{ S.jb.st=st; if(st.connected) jobberSync(true); }).catch(()=>{});
+}
+async function jobberProbe(){
+  const n=($("#jb-probe")||{}).value||""; S.jb.probe="Checking…"; renderMain();
+  try{ const r=await PL.jobber("probe&job="+encodeURIComponent(n.trim())); S.jb.probe=JSON.stringify(r,null,1).slice(0,3000); }catch(e){ S.jb.probe=e.message; }
+  renderMain();
 }
 
 /* ---------- render ---------- */
@@ -2035,6 +2041,7 @@ document.addEventListener("click", async ev=>{
     case "team": S.team=v; ls("team",v); renderMain(); break;
     case "account": openDrawer("account"); break;
     case "jb-sync": await jobberSync(false); break;
+    case "jb-probe": await jobberProbe(); break;
     case "jb-connect": try{ const r=await PL.jobber("connect"); location.href=r.url; }catch(e){ toast(e.message.slice(0,140)); } break;
     case "crewtruck": openDrawer("crewtruck",v); break;
     case "partial": S.form={partial:{reason:"",left:"",why:""}}; openDrawer("partial",v); S.form={partial:{reason:"",left:"",why:""}}; break;

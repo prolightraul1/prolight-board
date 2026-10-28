@@ -139,24 +139,55 @@ const addr = (p) => { const a = (p && p.address) || {}; return [[a.street1, a.st
 const webId = (j) => { const m = String(j.jobberWebUri || "").match(/work_orders\/(\d+)/); if (m) return m[1]; try { return Buffer.from(j.id, "base64").toString().split("/").pop(); } catch (e) { return j.id; } };
 const norm = (s) => String(s || "").toLowerCase().replace(/\s+/g, " ").trim();
 
-/* ---------- mockup photos from the job's notes ---------- */
-const NOTE_QS = [
-  `query($id:EncodedId!){ job(id:$id){ notes(first:30){ nodes{ ... on JobNote { fileAttachments(first:20){ nodes{ fileName contentType url } } } } } } }`,
-  `query($id:EncodedId!){ job(id:$id){ notes(first:30){ nodes{ ... on JobNote { fileAttachments{ nodes{ fileName contentType url } } } } } } }`,
-];
-let noteQ = 0;
+/* ---------- mockup photos from the job's notes ----------
+   Jobber's note/attachment types are discovered from the API itself (introspection),
+   so this keeps working whatever the exact type names are. */
+const TT = "fragment T on __Type { name kind ofType { name kind ofType { name kind ofType { name kind } } } }";
+const unwrap = (t) => { while (t && (t.kind === "NON_NULL" || t.kind === "LIST")) t = t.ofType; return t; };
+const isList = (t) => { for (; t; t = t.ofType) if (t.kind === "LIST") return true; return false; };
+const typeQ = async (token, name) => (await gql(token, `query($n:String!){ __type(name:$n){ name kind possibleTypes{ name } fields{ name args{ name } type{ ...T } } } } ${TT}`, { n: name })).__type;
+let NOTEQ = null;
+async function noteQuery(token) {
+  if (NOTEQ) return NOTEQ;
+  const job = await typeQ(token, "Job");
+  const nf = job.fields.find((f) => f.name === "notes");
+  if (!nf) throw new Error("Jobber jobs have no notes field");
+  const conn = await typeQ(token, unwrap(nf.type).name);
+  const nodesF = conn.fields.find((f) => f.name === "nodes");
+  const noteT = await typeQ(token, unwrap(nodesF.type).name);
+  const members = noteT.kind === "OBJECT" ? [noteT] : await Promise.all((noteT.possibleTypes || []).map((t) => typeQ(token, t.name)));
+  const frags = [];
+  for (const m of members) {
+    const af = (m.fields || []).find((f) => /attachment/i.test(f.name)) || (m.fields || []).find((f) => /^files?$/i.test(f.name));
+    if (!af) continue;
+    let ft = await typeQ(token, unwrap(af.type).name), viaNodes = false;
+    const n2 = !isList(af.type) && ft.fields && ft.fields.find((f) => f.name === "nodes");
+    if (n2) { ft = await typeQ(token, unwrap(n2.type).name); viaNodes = true; }
+    const has = (n) => ft.fields.some((f) => f.name === n);
+    const pick = ["url", "fileName", "contentType", "name", "fileSize"].filter(has);
+    if (!pick.includes("url")) { const u = ft.fields.find((f) => /url/i.test(f.name)); if (u) pick.push(u.name); else continue; }
+    const args = af.args && af.args.some((x) => x.name === "first") ? "(first:20)" : "";
+    frags.push(`... on ${m.name} { __typename ${af.name}${args} { ${viaNodes ? `nodes { ${pick.join(" ")} }` : pick.join(" ")} } }`);
+  }
+  if (!frags.length) throw new Error("Couldn't find photo attachments on Jobber notes (types: " + members.map((m) => m.name).join(", ") + ")");
+  const nargs = nf.args && nf.args.some((x) => x.name === "first") ? "(first:30)" : "";
+  NOTEQ = `query($id:EncodedId!){ job(id:$id){ notes${nargs} { nodes { ${frags.join(" ")} } } } }`;
+  return NOTEQ;
+}
 async function jobFiles(token, jobId) {
-  for (;;) {
-    try {
-      const d = await gql(token, NOTE_QS[noteQ], { id: jobId });
-      const files = [];
-      for (const n of ((d.job && d.job.notes && d.job.notes.nodes) || [])) for (const f of ((n && n.fileAttachments && n.fileAttachments.nodes) || [])) if (f && f.url) files.push(f);
-      return files;
-    } catch (e) {
-      if (noteQ < NOTE_QS.length - 1 && /field|argument|fileAttachments|doesn't exist|undefined/i.test(e.message)) { noteQ++; continue; }
-      throw e;
+  const d = await gql(token, await noteQuery(token), { id: jobId });
+  const files = [];
+  for (const n of ((d.job && d.job.notes && d.job.notes.nodes) || [])) {
+    if (!n) continue;
+    for (const [k, v] of Object.entries(n)) {
+      if (k === "__typename" || !v) continue;
+      for (const f of (Array.isArray(v) ? v : v.nodes || [])) {
+        const url = f && (f.url || Object.entries(f).find(([kk, vv]) => /url/i.test(kk) && vv)?.[1]);
+        if (url) files.push({ url, fileName: f.fileName || f.name || "", contentType: f.contentType || "" });
+      }
     }
   }
+  return files;
 }
 const kindOf = (f) => /^image\//.test(f.contentType || "") || /\.(jpe?g|png|heic|webp|gif)$/i.test(f.fileName || "") ? "image"
   : /pdf/.test(f.contentType || "") || /\.pdf$/i.test(f.fileName || "") ? "pdf"
@@ -165,11 +196,12 @@ async function copyFiles(token, j, wid) {
   const files = (await jobFiles(token, j.id)).filter(kindOf).slice(0, 12), out = [];
   for (let i = 0; i < files.length; i++) {
     const f = files[i], r = await fetch(f.url);
-    if (!r.ok) continue;
+    if (!r.ok) { copyFiles.fail = `couldn't download ${f.fileName || "a file"} (${r.status})`; continue; }
     const buf = Buffer.from(await r.arrayBuffer());
     if (buf.length > 45e6) continue;
     const path = `jobber/${wid}/${i + 1}-${String(f.fileName || "file").replace(/[^\w.\-]+/g, "_").slice(0, 80)}`;
     const up = await fetch(`${SB_URL}/storage/v1/object/media/${path}`, { method: "POST", headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY, "Content-Type": f.contentType || "application/octet-stream", "x-upsert": "true" }, body: buf });
+    if (!up.ok) copyFiles.fail = `couldn't save ${f.fileName || "a file"} to the board (${up.status})`;
     if (up.ok) out.push({ id: path, type: kindOf(f), name: f.fileName || "Mockup", from: "Jobber" });
   }
   return out;
@@ -208,7 +240,7 @@ async function sync(trigger) {
       if ((!f || !f.price) && price > 0) { rows.push({ coll: "fin", id: existing.id, data: { ...(f || { invoiceNo: "", collected: false, ssPaid: false }), price, privateNote: (f && f.privateNote) || "From Jobber #" + j.jobNumber } }); ch = true; }
       if (j.completedAt && !done.has(existing.id)) { rows.push({ coll: "log", id: "jbdone-" + wid, data: { jobId: existing.id, visitId: (v && v.id) || "inst", kind: "done", by: "jobber", at: j.completedAt } }); ch = true; }
       if (ch) res.updated++;
-      if (!(d.mockups || []).length && !d.jobberMediaAt) media.push([j, wid, existing.id, d]);
+      if (!(d.mockups || []).length && d.jobberMediaV !== 2) media.push([j, wid, existing.id, d]);
       continue;
     }
     const cname = (j.client && j.client.name) || "Customer", jcid = j.client && j.client.id;
@@ -241,8 +273,9 @@ async function sync(trigger) {
       const files = await copyFiles(token, j, wid);
       const fresh = (await sb(`/rest/v1/docs?coll=eq.jobs&id=eq.${encodeURIComponent(id)}&select=data`))[0];
       const cur = (fresh && fresh.data) || d;
-      await putDocs([{ coll: "jobs", id, data: { ...cur, mockups: [...(cur.mockups || []), ...files], jobberMediaAt: new Date().toISOString() } }]);
+      await putDocs([{ coll: "jobs", id, data: { ...cur, mockups: [...(cur.mockups || []), ...files], jobberMediaAt: new Date().toISOString(), jobberMediaV: 2 } }]);
       res.photos += files.length;
+      if (copyFiles.fail) { res.photoError = copyFiles.fail; copyFiles.fail = null; }
     } catch (e) { res.photoError = e.message.slice(0, 200); break; }
   }
   const out = { at: now, trigger, seen: jobs.length, ...res, names: res.names.slice(0, 30) };
@@ -285,6 +318,19 @@ module.exports = async (req, res) => {
     if (action === "sync") {
       try { return res.status(200).json(await sync("manual · " + me.name)); }
       catch (e) { await putInt("jobber", { ...((await getInt("jobber")) || {}), lastError: e.message }).catch(() => {}); throw e; }
+    }
+    if (action === "probe") {
+      const token = await accessToken();
+      const q = await noteQuery(token).catch((e) => "ERR " + e.message);
+      const jobNo = String((req.query && req.query.job) || "");
+      let sample = null;
+      if (jobNo && !String(q).startsWith("ERR")) {
+        const d = await gql(token, `query($s:String!){ jobs(first:5, searchTerm:$s){ nodes{ id jobNumber title } } }`, { s: jobNo }).catch((e) => ({ err: e.message }));
+        const hit = d && d.jobs && d.jobs.nodes.find((x) => String(x.jobNumber) === jobNo);
+        if (hit) sample = await gql(token, q, { id: hit.id }).catch((e) => ({ err: e.message }));
+        else sample = d;
+      }
+      return res.status(200).json({ query: q, sample });
     }
     if (action === "disconnect") {
       const c = (await getInt("jobber")) || {};
