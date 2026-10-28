@@ -1,0 +1,1266 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ProLight Season Board</title>
+<meta name="theme-color" content="#111916">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ProLight">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font-size:14px;-webkit-text-size-adjust:100%}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: phone = night top bar + single column + fixed bottom tabs, full-screen job drawer.
+   Desktop (>=960px) = night left rail + wide main + right-hand job drawer.
+   Signature: each day's route is drawn as a light strand, one C9 bulb per stop, lit when the crew checks it off. */
+:root{
+  --bg:#e9ece8; --card:#ffffff; --sunk:#f2f4f0; --ink:#141916; --ink-2:#4f5a54; --line:#d2d8d2;
+  --night:#111916; --night-2:#1b2621; --night-ink:#eaf0eb; --night-dim:#8e9f97;
+  --amber:#f2a516; --amber-ink:#2b1c00; --amber-soft:#fcefd0; --amber-text:#7a5100;
+  --cord:#21694a; --cord-soft:#d9eee2; --wire:#23372e; --glass:#c9d1cb; --glass-hi:#eef2ee;
+  --red:#b3332b; --red-soft:#f7dedb; --blue:#295ea3; --blue-soft:#dde7f5;
+  --f-sign:"Big Shoulders Display","Arial Narrow","Roboto Condensed",sans-serif;
+  --f-body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --r:6px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0d1210; --card:#161e1a; --sunk:#111815; --ink:#e5ebe6; --ink-2:#97a69e; --line:#26312c;
+  --night:#080c0a; --night-2:#121a16; --night-ink:#eaf0eb; --night-dim:#8a9b93;
+  --amber:#ffb83d; --amber-ink:#241700; --amber-soft:#3a2b0d; --amber-text:#ffcf78;
+  --cord:#62c391; --cord-soft:#15301f; --wire:#35584a; --glass:#34413b; --glass-hi:#4b5a53;
+  --red:#f28b80; --red-soft:#3a1815; --blue:#8fb5f0; --blue-soft:#162740;
+  color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0d1210; --card:#161e1a; --sunk:#111815; --ink:#e5ebe6; --ink-2:#97a69e; --line:#26312c;
+  --night:#080c0a; --night-2:#121a16; --night-ink:#eaf0eb; --night-dim:#8a9b93;
+  --amber:#ffb83d; --amber-ink:#241700; --amber-soft:#3a2b0d; --amber-text:#ffcf78;
+  --cord:#62c391; --cord-soft:#15301f; --wire:#35584a; --glass:#34413b; --glass-hi:#4b5a53;
+  --red:#f28b80; --red-soft:#3a1815; --blue:#8fb5f0; --blue-soft:#162740;
+  color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.45;padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--night)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.sign{font-family:var(--f-sign);text-transform:uppercase;letter-spacing:.02em}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* ---- chrome ---- */
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--night);color:var(--night-ink)}
+.topbar .wrap{display:flex;align-items:center;gap:12px;padding-block:10px}
+.brand{display:flex;align-items:baseline;gap:8px;min-width:0}
+.brand b{font-family:var(--f-sign);font-weight:900;font-size:24px;letter-spacing:.03em;line-height:1}
+.brand b i{font-style:normal;color:var(--amber)}
+.brand span{font-family:var(--f-mono);font-size:11px;color:var(--night-dim);text-transform:uppercase;letter-spacing:.12em;white-space:nowrap}
+.rail .brand span{white-space:normal}
+.topbar .sp{flex:1}
+.who{font-size:12px;color:var(--night-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--night);border-top:1px solid #000;padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+.tabs .in{display:grid;grid-auto-flow:column;grid-auto-columns:1fr}
+.tabs button{background:none;border:0;padding:9px 2px 10px;display:grid;justify-items:center;gap:2px;color:var(--night-dim);font-family:var(--f-sign);font-weight:800;font-size:14px;letter-spacing:.06em;text-transform:uppercase}
+.tabs button svg{width:22px;height:22px}
+.tabs button[aria-current="page"]{color:var(--amber)}
+
+.rail{display:none}
+main{padding-block:16px 32px}
+.view{display:grid;gap:14px;max-width:1120px;margin:0 auto}
+
+/* ---- type ---- */
+.h-view{font-family:var(--f-sign);font-weight:900;font-size:40px;line-height:.95;text-transform:uppercase;margin:0;letter-spacing:.01em}
+.h-sec{font-family:var(--f-sign);font-weight:800;font-size:20px;text-transform:uppercase;letter-spacing:.05em;margin:8px 0 0;color:var(--ink-2)}
+.lede{color:var(--ink-2);margin:0;font-size:15px;max-width:62ch}
+.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2)}
+
+/* ---- controls ---- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 14px;border-radius:var(--r);border:1px solid var(--line);background:var(--card);font-weight:700;font-size:15px;text-decoration:none;white-space:nowrap}
+.btn.amber{background:var(--amber);border-color:var(--amber);color:var(--amber-ink)}
+.btn.ink{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.btn.done{background:var(--cord-soft);border-color:transparent;color:var(--cord)}
+.btn.danger{background:var(--red-soft);border-color:transparent;color:var(--red)}
+.btn.small{min-height:34px;padding:0 10px;font-size:13px}
+.btn.icon{width:40px;padding:0;min-height:40px}
+.btn[disabled]{opacity:.55;cursor:default}
+.seg{display:inline-grid;grid-auto-flow:column;background:var(--sunk);border:1px solid var(--line);border-radius:var(--r);padding:3px;gap:3px;max-width:100%}
+.seg button{border:0;background:none;border-radius:4px;padding:7px 12px;font-weight:700;font-size:14px;color:var(--ink-2);white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.chip{flex:none;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 12px;font-size:14px;font-weight:700;color:var(--ink-2)}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.search{width:100%;min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--card)}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.bar .grow{flex:1 1 220px;min-width:0}
+
+/* ---- the bulb ---- */
+.bulb{--b:var(--glass);--glow:none;position:relative;display:inline-block;flex:none;width:14px;height:21px}
+.bulb::before{content:"";position:absolute;left:4px;top:0;width:6px;height:6px;border-radius:1px 1px 0 0;background:var(--wire)}
+.bulb::after{content:"";position:absolute;left:0;top:5px;width:14px;height:16px;border-radius:50% 50% 50% 50%/38% 38% 62% 62%;background:radial-gradient(circle at 35% 30%,var(--glass-hi) 0 18%,transparent 19%),var(--b);box-shadow:var(--glow)}
+.bulb.on{--b:var(--amber);--glow:0 0 10px 2px color-mix(in srgb,var(--amber) 60%,transparent),0 0 24px 6px color-mix(in srgb,var(--amber) 22%,transparent)}
+.bulb.green{--b:var(--cord)} .bulb.blue{--b:var(--blue)} .bulb.red{--b:var(--red)} .bulb.dim{--b:color-mix(in srgb,var(--amber) 45%,var(--glass))}
+.bulb.lg{width:22px;height:32px}
+.bulb.lg::before{left:6px;width:10px;height:9px}
+.bulb.lg::after{top:8px;width:22px;height:24px}
+
+/* ---- route ---- */
+.dayhead{display:grid;gap:12px}
+.pager{display:flex;align-items:center;gap:8px}
+.pager .d{flex:1;min-width:0}
+.pager .d .h-view{font-size:34px}
+.pager .d .eyebrow{display:block}
+.prog{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--ink-2)}
+.prog .track{flex:1;height:6px;border-radius:3px;background:var(--line);overflow:hidden;max-width:260px}
+.prog .track span{display:block;height:100%;background:var(--amber)}
+.stops{display:grid}
+.stop{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px}
+.stop .rail-c{position:relative;display:flex;justify-content:center}
+.stop .rail-c::before{content:"";position:absolute;top:0;bottom:0;left:50%;width:2px;margin-left:-1px;background:var(--wire)}
+.stop:first-child .rail-c::before{top:22px}
+.stop:last-child .rail-c::before{bottom:auto;height:22px}
+.stop .rail-c .bulb{margin-top:20px}
+.ticket{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px 14px;margin-bottom:12px;display:grid;gap:8px;min-width:0}
+.stop.is-done .ticket{background:var(--sunk)}
+.t-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ord{font-family:var(--f-mono);font-weight:600;font-size:13px;color:var(--ink-2)}
+.vt{font-family:var(--f-sign);font-weight:800;font-size:15px;letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border-radius:3px}
+.vt.install{background:var(--amber-soft);color:var(--amber-text)} .vt.takedown{background:var(--blue-soft);color:var(--blue)} .vt.service{background:var(--sunk);color:var(--ink-2);border:1px solid var(--line)}
+.crewtag{font-size:12px;font-weight:700;color:var(--ink-2);border:1px solid var(--line);border-radius:3px;padding:1px 6px}
+.t-top .sp{flex:1}
+.t-name{background:none;border:0;padding:0;text-align:left;font-family:var(--f-sign);font-weight:800;font-size:26px;line-height:1;text-transform:uppercase;letter-spacing:.01em}
+.t-addr{color:var(--ink-2);font-size:15px}
+.t-facts{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:14px}
+.t-facts b{font-family:var(--f-mono);font-weight:600;font-size:12px;color:var(--ink-2);text-transform:uppercase;letter-spacing:.06em;margin-right:4px}
+.t-notes{background:var(--amber-soft);color:var(--ink);border-radius:4px;padding:8px 10px;font-size:14px;white-space:pre-wrap}
+.thumbs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.thumbs img,.thumbs video{width:84px;height:64px;object-fit:cover;border-radius:4px;background:var(--sunk);flex:none;cursor:zoom-in}
+.t-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+.t-actions .btn.amber,.t-actions .btn.done{flex:1 1 160px}
+
+.empty{border:1.5px dashed var(--line);border-radius:var(--r);padding:22px 18px;display:grid;gap:10px;background:var(--card)}
+.empty h3{margin:0;font-family:var(--f-sign);font-size:26px;text-transform:uppercase;font-weight:800;line-height:1}
+.empty p{margin:0;color:var(--ink-2);max-width:56ch}
+.empty .unlit{display:flex;gap:18px;padding:4px 0 6px}
+
+/* ---- lists ---- */
+.rows{display:grid;background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 14px;border:0;border-bottom:1px solid var(--line);background:none;text-align:left;width:100%}
+.row:last-child{border-bottom:0}
+.row:hover{background:var(--sunk)}
+.row .m{min-width:0;display:grid;gap:2px}
+.row .n{font-weight:700;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .s{color:var(--ink-2);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .r{display:grid;justify-items:end;gap:3px;text-align:right}
+.lbl{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:3px;background:var(--sunk);color:var(--ink-2);white-space:nowrap}
+.lbl.tcl{background:var(--blue-soft);color:var(--blue)} .lbl.pl{background:var(--amber-soft);color:var(--amber-text)}
+.st{font-size:13px;font-weight:700;white-space:nowrap}
+.st.lit{color:var(--amber-text)} .st.down{color:var(--cord)} .st.cancelled{color:var(--red)} .st.scheduled{color:var(--ink)} .st.lead,.st.quoted,.st.booked{color:var(--ink-2)}
+.count{color:var(--ink-2);font-size:14px}
+
+/* ---- week ---- */
+.week{display:grid;grid-template-columns:1fr;gap:10px}
+.map-wrap{display:grid;gap:12px;min-width:0}
+.map-box{position:relative;height:min(62vh,560px);min-height:320px;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--sunk)}
+
+/* sign-in */
+#gate{position:fixed;inset:0;z-index:100;background:var(--night);color:var(--night-ink);display:grid;place-items:center;overflow:auto;padding:calc(24px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+#gate::before{content:"";position:absolute;left:0;right:0;top:env(safe-area-inset-top,0px);height:34px;background:radial-gradient(circle,#e2443a 0 3px,transparent 4px) 0 14px/120px 30px repeat-x,radial-gradient(circle,#2fae62 0 3px,transparent 4px) 30px 14px/120px 30px repeat-x,radial-gradient(circle,#f2b632 0 3px,transparent 4px) 60px 14px/120px 30px repeat-x,radial-gradient(circle,#3c7de0 0 3px,transparent 4px) 90px 14px/120px 30px repeat-x;opacity:.9}
+.gate-card{width:min(380px,100%);display:grid;gap:14px;justify-items:center;text-align:center}
+.gate-brand{display:grid;gap:2px;margin-bottom:6px}
+.gate-brand b{font-family:var(--f-sign);font-weight:900;font-size:40px;letter-spacing:.03em;line-height:1}
+.gate-brand b i{font-style:normal;color:var(--amber)}
+.gate-brand span{font-family:var(--f-mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--night-dim)}
+.gate-card h2{margin:0;font-family:var(--f-sign);font-weight:800;font-size:28px;text-transform:uppercase}
+.gate-card p{margin:0;color:var(--night-dim)}
+.gate-names{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%}
+.gate-names button{min-height:56px;border-radius:var(--r);border:1px solid #2a3832;background:var(--night-2);color:var(--night-ink);font-weight:700;font-size:16px}
+.gate-dots{display:flex;gap:12px;margin:6px 0}
+.gate-dots i{width:14px;height:14px;border-radius:50%;border:2px solid var(--night-dim)}
+.gate-dots i.on{background:var(--amber);border-color:var(--amber);box-shadow:0 0 10px var(--amber)}
+.gate-dots.shake{animation:shake .4s}
+@keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.gate-pad{display:grid;grid-template-columns:repeat(3,72px);gap:12px}
+.gate-pad button{width:72px;height:72px;border-radius:50%;border:0;background:var(--night-2);color:var(--night-ink);font-size:26px;font-weight:600}
+.gate-pad button:active{background:#2a3832}
+.gate-err{color:#f28b80!important;min-height:1.2em}
+.gate-back{justify-self:start;background:none;border:0;color:var(--night-dim);font-weight:700;font-size:15px;padding:4px 0}
+.gate-form{display:grid;gap:12px;width:100%;text-align:left}
+.gate-form label{display:grid;gap:4px;font-weight:700;font-size:14px}
+.gate-form input{min-height:46px;border-radius:var(--r);border:1px solid #2a3832;background:var(--night-2);color:var(--night-ink);padding:0 12px;font-size:16px}
+.gate-go{min-height:48px;border:0;border-radius:var(--r);background:var(--amber);color:var(--amber-ink);font-weight:800;font-size:16px;padding:0 18px}
+.who-btn{background:none;border:1px solid #2a3832;border-radius:999px;color:var(--night-ink);font-size:12px;font-weight:700;padding:5px 10px;max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.checks{display:grid;gap:8px}
+.checks label{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;font-size:15px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
+.checks input{width:20px;height:20px;margin-top:2px;accent-color:var(--cord)}
+.checks small{display:block;color:var(--ink-2);font-size:13px}
+/* street map */
+.map-box #map{width:100%;height:100%}
+.map-box .lmap{width:100%;height:100%;background:var(--sunk)}
+.map-ctl,.map-legend,.map-hint{z-index:500}
+.leaflet-container{font-family:var(--f-body)}
+.pin-tip{font-weight:700;font-size:12px;padding:2px 6px;border-radius:3px}
+.pin-lit{filter:drop-shadow(0 0 5px #f2a516)}
+@media (prefers-color-scheme: dark){ .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.92) saturate(.6)} }
+.map-ctl{position:absolute;top:8px;right:8px;display:flex;gap:6px}
+.map-hint{position:absolute;left:8px;right:8px;top:52px;background:var(--ink);color:var(--bg);border-radius:var(--r);padding:8px 10px;font-weight:700;font-size:14px;display:flex;gap:8px;align-items:center;justify-content:space-between}
+.map-legend{position:absolute;left:8px;bottom:8px;right:8px;display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;font-weight:700;color:var(--ink-2);pointer-events:none}
+.map-legend span{display:inline-flex;align-items:center;gap:5px;background:var(--card);border-radius:3px;padding:2px 6px}
+.map-legend i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.map-legend i.hollow{border:2px solid var(--ink-2);background:var(--card)}
+.map-side{display:grid;gap:12px;align-content:start;min-width:0}
+.map-side .rows .row{padding:9px 10px}
+.wday{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px;display:grid;gap:6px;align-content:start;min-width:0}
+.wday.today{border-color:var(--amber);box-shadow:inset 0 3px 0 var(--amber)}
+.wday h4{margin:0;display:flex;justify-content:space-between;align-items:baseline;font-family:var(--f-sign);font-weight:800;font-size:20px;text-transform:uppercase}
+.wday h4 span{font-family:var(--f-mono);font-size:11px;color:var(--ink-2);font-weight:500}
+.wstop{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:center;background:var(--sunk);border:0;border-radius:4px;padding:7px 8px;text-align:left;width:100%;font-size:14px}
+.wstop .x{min-width:0}
+.wstop .x div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wstop .x small{color:var(--ink-2);font-size:12px}
+.wday .none{color:var(--ink-2);font-size:13px}
+
+/* ---- money ---- */
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:grid;gap:2px;min-width:0}
+.tile .l{font-size:13px;color:var(--ink-2);font-weight:700}
+.tile .v{font-family:var(--f-sign);font-weight:800;font-size:30px;line-height:1.05;font-variant-numeric:tabular-nums}
+.tile.hero{grid-column:1/-1;background:var(--night);border-color:var(--night);color:var(--night-ink)}
+.tile.hero .l{color:var(--night-dim)} .tile.hero .v{font-size:46px;color:var(--amber)}
+.tbl{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:var(--r)}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:14px}
+th,td{padding:10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);font-weight:600}
+td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+.tog{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:4px 10px;font-size:13px;font-weight:700;color:var(--ink-2)}
+.tog[aria-pressed="true"]{background:var(--cord-soft);color:var(--cord);border-color:transparent}
+.note{font-size:14px;padding:10px 12px;border-radius:var(--r);background:var(--amber-soft);color:var(--ink)}
+
+/* ---- texts ---- */
+.msgs{display:grid;gap:12px}
+.msg{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:grid;gap:10px;min-width:0}
+.msg header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.msg header b{font-family:var(--f-sign);font-weight:800;font-size:22px;text-transform:uppercase}
+.msg textarea{width:100%;min-height:220px;border:1px solid var(--line);border-radius:4px;background:var(--sunk);padding:10px;font-family:var(--f-mono);font-size:13px;line-height:1.5;resize:vertical}
+
+/* ---- drawer ---- */
+.scrim{position:fixed;inset:0;z-index:30;background:rgba(4,8,6,.5)}
+.drawer{position:fixed;z-index:31;inset:0;background:var(--bg);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
+.d-head{background:var(--night);color:var(--night-ink);display:flex;align-items:flex-start;gap:10px;padding-block:12px 14px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.d-head .t{flex:1;min-width:0;display:grid;gap:4px}
+.d-head .eyebrow{color:var(--night-dim)}
+.d-head h2{margin:0;font-family:var(--f-sign);font-weight:900;font-size:32px;line-height:.95;text-transform:uppercase;overflow-wrap:anywhere}
+.d-head .btn{background:var(--night-2);border-color:var(--night-2);color:var(--night-ink)}
+.d-body{flex:1;overflow:auto;display:grid;align-content:start;gap:18px;padding-block:14px calc(24px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.blk{display:grid;gap:8px;min-width:0}
+.blk > .h-sec{margin:0}
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 14px;font-size:15px}
+.kv dt{font-family:var(--f-mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-2);padding-top:3px}
+.kv dd{margin:0;overflow-wrap:anywhere}
+.visit{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
+.visit .x{min-width:0;display:grid;gap:2px}
+.visit .x small{color:var(--ink-2)}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px}
+.gallery img,.gallery video{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:4px;background:var(--sunk);cursor:zoom-in;max-width:100%}
+.gallery .pdf{display:grid;place-items:center;aspect-ratio:4/3;border-radius:4px;background:var(--sunk);font-size:12px;font-weight:700;text-align:center;padding:6px}
+.gal-item{position:relative}
+.gal-item .x{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;border:0;background:rgba(0,0,0,.65);color:#fff;font-size:14px;line-height:1}
+.feed{display:grid;gap:10px}
+.entry{display:grid;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;min-width:0}
+.entry.done-e{background:var(--cord-soft);border-color:transparent}
+.entry .meta{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--ink-2)}
+.entry .txt{white-space:pre-wrap;overflow-wrap:anywhere}
+.entry .media{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px}
+.entry .media img,.entry .media video{width:100%;max-height:220px;object-fit:cover;border-radius:4px;background:var(--sunk);max-width:100%}
+.composer{display:grid;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px}
+.composer textarea{width:100%;min-height:64px;border:1px solid var(--line);border-radius:4px;padding:8px 10px;background:var(--sunk);resize:vertical}
+.composer .pend{display:flex;flex-wrap:wrap;gap:6px}
+.composer .pend span{font-size:12px;background:var(--sunk);border-radius:3px;padding:3px 6px;display:inline-flex;gap:6px;align-items:center;max-width:100%}
+.composer .pend button{border:0;background:none;padding:0;color:var(--red);font-weight:700}
+.file-btn{position:relative;overflow:hidden}
+.file-btn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+
+/* ---- forms ---- */
+.form{display:grid;gap:18px}
+fieldset{border:0;margin:0;padding:0;display:grid;gap:10px;min-width:0}
+legend{font-family:var(--f-sign);font-weight:800;font-size:20px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-2);padding:0;margin-bottom:8px}
+.f{display:grid;gap:4px;min-width:0}
+.f label{font-size:14px;font-weight:700}
+.f input,.f select,.f textarea{width:100%;min-height:44px;padding:8px 11px;border:1px solid var(--line);border-radius:var(--r);background:var(--card)}
+.f textarea{min-height:80px;resize:vertical}
+.f small{color:var(--ink-2);font-size:13px}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.vedit{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px}
+.vedit .full{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.calc{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:grid;gap:6px;font-size:15px}
+.calc .ln{display:flex;justify-content:space-between;gap:12px}
+.calc .ln.t{border-top:1px solid var(--line);padding-top:8px;font-weight:700}
+.actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center}
+
+.toast{position:fixed;z-index:50;left:50%;transform:translateX(-50%);bottom:calc(88px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:var(--r);font-weight:700;font-size:15px;max-width:calc(100% - 32px)}
+.lightbox{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.92);display:grid;place-items:center;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px))}
+.lightbox img{max-width:100%;max-height:100%;object-fit:contain}
+.lightbox button{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px))}
+
+@media (min-width:640px){
+  .tiles{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .drawer{inset:0 0 0 auto;width:min(560px,100%);box-shadow:-20px 0 40px rgba(0,0,0,.25)}
+}
+@media (min-width:960px){
+  body{padding-bottom:0}
+  .topbar,.tabs{display:none}
+  body::before{display:none}
+  .rail{display:flex;flex-direction:column;gap:18px;position:fixed;inset:0 auto 0 0;width:220px;background:var(--night);color:var(--night-ink);padding:22px 14px calc(16px + env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-left,0px));z-index:9}
+  .rail .brand{flex-direction:column;align-items:flex-start;gap:4px}
+  .rail .brand b{font-size:30px}
+  .rail nav{display:grid;gap:2px}
+  .rail nav button{display:flex;align-items:center;gap:12px;background:none;border:0;border-radius:var(--r);padding:10px 10px;color:var(--night-dim);font-family:var(--f-sign);font-weight:800;font-size:19px;letter-spacing:.05em;text-transform:uppercase;text-align:left}
+  .rail nav button svg{width:20px;height:20px}
+  .rail nav button[aria-current="page"]{background:var(--night-2);color:var(--amber)}
+  .rail .foot{margin-top:auto;font-size:12px;color:var(--night-dim);display:grid;gap:4px}
+  .rail .strand{display:flex;gap:9px;flex-wrap:wrap;padding:4px 2px}
+  main{margin-left:220px;padding-block:28px 48px}
+  .wrap.main{padding-left:32px;padding-right:max(32px,env(safe-area-inset-right,0px))}
+  .h-view{font-size:52px}
+  .week{grid-template-columns:repeat(7,minmax(0,1fr))}
+  .tiles{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .tile.hero{grid-column:span 2;grid-row:span 2;align-content:end}
+  .tile.hero .v{font-size:64px}
+  .route-cols{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:28px;align-items:start}
+  .map-wrap{grid-template-columns:minmax(0,1fr) 340px}
+  .map-box{height:calc(100vh - 220px);max-height:820px}
+  .side-card{position:sticky;top:24px}
+  .toast{bottom:24px}
+}
+.side-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:10px}
+@media (prefers-reduced-motion:no-preference){
+  .bulb.on::after{animation:warm .6s ease-out}
+  @keyframes warm{from{background:var(--glass);box-shadow:none}}
+  .drawer{animation:slide .18s ease-out}
+  @keyframes slide{from{transform:translateY(16px);opacity:.6}}
+}
+</style>
+
+<div class="topbar"><div class="wrap">
+  <div class="brand"><b>PRO<i>LIGHT</i></b><span>Season Board</span></div><span class="sp"></span><span class="who" id="whoTop"></span>
+</div></div>
+
+<aside class="rail" aria-label="Board navigation">
+  <div class="brand"><b>PRO<i>LIGHT</i></b><span>Season Board · Tallahassee</span></div>
+  <nav id="railNav"></nav>
+  <div class="foot"><div class="strand" id="railStrand" aria-hidden="true"></div><span id="whoRail"></span><button type="button" class="who-btn" id="whoRailBtn" data-act="account" style="justify-self:start">Account</button></div>
+</aside>
+
+<main class="wrap main"><div class="view" id="view"></div></main>
+<nav class="tabs" aria-label="Board navigation"><div class="in" id="tabNav"></div></nav>
+<div id="drawerRoot"></div>
+<div id="lightRoot"></div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="/config.js"></script>
+<script src="/platform.js"></script>
+<script>
+const BOARD_URL = location.origin;
+const DEFAULT_CREWS = [
+  {id:"pl1",name:"ProLight Crew 1",co:"prolight",members:[],chat:""},
+  {id:"pl2",name:"ProLight Crew 2",co:"prolight",members:[],chat:""},
+  {id:"shipshape",name:"ShipShape",co:"shipshape",members:[],chat:""}];
+const VTYPE = {install:"Install",takedown:"Takedown",service:"Service"};
+const STAGES = [["lead","Lead"],["quoted","Quote sent"],["booked","Booked"],["cancelled","Cancelled"]];
+const STATUS = {lead:"Lead",quoted:"Quote sent",booked:"Booked",scheduled:"Scheduled",lit:"Installed",down:"Taken down",cancelled:"Cancelled"};
+const BULB = {lead:"",quoted:"blue",booked:"blue",scheduled:"dim",lit:"on",down:"green",cancelled:"red"};
+const ICON = {
+  map:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0113 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/></svg>',
+  route:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 3v4M18 3v4"/><path d="M3 7c3 3 6 3 9 0s6-3 9 0"/><path d="M7.5 9.5v3M12 7.5v3M16.5 9.5v3"/><circle cx="7.5" cy="15" r="2.2"/><circle cx="12" cy="13" r="2.2"/><circle cx="16.5" cy="15" r="2.2"/></svg>',
+  jobs:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/></svg>',
+  clients:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 010 6.8M18 14.8c2 .8 3.2 2.5 3.6 5.2"/></svg>',
+  week:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+  office:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v18M17 7.5c0-1.9-2.2-3-5-3s-5 1.1-5 3 2 2.8 5 3.5 5 1.6 5 3.5-2.2 3-5 3-5-1.1-5-3"/></svg>'
+};
+
+/* ---------- state ---------- */
+const S = {
+  clients:new Map(), jobs:new Map(), log:new Map(), fin:new Map(), finSet:{}, settings:{},
+  ready:false, err:"", db:null, assets:null, user:null,
+  me:{id:null, owner:false, canLog:false}, names:new Map(),
+  view:"route", team:ls("team")||"all", day:todayISO(), week:monday(todayISO()),
+  q:{jobs:"",clients:""}, jf:"active", office:"money", briefDay:addDays(todayISO(),1),
+  drawer:null, form:null, compose:{text:"",files:[]}, busy:false
+};
+let doneMap = new Map(), logByJob = new Map();
+
+function ls(k,v){ try{ if(v===undefined) return localStorage.getItem(k); localStorage.setItem(k,v); }catch(e){ return null; } }
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const money = n => { const v=Math.round((n||0)*100)/100; return "$" + v.toLocaleString("en-US",{minimumFractionDigits:Number.isInteger(v)?0:2,maximumFractionDigits:2}); };
+function pad(n){ return String(n).padStart(2,"0"); }
+function todayISO(){ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function parseISO(s){ const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d); }
+function toISO(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function addDays(s,n){ const d=parseISO(s); d.setDate(d.getDate()+n); return toISO(d); }
+function monday(s){ const d=parseISO(s); const w=(d.getDay()+6)%7; d.setDate(d.getDate()-w); return toISO(d); }
+function fmtDay(s,o){ return s ? parseISO(s).toLocaleDateString("en-US", o||{month:"short",day:"numeric"}) : ""; }
+function fmtTime(t){ if(!t) return ""; const [h,m]=t.split(":").map(Number); return `${((h+11)%12)+1}:${pad(m)} ${h<12?"AM":"PM"}`; }
+function rel(s){ const n=Math.round((parseISO(s)-parseISO(todayISO()))/86400000); return n===0?"Today":n===1?"Tomorrow":n===-1?"Yesterday":null; }
+function ago(iso){ const d=new Date(iso); return d.toLocaleDateString("en-US",{month:"short",day:"numeric"})+" · "+d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}); }
+function uid(){ return Math.random().toString(36).slice(2,10); }
+function toast(m){ const t=$("#toast"); t.textContent=m; t.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>t.hidden=true,2600); }
+
+/* ---------- derived ---------- */
+function crews(){
+  const c=S.settings.crews; if(Array.isArray(c)&&c.length) return c;
+  const T=S.settings.teams||{};
+  return DEFAULT_CREWS.map(d=>({...d, chat:(T[d.id==="pl1"?"prolight":d.id]||{}).chat||""}));
+}
+const normCrew = c => c==="prolight" ? "pl1" : (c||"");
+const crewObj = id => crews().find(c=>c.id===normCrew(id));
+const coOf = id => (crewObj(id)||{}).co || "";
+const teamName = k => (crewObj(k)||{}).name || "Unassigned";
+const membersOf = k => ((crewObj(k)||{}).members||[]);
+function assignUI(cur, act, extra){
+  cur=normCrew(cur); const co=coOf(cur);
+  const first=k=>(crews().find(c=>c.co===k)||{}).id||"";
+  let h=`<div class="seg" role="group" aria-label="Company">${[["prolight","ProLight"],["shipshape","ShipShape"],["","Unassigned"]].map(([k,l])=>`<button type="button" data-act="${act}" ${extra} data-v="${esc(k?(co===k?cur:first(k)):"")}" aria-pressed="${co===k}">${l}</button>`).join("")}</div>`;
+  const sub=crews().filter(c=>c.co===co);
+  if(co && sub.length>1) h+=`<div class="seg" role="group" aria-label="Which crew">${sub.map(c=>`<button type="button" data-act="${act}" ${extra} data-v="${esc(c.id)}" aria-pressed="${cur===c.id}">${esc(c.name)}</button>`).join("")}</div>`;
+  return h;
+}
+const rates = () => ({ tcl:(Number(S.finSet.tclRate)||40)/100, ss:(Number(S.finSet.ssRate)||30)/100 });
+const clientOf = j => S.clients.get(j.clientId) || {};
+const addrOf = j => j.address || clientOf(j).address || "";
+const crewOf = (j,v) => normCrew((v && v.crew) || j.crew);
+const isDone = (jid,vid) => doneMap.get(jid+"|"+vid);
+const mapsUrl = a => "https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(a);
+function label(j){
+  const co=coOf(j.crew), crew = co==="shipshape" ? "ShipShape" : co==="prolight" ? "ProLight" : "";
+  if(j.source==="tcl") return "TCL / " + (crew || "Unassigned");
+  return crew==="ShipShape" ? "ProLight / ShipShape" : "ProLight";
+}
+function status(j){
+  if(j.stage==="cancelled") return "cancelled";
+  const vs=j.visits||[];
+  if(vs.some(v=>v.type==="takedown"&&isDone(j.id,v.id))) return "down";
+  if(vs.some(v=>v.type==="install"&&isDone(j.id,v.id))) return "lit";
+  if(vs.some(v=>v.date)) return "scheduled";
+  return j.stage||"lead";
+}
+function nextVisit(j){
+  const t=todayISO();
+  return (j.visits||[]).filter(v=>v.date && !isDone(j.id,v.id)).sort((a,b)=>a.date.localeCompare(b.date))[0] || null;
+}
+function jobsArr(){ return [...S.jobs.entries()].map(([id,d])=>({id,...d})); }
+function stopsFor(date, team){
+  const out=[];
+  for(const j of jobsArr()){ if(j.stage==="cancelled") continue;
+    for(const v of (j.visits||[])) if(v.date===date && (team==="all"||crewOf(j,v)===team)) out.push({j,v}); }
+  return out.sort((a,b)=>(a.v.order??999)-(b.v.order??999) || String(a.v.time||"").localeCompare(String(b.v.time||"")) || String(clientOf(a.j).name).localeCompare(String(clientOf(b.j).name)));
+}
+function recompute(){
+  doneMap=new Map(); logByJob=new Map();
+  for(const [id,e] of S.log){ const x={id,...e};
+    if(!logByJob.has(e.jobId)) logByJob.set(e.jobId,[]); logByJob.get(e.jobId).push(x);
+    if(e.kind==="done") doneMap.set(e.jobId+"|"+e.visitId, x); }
+  for(const a of logByJob.values()) a.sort((p,q)=>String(q.at).localeCompare(String(p.at)));
+}
+function who(id){ if(!id) return "TCL import"; if(id===S.me.id) return "You"; return S.names.get(id) || "Crew member"; }
+let nameReq=false;
+async function fetchNames(){
+  if(!S.user||nameReq) return; const ids=[...new Set([...S.log.values()].map(e=>e.by).filter(id=>id && !S.names.has(id)))]; if(!ids.length) return;
+  nameReq=true; try{ const ps=await S.user.profiles(ids); for(const id of ids) S.names.set(id, (ps[id]&&ps[id].name)||""); }catch(e){} nameReq=false; refresh();
+}
+
+/* ---------- nav ---------- */
+function navItems(){ const v=[["route","Route"],["jobs","Jobs"],["map","Map"],["week","Week"],["clients","Clients"]]; if(S.me.owner||S.me.money||S.me.manage) v.push(["office","Office"]); return v; }
+function renderNav(){
+  const items=navItems();
+  $("#railNav").innerHTML=items.map(([k,l])=>`<button type="button" data-act="view" data-v="${k}" aria-current="${S.view===k?"page":"false"}">${ICON[k]}${l}</button>`).join("");
+  $("#tabNav").innerHTML=items.map(([k,l])=>`<button type="button" data-act="view" data-v="${k}" aria-current="${S.view===k?"page":"false"}">${ICON[k]}${l}</button>`).join("");
+  const today=stopsFor(todayISO(),S.team), lit=today.filter(s=>isDone(s.j.id,s.v.id)).length;
+  $("#railStrand").innerHTML = today.length ? today.map((s,i)=>`<span class="bulb ${i<lit?"on":""}"></span>`).join("") : "";
+  const wt = S.team==="all" ? "All crews" : teamName(S.team);
+  $("#whoRail").textContent = today.length ? `Today · ${wt} · ${lit}/${today.length} done` : `Today · ${wt} · no stops`;
+  $("#whoTop").innerHTML = `<button type="button" class="who-btn" data-act="account">${esc(S.me.name||"Me")}</button>`;
+  const wb=$("#whoRailBtn"); if(wb) wb.textContent=(S.me.name||"Me")+" · Account";
+}
+
+/* ---------- views ---------- */
+function teamSeg(){
+  const opts=[...crews().map(c=>[c.id,c.name]),["all","All crews"]], m=S.team!=="all"?membersOf(S.team):[];
+  return `<div class="chips" role="group" aria-label="Crew" style="max-width:100%">${opts.map(([k,l])=>`<button type="button" class="chip" data-act="team" data-v="${esc(k)}" aria-pressed="${S.team===k}">${esc(l)}</button>`).join("")}</div>${m.length?`<div class="count" style="font-size:14px;flex-basis:100%">On this crew: ${esc(m.join(", "))}</div>`:""}`;
+}
+function vRoute(){
+  const d=S.day, stops=stopsFor(d,S.team), done=stops.filter(s=>isDone(s.j.id,s.v.id)).length, r=rel(d);
+  let h=`<div class="dayhead">
+    <div class="pager">
+      <button type="button" class="btn icon" data-act="day" data-v="-1" aria-label="Previous day">‹</button>
+      <div class="d"><span class="eyebrow">${r?fmtDay(d,{weekday:"long",month:"short",day:"numeric"}):"Route"}</span><h1 class="h-view">${r||fmtDay(d,{weekday:"short",month:"short",day:"numeric"})}</h1></div>
+      ${d!==todayISO()?`<button type="button" class="btn small" data-act="day" data-v="0">Today</button>`:""}
+      <button type="button" class="btn icon" data-act="day" data-v="1" aria-label="Next day">›</button>
+    </div>
+    <div class="bar">${teamSeg()}${stops.length?`<div class="prog grow"><span class="mono">${done}/${stops.length} done</span><span class="track"><span style="width:${stops.length?done/stops.length*100:0}%"></span></span></div>`:""}</div>
+  </div>`;
+  if(!S.ready){ h+= S.err?`<div class="note">${esc(S.err)}</div>`:`<p class="lede">Loading the board…</p>`; return h; }
+  let list;
+  if(!stops.length){
+    list=`<div class="empty"><div class="unlit"><span class="bulb lg"></span><span class="bulb lg"></span><span class="bulb lg"></span></div>
+      <h3>No stops ${r?r.toLowerCase():"this day"}</h3>
+      <p>${S.jobs.size? "Nothing is scheduled for this crew on this day. Use the arrows to check another day." : S.me.owner? "Start by adding a client and a job, then give the job an install date and a crew. It shows up here as a stop on that crew's route." : "Once the office schedules jobs for your crew, they show up here in route order."}</p>
+      ${S.me.owner&&!S.jobs.size?`<div><button type="button" class="btn amber" data-act="new-job">Add the first job</button></div>`:""}</div>`;
+  } else list=`<div class="stops">${stops.map((s,i)=>stopCard(s,i,stops.length)).join("")}</div>`;
+  const side = S.me.owner ? `<div class="side-card"><span class="eyebrow">Night-before text</span><p class="lede" style="font-size:14px">Copy each crew's run sheet for ${esc(fmtDay(addDays(d,0),{weekday:"short",month:"short",day:"numeric"}))} into their group chat.</p><button type="button" class="btn ink" data-act="texts" data-v="${d}">Open texts for this day</button></div>` : "";
+  h+= side ? `<div class="route-cols"><div>${list}</div>${side}</div>` : list;
+  return h;
+}
+function stopCard(s,i,n){
+  const {j,v}=s, c=clientOf(j), d=isDone(j.id,v.id), a=addrOf(j), crew=crewOf(j,v);
+  const notes=[c.gate?`Access: ${c.gate}`:"", j.notes||"", v.note||""].filter(Boolean).join("\n");
+  const media=(j.mockups||[]).filter(m=>m.type!=="pdf");
+  const nLog=(logByJob.get(j.id)||[]).filter(e=>e.kind==="note").length;
+  let doneBtn="";
+  if(d){ const can=S.me.owner||d.by===S.me.id; doneBtn = can ? `<button type="button" class="btn done" data-act="undone" data-id="${esc(d.id)}" title="Undo">✓ Done · ${esc(who(d.by))}, ${new Date(d.at).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}</button>` : `<span class="btn done">✓ Done · ${esc(who(d.by))}</span>`; }
+  else if(S.me.canLog) doneBtn=`<button type="button" class="btn amber" data-act="done" data-j="${esc(j.id)}" data-v="${esc(v.id)}">Mark ${VTYPE[v.type].toLowerCase()} done</button>`;
+  return `<article class="stop ${d?"is-done":""}">
+    <div class="rail-c"><span class="bulb lg ${d?"on":""}"></span></div>
+    <div class="ticket">
+      <div class="t-top"><span class="ord">STOP ${pad(i+1)}</span><span class="vt ${v.type}">${VTYPE[v.type]}</span>${v.time?`<span class="mono" style="font-size:13px">${fmtTime(v.time)}</span>`:""}${S.team==="all"?`<span class="crewtag">${esc(teamName(crew))}</span>`:""}<span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span><span class="sp"></span>
+        ${S.me.owner&&n>1?`<button type="button" class="btn icon small" data-act="move" data-j="${esc(j.id)}" data-v="${esc(v.id)}" data-d="-1" ${i===0?"disabled":""} aria-label="Move up">↑</button><button type="button" class="btn icon small" data-act="move" data-j="${esc(j.id)}" data-v="${esc(v.id)}" data-d="1" ${i===n-1?"disabled":""} aria-label="Move down">↓</button>`:""}</div>
+      <button type="button" class="t-name" data-act="job" data-id="${esc(j.id)}">${esc(c.name||"Customer")}</button>
+      ${a?`<div class="t-addr">${esc(a)}</div>`:""}
+      ${(j.scope||j.rooflineFt)?`<div class="t-facts">${j.scope?`<span><b>Lights</b>${esc(j.scope)}</span>`:""}${j.rooflineFt?`<span><b>Roofline</b><span class="mono">${esc(j.rooflineFt)} ft</span></span>`:""}</div>`:""}
+      ${notes?`<div class="t-notes">${esc(notes)}</div>`:""}
+      ${media.length?`<div class="thumbs">${media.map(m=>mediaTag(m)).join("")}</div>`:""}
+      <div class="t-actions">${doneBtn}${a?`<a class="btn" href="${esc(mapsUrl(a))}" target="_blank" rel="noopener">Directions ↗</a>`:""}<button type="button" class="btn" data-act="job" data-id="${esc(j.id)}">Notes & photos${nLog?` · ${nLog}`:""}</button>${(j.links||[]).map((u,k)=>`<a class="btn" href="${esc(u)}" target="_blank" rel="noopener">Mockup${j.links.length>1?" "+(k+1):""} ↗</a>`).join("")}</div>
+    </div>
+  </article>`;
+}
+function mediaTag(m){
+  const src=mediaUrl(m.id);
+  if(m.type==="video") return `<video src="${esc(src)}" controls playsinline preload="metadata"></video>`;
+  if(m.type==="pdf") return `<a class="pdf" href="${esc(src)}" target="_blank" rel="noopener">PDF<br>${esc(m.name||"mockup")}</a>`;
+  return `<img src="${esc(src)}" alt="${esc(m.name||"Photo")}" loading="lazy" data-act="zoom" data-src="${esc(src)}">`;
+}
+
+function vJobs(){
+  const F=[["active","Active"],["unassigned","Needs a crew"],["unsched","Needs a date"],["scheduled","Scheduled"],["lit","Installed"],["down","Taken down"],["tcl","TCL"],["pl","ProLight"],["co-prolight","ProLight crews"],["co-shipshape","ShipShape crew"],["all","All"]];
+  let list=jobsArr(); const q=S.q.jobs.trim().toLowerCase();
+  if(q) list=list.filter(j=>{ const c=clientOf(j); return [c.name,addrOf(j),c.phone,j.tclRef,j.scope,j.notes,label(j)].join(" ").toLowerCase().includes(q); });
+  const f=S.jf, st=j=>status(j);
+  if(f==="active") list=list.filter(j=>!["down","cancelled"].includes(st(j)));
+  if(f==="unsched") list=list.filter(j=>["lead","quoted","booked"].includes(st(j)) || (st(j)==="lit" && !(j.visits||[]).some(v=>v.type==="takedown"&&v.date)));
+  if(["scheduled","lit","down"].includes(f)) list=list.filter(j=>st(j)===f);
+  if(f==="tcl") list=list.filter(j=>j.source==="tcl"); if(f==="pl") list=list.filter(j=>j.source!=="tcl");
+  if(f.startsWith("co-")) list=list.filter(j=>coOf(j.crew)===f.slice(3));
+  if(f==="unassigned") list=list.filter(j=>!j.crew && j.stage!=="cancelled");
+  list.sort((a,b)=>{ const x=nextVisit(a), y=nextVisit(b); if(x&&y) return x.date.localeCompare(y.date); if(x) return -1; if(y) return 1; return String(clientOf(a).name).localeCompare(String(clientOf(b).name)); });
+  let h=`<div class="bar"><h1 class="h-view grow">Jobs</h1>${S.me.owner?`<button type="button" class="btn amber" data-act="new-job">+ New job</button>`:""}</div>
+    <input class="search" id="q-jobs" type="search" placeholder="Search name, address, TCL #, lights" value="${esc(S.q.jobs)}" aria-label="Search jobs">
+    <div class="chips" role="group" aria-label="Filter jobs">${F.map(([k,l])=>`<button type="button" class="chip" data-act="jf" data-v="${k}" aria-pressed="${S.jf===k}">${l}</button>`).join("")}</div>`;
+  if(!S.ready) return h+`<p class="lede">Loading…</p>`;
+  if(!S.jobs.size) return h+`<div class="empty"><h3>No jobs yet</h3><p>${S.me.owner?"Add a job for each house this season. Mark it ProLight or TCL, pick the crew, and set the install and takedown dates.":"Jobs the office adds will appear here."}</p></div>`;
+  h+=`<span class="count">${list.length} job${list.length===1?"":"s"}</span>`;
+  h+= list.length ? `<div class="rows">${list.map(jobRow).join("")}</div>` : `<p class="lede">No jobs match.</p>`;
+  return h;
+}
+function jobRow(j){
+  const c=clientOf(j), st=status(j), nv=nextVisit(j);
+  return `<button type="button" class="row" data-act="job" data-id="${esc(j.id)}">
+    <span class="bulb ${BULB[st]}"></span>
+    <span class="m"><span class="n">${esc(c.name||"Customer")}</span><span class="s">${esc(addrOf(j)||"No address")}</span></span>
+    <span class="r"><span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span>${crewObj(j.crew)&&crews().filter(c=>c.co===coOf(j.crew)).length>1?`<span class="count" style="font-size:12px">${esc(teamName(j.crew))}</span>`:""}<span class="st ${st}">${STATUS[st]}${nv?` · <span class="mono">${VTYPE[nv.type]} ${fmtDay(nv.date)}</span>`:(j.tclWhen&&!["lit","down"].includes(st)?` · ${esc(j.tclWhen)}`:"")}</span></span>
+  </button>`;
+}
+
+function vClients(){
+  let list=[...S.clients.entries()].map(([id,d])=>({id,...d}));
+  const q=S.q.clients.trim().toLowerCase();
+  if(q) list=list.filter(c=>[c.name,c.address,c.phone,c.email].join(" ").toLowerCase().includes(q));
+  list.sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+  const jobsBy=new Map(); for(const j of jobsArr()){ if(!jobsBy.has(j.clientId)) jobsBy.set(j.clientId,[]); jobsBy.get(j.clientId).push(j); }
+  let h=`<div class="bar"><h1 class="h-view grow">Clients</h1>${S.me.owner?`<button type="button" class="btn amber" data-act="new-client">+ New client</button>`:""}</div>
+    <input class="search" id="q-clients" type="search" placeholder="Search name, address, phone" value="${esc(S.q.clients)}" aria-label="Search clients">`;
+  if(!S.ready) return h+`<p class="lede">Loading…</p>`;
+  if(!S.clients.size) return h+`<div class="empty"><h3>No clients yet</h3><p>Each client keeps their address, gate code and every season's job in one place, so next year's rebook is a tap away.</p></div>`;
+  h+=`<span class="count">${list.length} client${list.length===1?"":"s"}</span><div class="rows">${list.map(c=>{ const js=jobsBy.get(c.id)||[]; const seasons=[...new Set(js.map(j=>j.season).filter(Boolean))].sort();
+    return `<button type="button" class="row" data-act="client" data-id="${esc(c.id)}"><span class="bulb ${js.some(j=>status(j)==="lit")?"on":""}"></span>
+      <span class="m"><span class="n">${esc(c.name)}</span><span class="s">${esc(c.address||c.phone||"")}</span></span>
+      <span class="r"><span class="mono" style="font-size:13px">${js.length} job${js.length===1?"":"s"}</span>${seasons.length?`<span class="count" style="font-size:12px">${seasons.join(", ")}</span>`:""}</span></button>`; }).join("")}</div>`;
+  return h;
+}
+
+function vWeek(){
+  const days=[...Array(7)].map((_,i)=>addDays(S.week,i)), t=todayISO();
+  let h=`<div class="bar"><h1 class="h-view grow">Week of ${fmtDay(S.week)}</h1>
+    <button type="button" class="btn icon" data-act="week" data-v="-7" aria-label="Previous week">‹</button><button type="button" class="btn small" data-act="week" data-v="0">This week</button><button type="button" class="btn icon" data-act="week" data-v="7" aria-label="Next week">›</button></div>
+    <div class="bar">${teamSeg()}</div>`;
+  if(!S.ready) return h+`<p class="lede">Loading…</p>`;
+  h+=`<div class="week">${days.map(d=>{ const st=stopsFor(d,S.team);
+    return `<section class="wday ${d===t?"today":""}"><h4>${fmtDay(d,{weekday:"short"})} ${parseISO(d).getDate()}<span>${st.length?st.length+" stop"+(st.length>1?"s":""):""}</span></h4>
+      ${st.length?st.map((s,i)=>{ const dn=isDone(s.j.id,s.v.id); return `<button type="button" class="wstop" data-act="go-day" data-v="${d}"><span class="bulb ${dn?"on":""}"></span><span class="x"><div><b class="mono">${i+1}</b> ${esc(clientOf(s.j).name||"Customer")}</div><small>${VTYPE[s.v.type]}${S.team==="all"?" · "+esc(teamName(crewOf(s.j,s.v))):""}${s.v.time?" · "+fmtTime(s.v.time):""}</small></span></button>`; }).join(""):`<span class="none">No stops</span>`}
+    </section>`; }).join("")}</div>`;
+  const all=jobsArr().filter(j=>j.stage!=="cancelled");
+  const needInstall=all.filter(j=>["lead","quoted","booked"].includes(status(j)) && j.stage==="booked");
+  const needDown=all.filter(j=>status(j)==="lit" && !(j.visits||[]).some(v=>v.type==="takedown"&&v.date));
+  if(needInstall.length) h+=`<h2 class="h-sec">Booked, no install date · ${needInstall.length}</h2><div class="rows">${needInstall.map(jobRow).join("")}</div>`;
+  if(needDown.length) h+=`<h2 class="h-sec">Lit, no takedown date · ${needDown.length}</h2><div class="rows">${needDown.map(jobRow).join("")}</div>`;
+  return h;
+}
+
+function vOffice(){
+  if(!(S.me.owner||S.me.money||S.me.manage)) return `<h1 class="h-view">Office</h1><p class="lede">You don't have access to the office tools.</p>`;
+  const subs=[S.me.money&&["money","Money"],S.me.owner&&["texts","Night texts"],S.me.manage&&["team","Team"],S.me.owner&&["settings","Settings"]].filter(Boolean);
+  if(!subs.some(x=>x[0]===S.office)) S.office=subs[0][0];
+  let h=`<h1 class="h-view">Office</h1><div class="seg" role="group">${subs.map(([k,l])=>`<button type="button" data-act="office" data-v="${k}" aria-pressed="${S.office===k}">${l}</button>`).join("")}</div>`;
+  if(S.office==="money") h+=vMoney(); else if(S.office==="texts") h+=vTexts(); else if(S.office==="team") h+=vTeam(); else h+=vSettings();
+  return h;
+}
+const hasPct = v => v!==undefined && v!==null && v!=="" && !isNaN(Number(v));
+const pctTxt = x => (Math.round(x*1000)/10)+"%";
+function split(j,f){
+  const R=rates(), p=Number(f&&f.price)||0, custom=hasPct(f&&f.ssPct);
+  const sp = custom ? Number(f.ssPct)/100 : (j.source==="tcl"&&coOf(j.crew)==="shipshape" ? R.ss : 0);
+  const inc = j.source==="tcl" ? p*R.tcl : p, ss=p*sp;
+  return {price:p,incoming:inc,ss,net:inc-ss,ssPct:sp,custom};
+}
+function vMoney(){
+  const R=rates(), jobs=jobsArr().filter(j=>j.stage!=="cancelled");
+  const T={in:0,col:0,ssOwed:0,ssPaid:0,net:0,price:0}, by={tcl:0,pl:0,tclSS:0}; let noPrice=0;
+  for(const j of jobs){ const f=S.fin.get(j.id)||{}, s=split(j,f); if(!s.price){ noPrice++; continue; }
+    T.price+=s.price; T.in+=s.incoming; if(f.collected) T.col+=s.incoming; if(s.ss){ f.ssPaid?T.ssPaid+=s.ss:T.ssOwed+=s.ss; } T.net+=s.net;
+    if(j.source==="tcl"){ coOf(j.crew)==="shipshape"?by.tclSS+=s.net:by.tcl+=s.net; } else by.pl+=s.net; }
+  let h=`<p class="lede">TCL pays ProLight ${R.tcl*100}% of each TCL job. On TCL / ShipShape jobs, ShipShape gets ${R.ss*100}% and ProLight keeps ${Math.round((R.tcl-R.ss)*100)}% for management and storage.</p>
+  <div class="tiles">
+    <div class="tile hero"><span class="l">ProLight keeps this season</span><span class="v">${money(T.net)}</span></div>
+    <div class="tile"><span class="l">Coming in</span><span class="v">${money(T.in)}</span></div>
+    <div class="tile"><span class="l">Still to collect</span><span class="v" style="color:${T.in-T.col>0?"var(--amber-text)":"inherit"}">${money(T.in-T.col)}</span></div>
+    <div class="tile"><span class="l">Owe ShipShape</span><span class="v" style="color:${T.ssOwed>0?"var(--red)":"inherit"}">${money(T.ssOwed)}</span></div>
+    <div class="tile"><span class="l">Paid ShipShape</span><span class="v">${money(T.ssPaid)}</span></div>
+    <div class="tile"><span class="l">ProLight jobs</span><span class="v">${money(by.pl)}</span></div>
+    <div class="tile"><span class="l">TCL / ProLight</span><span class="v">${money(by.tcl)}</span></div>
+    <div class="tile"><span class="l">TCL / ShipShape</span><span class="v">${money(by.tclSS)}</span></div>
+  </div>`;
+  if(noPrice) h+=`<div class="note">${noPrice} job${noPrice>1?"s have":" has"} no price yet and ${noPrice>1?"aren't":"isn't"} counted.</div>`;
+  const priced=jobs.filter(j=>Number((S.fin.get(j.id)||{}).price)).sort((a,b)=>String(clientOf(a).name).localeCompare(String(clientOf(b).name)));
+  if(priced.length){
+    h+=`<div class="tbl"><table><thead><tr><th>Client</th><th>Label</th><th>Invoice</th><th class="r">Job price</th><th class="r">To ProLight</th><th class="r">ShipShape</th><th class="r">We keep</th><th>Collected</th><th>ShipShape paid</th></tr></thead><tbody>
+    ${priced.map(j=>{ const f=S.fin.get(j.id)||{}, s=split(j,f); return `<tr><td><button type="button" class="tog" style="border:0;padding:0;background:none;color:var(--ink)" data-act="job" data-id="${esc(j.id)}"><b>${esc(clientOf(j).name)}</b></button></td><td><span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span></td><td class="mono">${esc(f.invoiceNo||"—")}</td>
+      <td class="r">${money(s.price)}</td><td class="r">${money(s.incoming)}</td><td class="r">${s.ss?`${money(s.ss)} <span class="count" style="font-size:12px">${pctTxt(s.ssPct)}${s.custom?"*":""}</span>`:"—"}</td><td class="r"><b>${money(s.net)}</b></td>
+      <td><button type="button" class="tog" data-act="fin-tog" data-k="collected" data-id="${esc(j.id)}" aria-pressed="${!!f.collected}">${f.collected?"Collected":"Open"}</button></td>
+      <td>${s.ss?`<button type="button" class="tog" data-act="fin-tog" data-k="ssPaid" data-id="${esc(j.id)}" aria-pressed="${!!f.ssPaid}">${f.ssPaid?"Paid":"Owed"}</button>`:"—"}</td></tr>`; }).join("")}
+    </tbody></table></div>`;
+  }
+  return h;
+}
+function briefText(team,date){
+  const stops=stopsFor(date,team), tn=team==="all"?"All crews":teamName(team);
+  const L=[`${tn.toUpperCase()} · ${fmtDay(date,{weekday:"long",month:"short",day:"numeric"})}`];
+  if(team!=="all" && membersOf(team).length) L.push("Crew: "+membersOf(team).join(", "));
+  if(!stops.length){ L.push("No stops scheduled."); return L.join("\n"); }
+  L.push(`${stops.length} stop${stops.length>1?"s":""}, in this order:`,"");
+  stops.forEach((s,i)=>{ const c=clientOf(s.j), a=addrOf(s.j);
+    L.push(`${i+1}. ${VTYPE[s.v.type].toUpperCase()}${s.v.time?" @ "+fmtTime(s.v.time):""} · ${c.name||"Customer"} (${label(s.j)})`);
+    if(a) L.push("   "+a, "   Map: "+mapsUrl(a));
+    const lights=[s.j.scope, s.j.rooflineFt?s.j.rooflineFt+" ft roofline":""].filter(Boolean).join(", "); if(lights) L.push("   Lights: "+lights);
+    if(c.gate) L.push("   Access: "+c.gate);
+    if(s.j.notes) L.push("   Notes: "+s.j.notes.replace(/\n+/g," / "));
+    if(s.v.note) L.push("   This visit: "+s.v.note);
+    const mk=(s.j.mockups||[]).length; if(mk) L.push(`   Mockup: ${mk} file${mk>1?"s":""} on the board`);
+    (s.j.links||[]).forEach((u,k)=>L.push(`   Mockup${s.j.links.length>1?" "+(k+1):""}: ${u}`));
+    if(team==="all") L.push("   Crew: "+teamName(crewOf(s.j,s.v)));
+    L.push(""); });
+  L.push("Mockups, photos and check-off:", BOARD_URL);
+  return L.join("\n");
+}
+function vTexts(){
+  const d=S.briefDay;
+  let h=`<div class="bar"><button type="button" class="btn icon" data-act="brief-day" data-v="-1" aria-label="Previous day">‹</button><div class="grow"><span class="eyebrow">Run sheets for</span><div class="h-sec" style="margin:0;color:var(--ink);font-size:26px">${rel(d)?rel(d)+" · ":""}${fmtDay(d,{weekday:"long",month:"short",day:"numeric"})}</div></div><button type="button" class="btn icon" data-act="brief-day" data-v="1" aria-label="Next day">›</button></div>
+  <p class="lede">Each crew's stops in route order, with addresses, map links, gate codes, notes and mockup count. Copy and paste into the group chat.</p><div class="msgs">`;
+  for(const c of crews()){ const k=c.id, chat=c.chat||"";
+    h+=`<div class="msg"><header><div><b>${esc(teamName(k))}</b>${chat?`<div class="count" style="font-size:13px">To: ${esc(chat)}</div>`:""}</div><button type="button" class="btn amber small" data-act="copy" data-v="brief-${k}">Copy text</button></header>
+      <textarea id="brief-${k}" readonly>${esc(briefText(k,d))}</textarea></div>`; }
+  return h+`</div>`;
+}
+function vSettings(){
+  const C=crews(), used=id=>jobsArr().some(j=>crewOf(j)===id||(j.visits||[]).some(v=>normCrew(v.crew)===id));
+  return `<form class="form" id="settingsForm" style="max-width:720px">
+    <fieldset><legend>Crews</legend><p class="lede" style="font-size:14px">Add the people on each crew, one name per line. Names show on the route and in the night-before text.</p>
+    ${C.map(c=>`<div class="vedit"><div class="full"><span class="lbl ${c.co==="shipshape"?"":"pl"}">${c.co==="shipshape"?"ShipShape":"ProLight"}</span>${C.filter(x=>x.co===c.co).length>1&&!used(c.id)?`<button type="button" class="btn small danger" data-act="rm-crew" data-v="${esc(c.id)}">Remove crew</button>`:""}</div>
+      <div class="f"><label for="s-${c.id}-name">Crew name</label><input id="s-${c.id}-name" value="${esc(c.name)}"></div>
+      <div class="f"><label for="s-${c.id}-chat">Group chat</label><input id="s-${c.id}-chat" value="${esc(c.chat||"")}" placeholder="e.g. Crew 1 (iMessage)"></div>
+      <div class="f" style="grid-column:1/-1"><label for="s-${c.id}-members">Crew members</label><textarea id="s-${c.id}-members" placeholder="One name per line">${esc((c.members||[]).join("\n"))}</textarea></div></div>`).join("")}
+    <div class="bar"><button type="button" class="btn small" data-act="add-crew" data-v="prolight">+ ProLight crew</button><button type="button" class="btn small" data-act="add-crew" data-v="shipshape">+ ShipShape crew</button></div></fieldset>
+    <fieldset ${S.me.money?"":"hidden"}><legend>Split</legend><div class="two">
+      <div class="f"><label for="s-tcl">TCL pays ProLight (%)</label><input id="s-tcl" inputmode="decimal" value="${esc(S.finSet.tclRate??40)}"></div>
+      <div class="f"><label for="s-ss">ShipShape gets (%)</label><input id="s-ss" inputmode="decimal" value="${esc(S.finSet.ssRate??30)}"><small>Percent of the TCL job price.</small></div></div></fieldset>
+    <div><button type="submit" class="btn amber">Save settings</button></div>
+  </form>`;
+}
+
+/* ---------- drawers ---------- */
+function drawerShell(eyebrow,title,body){
+  return `<div class="scrim" data-act="close"></div><aside class="drawer" role="dialog" aria-modal="true" aria-label="${esc(title)}">
+    <div class="d-head"><div class="t"><span class="eyebrow">${eyebrow}</span><h2>${esc(title)}</h2></div><button type="button" class="btn small" data-act="close">Close</button></div>
+    <div class="d-body" id="dbody">${body}</div></aside>`;
+}
+function dJob(id){
+  const j0=S.jobs.get(id); if(!j0) return drawerShell("Job","Not found",`<p class="lede">This job was deleted.</p>`);
+  const j={id,...j0}, c=clientOf(j), a=addrOf(j), st=status(j), f=S.fin.get(id)||{};
+  const visits=[...(j.visits||[])].sort((x,y)=>String(x.date||"9").localeCompare(String(y.date||"9")));
+  const entries=logByJob.get(id)||[];
+  let b=`<div class="bar"><span class="bulb ${BULB[st]}"></span><span class="st ${st}">${STATUS[st]}</span><span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span>${j.tclRef?`<span class="mono count">TCL #${esc(j.tclRef)}</span>`:""}</div>
+  <div class="bar">${a?`<a class="btn" href="${esc(mapsUrl(a))}" target="_blank" rel="noopener">Directions ↗</a>`:""}${c.phone?`<button type="button" class="btn" data-act="copytext" data-v="${esc(c.phone)}">Copy phone</button>`:""}
+    ${S.me.owner?`<button type="button" class="btn" data-act="edit-job" data-id="${esc(id)}">Edit job</button>`:""}<button type="button" class="btn" data-act="client" data-id="${esc(j.clientId)}">Client</button></div>
+  ${S.me.owner?`<div class="f"><label>Who's doing this job</label>${assignUI(j.crew,"assign",`data-id="${esc(id)}"`)}${membersOf(j.crew).length?`<small>${esc(membersOf(j.crew).join(", "))}</small>`:""}</div>`:""}
+  <dl class="kv">${a?`<dt>Address</dt><dd>${esc(a)}</dd>`:""}${c.phone?`<dt>Phone</dt><dd class="mono">${esc(c.phone)}</dd>`:""}${c.gate?`<dt>Access</dt><dd>${esc(c.gate)}</dd>`:""}
+    ${j.scope?`<dt>Lights</dt><dd>${esc(j.scope)}</dd>`:""}${j.rooflineFt?`<dt>Roofline</dt><dd class="mono">${esc(j.rooflineFt)} ft</dd>`:""}${j.season?`<dt>Season</dt><dd class="mono">${esc(j.season)}</dd>`:""}${j.tclWhen?`<dt>TCL target</dt><dd>${esc(j.tclWhen)}</dd>`:""}${j.priority?`<dt>Priority</dt><dd>${esc(j.priority)}</dd>`:""}${j.ready?`<dt>Ready</dt><dd class="mono">${esc(j.ready)} on TCL's checklist</dd>`:""}</dl>
+  ${j.notes?`<div class="t-notes">${esc(j.notes)}</div>`:""}
+  <section class="blk"><h3 class="h-sec">Visits</h3>${visits.length?visits.map(v=>visitRow(j,v)).join(""):`<p class="lede">No visits scheduled.${S.me.owner?" Edit the job to add install and takedown dates.":""}</p>`}</section>
+  <section class="blk"><h3 class="h-sec">Mockups</h3>${(j.links||[]).length?`<div class="bar">${j.links.map((u,i)=>`<a class="btn small" href="${esc(u)}" target="_blank" rel="noopener">Mockup ${j.links.length>1?i+1+" ":""}↗</a>`).join("")}</div>`:""}${(j.mockups||[]).length?`<div class="gallery">${j.mockups.map(m=>`<div class="gal-item">${mediaTag(m)}${S.me.owner?`<button type="button" class="x" data-act="rm-mockup" data-id="${esc(m.id)}" aria-label="Remove mockup">×</button>`:""}</div>`).join("")}</div>`:((j.links||[]).length?"":`<p class="lede">No mockups yet.</p>`)}
+    ${S.me.owner&&S.assets?`<div><label class="btn file-btn">+ Add mockup<input type="file" id="mockup-file" accept="image/*,application/pdf" multiple></label></div>`:""}</section>`;
+  if(S.me.money){ const s=split(j,f);
+    b+=`<section class="blk"><h3 class="h-sec">Money</h3>${s.price?`<div class="calc">${calcLines(j,s.price,f.ssPct)}</div>
+      <div class="bar"><button type="button" class="tog" data-act="fin-tog" data-k="collected" data-id="${esc(id)}" aria-pressed="${!!f.collected}">${f.collected?"Collected":"Not collected"}</button>${s.ss?`<button type="button" class="tog" data-act="fin-tog" data-k="ssPaid" data-id="${esc(id)}" aria-pressed="${!!f.ssPaid}">${f.ssPaid?"ShipShape paid":"ShipShape owed"}</button>`:""}${f.invoiceNo?`<span class="mono count">Invoice ${esc(f.invoiceNo)}</span>`:""}</div>`:`<p class="lede">No price yet. Edit the job to add one.</p>`}
+      ${f.privateNote?`<div class="note">${esc(f.privateNote)}</div>`:""}</section>`; }
+  b+=`<section class="blk"><h3 class="h-sec">Notes & photos</h3>`;
+  if(S.me.canLog) b+=`<div class="composer"><textarea id="compose-text" placeholder="What did you see or do? Burned-out bulbs, extra footage, customer requests…">${esc(S.compose.text)}</textarea>
+    ${S.compose.files.length?`<div class="pend">${S.compose.files.map((x,i)=>`<span>${esc(x.name)} <button type="button" data-act="rm-pend" data-v="${i}" aria-label="Remove">×</button></span>`).join("")}</div>`:""}
+    <div class="bar">${S.assets?`<label class="btn small file-btn">Add photo / video<input type="file" id="compose-files" accept="image/*,video/*" multiple></label>`:""}<span class="grow"></span><button type="button" class="btn amber small" data-act="post" data-id="${esc(id)}" ${S.busy?"disabled":""}>${S.busy?"Posting…":"Post"}</button></div>
+    ${S.assets?`<small class="count" style="font-size:12px">Photos are resized automatically. Videos up to 50 MB, about 30 seconds.</small>`:""}</div>`;
+  b+= entries.length ? `<div class="feed">${entries.map(e=>entryCard(e,j)).join("")}</div>` : `<p class="lede">Nothing posted yet.</p>`;
+  b+=`</section>`;
+  return drawerShell(esc(fmtDay(nextVisit(j)?.date||"")||"Job"), c.name||"Customer", b);
+}
+function visitRow(j,v){
+  const d=isDone(j.id,v.id);
+  let act="";
+  if(d){ act = (S.me.owner||d.by===S.me.id) ? `<button type="button" class="btn done small" data-act="undone" data-id="${esc(d.id)}">✓ Undo</button>` : `<span class="st down">✓ Done</span>`; }
+  else if(S.me.canLog && v.date) act=`<button type="button" class="btn amber small" data-act="done" data-j="${esc(j.id)}" data-v="${esc(v.id)}">Mark done</button>`;
+  return `<div class="visit"><span class="bulb ${d?"on":""}"></span><div class="x"><b><span class="vt ${v.type}" style="font-size:13px">${VTYPE[v.type]}</span> ${v.date?fmtDay(v.date,{weekday:"short",month:"short",day:"numeric"}):"No date"}${v.time?" · "+fmtTime(v.time):""}</b>
+    <small>${esc(teamName(crewOf(j,v)))}${d?` · done by ${esc(who(d.by))}, ${esc(ago(d.at))}`:""}${v.note?` · ${esc(v.note)}`:""}</small></div>${act}</div>`;
+}
+function entryCard(e,j){
+  const canDel=S.me.owner||e.by===S.me.id;
+  if(e.kind==="done"){ const v=(j.visits||[]).find(x=>x.id===e.visitId); return `<div class="entry done-e"><div class="meta"><span>✓ <b>${esc(who(e.by))}</b> marked ${v?VTYPE[v.type].toLowerCase():"a visit"} done</span><span>${esc(ago(e.at))}</span></div></div>`; }
+  return `<div class="entry"><div class="meta"><span><b>${esc(who(e.by))}</b></span><span>${esc(ago(e.at))}${canDel?` · <button type="button" class="tog" style="border:0;padding:0;background:none" data-act="del-entry" data-id="${esc(e.id)}">Delete</button>`:""}</span></div>
+    ${e.text?`<div class="txt">${esc(e.text)}</div>`:""}${(e.media||[]).length?`<div class="media">${e.media.map(mediaTag).join("")}</div>`:""}</div>`;
+}
+function calcLines(j,p,ssPct){
+  const R=rates(), s=split(j,{price:p,ssPct});
+  if(j.source!=="tcl") return `<div class="ln"><span>Job price</span><span class="mono">${money(p)}</span></div>${s.ss?`<div class="ln"><span>ProLight pays ShipShape ${pctTxt(s.ssPct)}${s.custom?" (custom)":""}</span><span class="mono">−${money(s.ss)}</span></div>`:""}<div class="ln t"><span>ProLight keeps</span><span class="mono">${money(s.net)}</span></div>`;
+  return `<div class="ln"><span>TCL job price</span><span class="mono">${money(p)}</span></div><div class="ln"><span>TCL keeps ${Math.round((1-R.tcl)*100)}%</span><span class="mono">${money(p-s.incoming)}</span></div>
+    <div class="ln"><span>TCL pays ProLight ${R.tcl*100}%</span><span class="mono">${money(s.incoming)}</span></div>
+    ${s.ss?`<div class="ln"><span>ProLight pays ShipShape ${pctTxt(s.ssPct)}${s.custom?" (custom)":""}</span><span class="mono">−${money(s.ss)}</span></div>`:""}
+    <div class="ln t"><span>ProLight keeps ${p?pctTxt(s.net/p):""}</span><span class="mono">${money(s.net)}</span></div>`;
+}
+function dClient(id){
+  const c=S.clients.get(id); if(!c) return drawerShell("Client","Not found",`<p class="lede">This client was deleted.</p>`);
+  const js=jobsArr().filter(j=>j.clientId===id).sort((a,b)=>String(b.season||"").localeCompare(String(a.season||"")));
+  const b=`<div class="bar">${c.address?`<a class="btn" href="${esc(mapsUrl(c.address))}" target="_blank" rel="noopener">Directions ↗</a>`:""}${c.phone?`<button type="button" class="btn" data-act="copytext" data-v="${esc(c.phone)}">Copy phone</button>`:""}${S.me.owner?`<button type="button" class="btn" data-act="edit-client" data-id="${esc(id)}">Edit</button><button type="button" class="btn amber" data-act="new-job" data-client="${esc(id)}">+ Job</button>`:""}</div>
+    <dl class="kv">${c.address?`<dt>Address</dt><dd>${esc(c.address)}</dd>`:""}${c.phone?`<dt>Phone</dt><dd class="mono">${esc(c.phone)}</dd>`:""}${c.email?`<dt>Email</dt><dd>${esc(c.email)}</dd>`:""}${c.gate?`<dt>Access</dt><dd>${esc(c.gate)}</dd>`:""}</dl>
+    ${c.notes?`<div class="t-notes">${esc(c.notes)}</div>`:""}
+    <section class="blk"><h3 class="h-sec">Jobs · ${js.length}</h3>${js.length?`<div class="rows">${js.map(jobRow).join("")}</div>`:`<p class="lede">No jobs yet.</p>`}</section>`;
+  return drawerShell("Client", c.name||"Client", b);
+}
+function dJobEdit(){
+  const F=S.form, j=F.job, fin=F.fin, R=rates();
+  const clients=[...S.clients.entries()].map(([id,d])=>({id,...d})).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+  const seg=(name,opts,val)=>`<div class="seg" role="group">${opts.map(([k,l])=>`<button type="button" data-act="seg" data-k="${name}" data-v="${k}" aria-pressed="${val===k}">${l}</button>`).join("")}</div>`;
+  const ca=(S.clients.get(j.clientId)||{}).address||"";
+  const b=`<form class="form" id="jobForm" autocomplete="off">
+    <fieldset><legend>Client</legend>
+      <div class="f"><label for="f-client">Client</label><select id="f-client"><option value="">Choose a client…</option>${clients.map(c=>`<option value="${esc(c.id)}" ${F.clientMode!=="new"&&j.clientId===c.id?"selected":""}>${esc(c.name)}</option>`).join("")}<option value="__new" ${F.clientMode==="new"?"selected":""}>+ New client</option></select></div>
+      ${F.clientMode==="new"?`<div class="f"><label for="nc-name">New client name</label><input id="nc-name" value="${esc(F.nc.name)}" placeholder="e.g. Hendricks residence"></div>
+        <div class="two"><div class="f"><label for="nc-phone">Phone</label><input id="nc-phone" type="tel" value="${esc(F.nc.phone)}"></div><div class="f"><label for="nc-email">Email</label><input id="nc-email" type="email" value="${esc(F.nc.email)}"></div></div>
+        <div class="f"><label for="nc-address">Address</label><input id="nc-address" value="${esc(F.nc.address)}" placeholder="Street, Tallahassee, FL"></div>
+        <div class="f"><label for="nc-gate">Gate code / access</label><input id="nc-gate" value="${esc(F.nc.gate)}"></div>`
+      :`<div class="f"><label for="f-address">Job address</label><input id="f-address" value="${esc(j.address)}" placeholder="${esc(ca||"Same as client")}"><small>Leave blank to use the client's address.</small></div>`}
+    </fieldset>
+    <fieldset><legend>Job</legend>
+      <div class="f"><label>Whose job</label>${seg("source",[["prolight","ProLight"],["tcl","TCL subcontract"]],j.source)}</div>
+      <div class="f"><label>Crew</label>${assignUI(j.crew,"seg",'data-k="crew"')}<small>Label: <b>${esc(label(j))}</b></small></div>
+      ${j.source==="tcl"?`<div class="f"><label for="f-tclRef">TCL job #</label><input id="f-tclRef" value="${esc(j.tclRef)}"></div>`:""}
+      <div class="two"><div class="f"><label for="f-stage">Stage</label><select id="f-stage">${STAGES.map(([k,l])=>`<option value="${k}" ${j.stage===k?"selected":""}>${l}</option>`).join("")}</select></div>
+      <div class="f"><label for="f-rooflineFt">Roofline (ft)</label><input id="f-rooflineFt" inputmode="numeric" value="${esc(j.rooflineFt)}"></div></div>
+      <div class="f"><label for="f-scope">Lights / scope</label><input id="f-scope" value="${esc(j.scope)}" placeholder="C9 warm white roofline, 2 wrapped oaks, wreath"></div>
+      <div class="f"><label for="f-notes">Crew notes</label><textarea id="f-notes" placeholder="Outlet locations, timer, ladder access, dog in yard">${esc(j.notes)}</textarea><small>Crews see these on their route and in the nightly text.</small></div>
+    </fieldset>
+    <fieldset><legend>Visits</legend>
+      ${(j.visits||[]).map((v,i)=>`<div class="vedit">
+        <div class="full"><span class="vt ${v.type}">${VTYPE[v.type]}</span><button type="button" class="btn small danger" data-act="del-visit" data-v="${i}">Remove</button></div>
+        <div class="f"><label for="v${i}-date">Date</label><input id="v${i}-date" type="date" value="${esc(v.date)}"></div>
+        <div class="f"><label for="v${i}-time">Time</label><input id="v${i}-time" type="time" value="${esc(v.time)}"></div>
+        <div class="f"><label for="v${i}-crew">Crew</label><select id="v${i}-crew"><option value="">Job's crew</option>${crews().map(c=>`<option value="${esc(c.id)}" ${normCrew(v.crew)===c.id?"selected":""}>${esc(c.name)}</option>`).join("")}</select></div>
+        <div class="f"><label for="v${i}-note">Visit note</label><input id="v${i}-note" value="${esc(v.note)}"></div>
+      </div>`).join("")}
+      <div class="bar"><button type="button" class="btn small" data-act="add-visit" data-v="install">+ Install</button><button type="button" class="btn small" data-act="add-visit" data-v="takedown">+ Takedown</button><button type="button" class="btn small" data-act="add-visit" data-v="service">+ Service call</button></div>
+    </fieldset>
+    <fieldset ${S.me.money?"":"hidden"}><legend>Money · only people with money access see this</legend>
+      <div class="two"><div class="f"><label for="m-price">${j.source==="tcl"?"TCL job price":"Job price"}</label><input id="m-price" inputmode="decimal" value="${esc(fin.price)}" placeholder="0.00"></div>
+      <div class="f"><label for="m-invoice">Invoice #</label><input id="m-invoice" value="${esc(fin.invoiceNo)}"></div></div>
+      <div class="f"><label for="m-ss">ShipShape payout (% of job price)</label><input id="m-ss" inputmode="decimal" value="${esc(fin.ssPct??"")}" placeholder="Default: ${j.source==="tcl"&&coOf(j.crew)==="shipshape"?R.ss*100:0}"><small>Leave blank for the default. A 50/50 TCL job is 15 (ProLight keeps 25).</small></div>
+      <div class="calc" id="calc">${Number(fin.price)?calcLines(j,Number(fin.price),fin.ssPct):`<span class="count">Enter a price to see the split.</span>`}</div>
+      <div class="f"><label for="m-note">Private note</label><textarea id="m-note" placeholder="Deposit, discount, payment terms">${esc(fin.privateNote)}</textarea></div>
+    </fieldset>
+    <div class="actions">${F.id?(F.confirmDel?`<span class="bar"><span class="count">Delete this job?</span><button type="button" class="btn danger" data-act="del-job-yes">Delete</button><button type="button" class="btn" data-act="del-job-no">Keep</button></span>`:`<button type="button" class="btn danger" data-act="del-job">Delete job</button>`):"<span></span>"}
+      <button type="submit" class="btn amber" ${S.busy?"disabled":""}>${S.busy?"Saving…":F.id?"Save job":"Add job"}</button></div>
+  </form>`;
+  return drawerShell(F.id?"Edit job":"New job", F.id?((S.clients.get(j.clientId)||{}).name||"Job"):"New job", b);
+}
+function dClientEdit(){
+  const F=S.form, c=F.client;
+  const b=`<form class="form" id="clientForm" autocomplete="off"><fieldset>
+    <div class="f"><label for="c-name">Name</label><input id="c-name" value="${esc(c.name)}" required></div>
+    <div class="two"><div class="f"><label for="c-phone">Phone</label><input id="c-phone" type="tel" value="${esc(c.phone)}"></div><div class="f"><label for="c-email">Email</label><input id="c-email" type="email" value="${esc(c.email)}"></div></div>
+    <div class="f"><label for="c-address">Address</label><input id="c-address" value="${esc(c.address)}"></div>
+    <div class="f"><label for="c-gate">Gate code / access</label><input id="c-gate" value="${esc(c.gate)}"></div>
+    <div class="f"><label for="c-notes">Notes</label><textarea id="c-notes">${esc(c.notes)}</textarea></div></fieldset>
+    <div class="actions"><span></span><button type="submit" class="btn amber">${F.id?"Save client":"Add client"}</button></div></form>`;
+  return drawerShell(F.id?"Edit client":"New client", F.id?(c.name||"Client"):"New client", b);
+}
+function renderDrawer(){
+  const D=S.drawer, root=$("#drawerRoot");
+  if(!D){ root.innerHTML=""; return; }
+  const prev=$("#dbody"), top=prev?prev.scrollTop:0;
+  const focusId=document.activeElement&&document.activeElement.id;
+  root.innerHTML = D.kind==="job"?dJob(D.id): D.kind==="client"?dClient(D.id): D.kind==="jobEdit"?dJobEdit(): D.kind==="account"?dAccount(): D.kind==="person"?dPerson(): dClientEdit();
+  const nb=$("#dbody"); if(nb && D.keep) nb.scrollTop=top;
+  if(focusId){ const el=document.getElementById(focusId); if(el && el.id==="compose-text"){ el.focus(); el.setSelectionRange(el.value.length,el.value.length); } }
+  D.keep=true;
+}
+function openDrawer(kind,id){ S.drawer={kind,id,keep:false}; renderDrawer(); }
+function closeDrawer(){ S.drawer=null; S.form=null; renderDrawer(); }
+
+/* ---------- map ---------- */
+const MAP = { cx:null, cy:null, k:null, sel:null, mode:"unsched", day:todayISO(), placing:null, date:addDays(todayISO(),1) };
+const PL_COLORS = ["#f2a516","#e0573c","#8fb339","#b26ad8","#2fb3a8"];
+function crewColor(id){ const c=crewObj(id); if(!c) return null; if(c.co==="shipshape") return "#3c7de0"; const i=crews().filter(x=>x.co==="prolight").findIndex(x=>x.id===c.id); return PL_COLORS[(i<0?0:i)%PL_COLORS.length]; }
+function pendingVisit(j){ return (j.visits||[]).filter(v=>!isDone(j.id,v.id)).sort((a,b)=>String(a.date||"9").localeCompare(String(b.date||"9")))[0]||null; }
+function mapJobs(){
+  let list=jobsArr().filter(j=>j.stage!=="cancelled");
+  if(MAP.mode==="unsched") list=list.filter(j=>{ const st=status(j); return st!=="down" && st!=="lit" && !(j.visits||[]).some(v=>v.date&&!isDone(j.id,v.id)); });
+  else if(MAP.mode==="sched") list=list.filter(j=>(j.visits||[]).some(v=>v.date&&!isDone(j.id,v.id)));
+  else if(MAP.mode==="day") list=list.filter(j=>(j.visits||[]).some(v=>v.date===MAP.day));
+  else if(MAP.mode==="active") list=list.filter(j=>status(j)!=="down");
+  if(S.team!=="all") list=list.filter(j=>crewOf(j)===S.team || (j.visits||[]).some(v=>crewOf(j,v)===S.team));
+  return list;
+}
+const hasLL = j => typeof j.lat==="number" && typeof j.lng==="number";
+function miles(a,b){ const R=3958.8, t=Math.PI/180, dLat=(b.lat-a.lat)*t, dLng=(b.lng-a.lng)*t; const h=Math.sin(dLat/2)**2+Math.cos(a.lat*t)*Math.cos(b.lat*t)*Math.sin(dLng/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
+function vMap(){
+  const modes=[["unsched","Needs a date"],["sched","Scheduled"],["day","One day's route"],["active","All active"]];
+  const list=mapJobs(), on=list.filter(hasLL), off=list.filter(j=>!hasLL(j));
+  const sel=MAP.sel && S.jobs.get(MAP.sel) ? {id:MAP.sel,...S.jobs.get(MAP.sel)} : null;
+  let h=`<div class="bar"><h1 class="h-view grow">Map</h1><span class="count mono">${on.length} on map${off.length?` · ${off.length} not placed`:""}</span></div>
+    <div class="chips" role="group" aria-label="Show">${modes.map(([k,l])=>`<button type="button" class="chip" data-act="map-mode" data-v="${k}" aria-pressed="${MAP.mode===k}">${l}</button>`).join("")}</div>
+    ${MAP.mode==="day"?`<div class="bar"><button type="button" class="btn icon" data-act="map-day" data-v="-1" aria-label="Previous day">‹</button><b class="sign" style="font-size:22px">${rel(MAP.day)?rel(MAP.day)+" · ":""}${fmtDay(MAP.day,{weekday:"short",month:"short",day:"numeric"})}</b><button type="button" class="btn icon" data-act="map-day" data-v="1" aria-label="Next day">›</button></div>`:""}
+    <div class="bar">${teamSeg()}</div>
+    <div class="map-wrap"><div class="map-box"><div id="map" aria-label="Map of jobs"></div>
+      <div class="map-ctl"><button type="button" class="btn icon small" data-act="map-zoom" data-v="1" aria-label="Zoom in">+</button><button type="button" class="btn icon small" data-act="map-zoom" data-v="-1" aria-label="Zoom out">−</button><button type="button" class="btn small" data-act="map-fit">Fit</button></div>
+      ${MAP.placing?`<div class="map-hint">Tap the map where ${esc(clientOf(S.jobs.get(MAP.placing)||{}).name||"this job")} is <button type="button" class="btn small" data-act="map-place-cancel">Cancel</button></div>`:""}
+      <div class="map-legend">${crews().map(c=>`<span><i style="background:${crewColor(c.id)}"></i>${esc(c.name)}</span>`).join("")}<span><i class="hollow"></i>Unassigned</span></div>
+    </div><div class="map-side">${sel?mapCard(sel):`<div class="side-card"><span class="eyebrow">Plan by area</span><p class="lede" style="font-size:14px">Tap a pin to see the job, the closest jobs around it, and to assign a crew and date. Bulbs show the crew color. Hollow pins have no crew yet.</p></div>`}
+      ${off.length?`<div class="side-card"><span class="eyebrow">Not on the map · ${off.length}</span><div class="rows" style="border:0">${off.map(j=>`<div class="row" style="cursor:default"><span class="bulb"></span><span class="m"><span class="n">${esc(clientOf(j).name||"Customer")}</span><span class="s">${esc(addrOf(j)||"No address")}</span></span>${S.me.owner?`<span style="display:flex;gap:6px">${addrOf(j)?`<button type="button" class="btn small" data-act="map-find" data-id="${esc(j.id)}">Find</button>`:""}<button type="button" class="btn small" data-act="map-place" data-id="${esc(j.id)}">Place</button></span>`:""}</div>`).join("")}</div></div>`:""}
+    </div></div>`;
+  return h;
+}
+function mapCard(j){
+  const c=clientOf(j), a=addrOf(j), pv=pendingVisit(j), st=status(j);
+  const near = hasLL(j) ? jobsArr().filter(x=>x.id!==j.id && hasLL(x) && x.stage!=="cancelled" && !["lit","down"].includes(status(x))).map(x=>({x,d:miles(j,x)})).sort((p,q)=>p.d-q.d).slice(0,6) : [];
+  return `<div class="side-card">
+    <div class="bar" style="flex-wrap:nowrap"><span class="bulb ${BULB[st]}"></span><span class="st ${st}">${STATUS[st]}</span><span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span><span class="grow"></span><button type="button" class="btn icon small" style="flex:none" data-act="map-unsel" aria-label="Close">×</button></div>
+    <div><button type="button" class="t-name" data-act="job" data-id="${esc(j.id)}">${esc(c.name||"Customer")}</button><div class="t-addr">${esc(a)}</div>${j.geo==="street"?`<small class="count">Pin is on the street, not the exact house.</small>`:""}</div>
+    <dl class="kv">${j.tclWhen?`<dt>TCL target</dt><dd>${esc(j.tclWhen)}</dd>`:""}${pv&&pv.date?`<dt>${VTYPE[pv.type]}</dt><dd>${fmtDay(pv.date,{weekday:"short",month:"short",day:"numeric"})} · ${esc(teamName(crewOf(j,pv)))}</dd>`:""}${j.scope?`<dt>Lights</dt><dd>${esc(j.scope)}</dd>`:""}</dl>
+    ${S.me.owner?`<div class="f"><label>Crew</label>${assignUI(j.crew,"assign",`data-id="${esc(j.id)}"`)}</div>
+      ${pv?`<div class="bar"><input type="date" id="map-date" class="search" style="flex:1 1 140px;min-width:0" value="${esc(pv.date||MAP.date)}"><button type="button" class="btn amber" data-act="map-sched" data-id="${esc(j.id)}">Set ${VTYPE[pv.type].toLowerCase()} date</button></div>`:""}
+      ${!hasLL(j)?"":`<button type="button" class="btn small" data-act="map-place" data-id="${esc(j.id)}">Move pin</button>`}`:""}
+    <div class="bar"><button type="button" class="btn small" data-act="job" data-id="${esc(j.id)}">Open job</button>${a?`<a class="btn small" href="${esc(mapsUrl(a))}" target="_blank" rel="noopener">Directions ↗</a>`:""}</div>
+    ${near.length?`<span class="eyebrow">Closest open jobs</span><div class="rows">${near.map(({x,d})=>{ const xv=pendingVisit(x); return `<button type="button" class="row" data-act="map-sel" data-id="${esc(x.id)}"><span class="bulb ${crewObj(x.crew)?"on":""}" style="${crewObj(x.crew)?`--b:${crewColor(x.crew)}`:""}"></span><span class="m"><span class="n">${esc(clientOf(x).name||"Customer")}</span><span class="s">${xv&&xv.date?fmtDay(xv.date)+" · "+esc(teamName(crewOf(x,xv))):esc(x.tclWhen||"No date")}</span></span><span class="r mono" style="font-size:13px">${d.toFixed(1)} mi</span></button>`; }).join("")}</div>`:""}
+  </div>`;
+}
+let LMAP=null, LHOLD=null, LAYER=null, LFIT=false;
+function mapFit(){
+  if(!LMAP) return;
+  const pts=mapJobs().filter(hasLL), all=pts.length?pts:jobsArr().filter(hasLL);
+  if(!all.length) return;
+  const lats=all.map(j=>j.lat).sort((a,b)=>a-b), lngs=all.map(j=>j.lng).sort((a,b)=>a-b);
+  const mLat=lats[lats.length>>1], mLng=lngs[lngs.length>>1];
+  const core=all.filter(j=>Math.abs(j.lat-mLat)<0.3 && Math.abs(j.lng-mLng)<0.35);
+  LMAP.fitBounds(L.latLngBounds((core.length?core:all).map(j=>[j.lat,j.lng])).pad(0.08),{maxZoom:15});
+}
+function drawMap(){
+  if(!LMAP) return;
+  LAYER.clearLayers();
+  const cs=getComputedStyle(document.documentElement), tok=n=>cs.getPropertyValue(n).trim();
+  const list=mapJobs().filter(hasLL), z=LMAP.getZoom();
+  if(MAP.mode==="day"){
+    for(const c of crews()){ const st=stopsFor(MAP.day,c.id).filter(s=>hasLL(s.j)); if(st.length>1) L.polyline(st.map(s=>[s.j.lat,s.j.lng]),{color:crewColor(c.id),weight:3,dashArray:"6 6",opacity:.9,interactive:false}).addTo(LAYER); }
+  }
+  const order = MAP.mode==="day" ? new Map(crews().flatMap(c=>stopsFor(MAP.day,c.id).map((s,i)=>[s.j.id,i+1]))) : null;
+  for(const j of [...list].sort((a,b)=>(a.id===MAP.sel)-(b.id===MAP.sel))){
+    const col=crewColor(j.crew), sel=j.id===MAP.sel, st=status(j);
+    const m=L.circleMarker([j.lat,j.lng],{radius:sel?11:8,weight:sel?3:2,color:sel?tok("--ink"):(col?"#ffffff":tok("--ink-2")),fillColor:col||tok("--card"),fillOpacity:1,className:(st==="lit"||st==="down")?"pin-lit":""}).addTo(LAYER);
+    m.on("click",e=>{ L.DomEvent.stopPropagation(e); if(MAP.placing) return; MAP.sel=j.id; renderMain(); });
+    const lbl=(order&&order.get(j.id)?order.get(j.id)+". ":"")+(clientOf(j).name||"Customer");
+    m.bindTooltip(esc(lbl),{permanent:!!(sel||z>=15||order),direction:"right",offset:[10,0],className:"pin-tip"});
+  }
+  if(MAP.center){ LMAP.panTo(MAP.center); MAP.center=null; }
+}
+function mountMap(){
+  const box=$("#map"); if(!box||!window.L) return;
+  if(!LMAP){
+    LHOLD=document.createElement("div"); LHOLD.className="lmap";
+    LMAP=L.map(LHOLD,{zoomControl:false}).setView([30.46,-84.27],11);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'}).addTo(LMAP);
+    LAYER=L.layerGroup().addTo(LMAP);
+    LMAP.on("click",e=>{
+      if(!MAP.placing){ if(MAP.sel){ MAP.sel=null; renderMain(); } return; }
+      const id=MAP.placing; MAP.placing=null; MAP.sel=id;
+      S.db.doc("jobs/"+id).update({lat:+e.latlng.lat.toFixed(5),lng:+e.latlng.lng.toFixed(5),geo:"manual",geoAddr:addrOf({...(S.jobs.get(id)||{}),id})}).then(()=>toast("Pin placed")).catch(err=>fail(err,"place the pin"));
+      renderMain();
+    });
+    LMAP.on("zoomend",drawMap);
+  }
+  box.appendChild(LHOLD);
+  LHOLD.style.cursor=MAP.placing?"crosshair":"";
+  requestAnimationFrame(()=>{ LMAP.invalidateSize(); if(!LFIT && jobsArr().some(hasLL)){ mapFit(); LFIT=true; } drawMap(); });
+}
+async function mapSchedule(id){
+  const j=S.jobs.get(id); if(!j) return; const d=($("#map-date")||{}).value; if(!d){ toast("Pick a date first"); return; }
+  MAP.date=d;
+  const visits=(j.visits||[]).map(v=>({...v})); const pv=visits.filter(v=>!isDone(id,v.id)).sort((a,b)=>String(a.date||"9").localeCompare(String(b.date||"9")))[0];
+  if(!pv){ toast("This job has no open visit"); return; }
+  pv.date=d; pv.order=null;
+  if(!normCrew(pv.crew) && !normCrew(j.crew)){ toast("Assign a crew first"); return; }
+  const peers=stopsFor(d,crewOf(j,pv)).filter(s=>s.j.id!==id); pv.order=peers.reduce((m,s)=>Math.max(m,s.v.order||0),0)+1;
+  try{ await S.db.doc("jobs/"+id).update({visits,updatedAt:new Date().toISOString()}); toast(`${VTYPE[pv.type]} set for ${fmtDay(d,{weekday:"short",month:"short",day:"numeric"})}`); }catch(e){ fail(e,"schedule this job"); }
+}
+
+/* ---------- people & sign-in ---------- */
+function applyPerms(P){ P=P||{}; S.me.owner=!!P.can_edit; S.me.money=!!P.can_money; S.me.manage=!!P.can_manage; S.me.canLog=!!P.can_log; S.me.name=P.name||""; }
+window.addEventListener("prolight:staff",()=>{ applyPerms(PL.me()); for(const p of PL.staff()) S.names.set(p.id,p.name); refresh(); if(S.drawer&&S.drawer.kind==="person"){} });
+const PRESETS={ member:{can_log:true,all_crews:false,can_edit:false,can_money:false,can_manage:false}, lead:{can_log:true,all_crews:true,can_edit:false,can_money:false,can_manage:false}, office:{can_log:true,all_crews:true,can_edit:true,can_money:false,can_manage:false}, manager:{can_log:true,all_crews:true,can_edit:true,can_money:true,can_manage:true} };
+const PERMS=[["can_log","Check off stops and post notes, photos and video",""],["all_crews","See every crew's jobs","Off: only jobs assigned to their own crew"],["can_edit","Edit jobs, clients, crews and the schedule",""],["can_money","See prices, payouts and the Money tab",""],["can_manage","Add people, change PINs and permissions",""]];
+function permSummary(p){ return [p.can_manage&&"Manager",!p.can_manage&&p.can_edit&&"Office",p.can_money&&"Money",p.can_log&&"Checks off",!p.all_crews&&"Own crew only"].filter(Boolean).join(" · ")||"Can only view"; }
+function vTeam(){
+  const P=PL.staff();
+  return `<div class="bar"><p class="lede grow">Everyone who can sign in. Each person picks their name and types their own 6-digit PIN.</p>${S.me.manage?`<button type="button" class="btn amber" data-act="person-new">+ Add person</button>`:""}</div>
+  <div class="rows">${P.map(p=>`<button type="button" class="row" data-act="person" data-id="${esc(p.id)}"><span class="bulb ${p.active?"on":"red"}"></span>
+    <span class="m"><span class="n">${esc(p.name)}${p.id===S.me.id?" (you)":""}</span><span class="s">${esc(permSummary(p))}</span></span>
+    <span class="r"><span class="count" style="font-size:13px">${esc(p.crew?teamName(p.crew):"No crew")}</span>${p.active?"":`<span class="st cancelled">Turned off</span>`}</span></button>`).join("")}</div>
+  <div class="note">Quick presets when adding someone: <b>Crew member</b> checks off their crew's stops. <b>Crew lead</b> also sees every crew. <b>Office</b> edits jobs and the schedule. <b>Manager</b> does everything, including money and people.</div>`;
+}
+function dPerson(){
+  const p=S.form.person, isNew=!p.id;
+  const crewOpts=`<option value="">No crew</option>${crews().map(c=>`<option value="${esc(c.id)}" ${p.crew===c.id?"selected":""}>${esc(c.name)}</option>`).join("")}`;
+  const b=`<form class="form" id="personForm" autocomplete="off">
+    <fieldset><legend>Person</legend>
+      <div class="f"><label for="pp-name">Name on the sign-in screen</label><input id="pp-name" value="${esc(p.name)}" required placeholder="e.g. Mike R."></div>
+      <div class="f"><label for="pp-crew">Crew</label><select id="pp-crew">${crewOpts}</select></div>
+      <div class="f"><label for="pp-pin">${isNew?"6-digit PIN":"New PIN (leave blank to keep theirs)"}</label><input id="pp-pin" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" ${isNew?"required":""} placeholder="${isNew?"":"••••••"}"><small>Give them this PIN in person or by text. They can change it from Account.</small></div>
+    </fieldset>
+    <fieldset><legend>What they can do</legend>
+      <div class="bar">${[["member","Crew member"],["lead","Crew lead"],["office","Office"],["manager","Manager"]].map(([k,l])=>`<button type="button" class="chip" data-act="preset" data-v="${k}">${l}</button>`).join("")}</div>
+      <div class="checks">${PERMS.map(([k,l,h])=>`<label><input type="checkbox" id="pp-${k}" ${p[k]?"checked":""}><span>${l}${h?`<small>${h}</small>`:""}</span></label>`).join("")}</div>
+    </fieldset>
+    ${isNew?"":`<fieldset><legend>Access</legend><div class="checks"><label><input type="checkbox" id="pp-active" ${p.active?"checked":""}><span>Can sign in<small>Turn off when someone leaves. Their check-offs and notes stay on the board.</small></span></label></div></fieldset>`}
+    <div class="actions"><span class="count" id="pp-err" style="color:var(--red)"></span><button type="submit" class="btn amber" ${S.busy?"disabled":""}>${isNew?"Add person":"Save changes"}</button></div>
+  </form>`;
+  return drawerShell(isNew?"Team":"Edit person", isNew?"Add person":p.name, b);
+}
+async function savePerson(){
+  const p=S.form.person, g=id=>document.getElementById(id);
+  const out={ id:p.id, name:g("pp-name").value.trim(), crew:g("pp-crew").value, active:p.id?g("pp-active").checked:true };
+  for(const [k] of PERMS) out[k]=g("pp-"+k).checked;
+  const pin=g("pp-pin").value.trim();
+  if(!out.name){ g("pp-err").textContent="Add their name."; return; }
+  if((!p.id||pin) && !/^[0-9]{6}$/.test(pin)){ g("pp-err").textContent="The PIN needs exactly 6 digits."; return; }
+  S.busy=true;
+  try{
+    if(!p.id) await PL.add({...out,pin}); else { await PL.update(out); if(pin) await PL.setPin(p.id,pin); }
+    S.busy=false; toast(p.id?"Saved":"Added "+out.name); closeDrawer();
+  }catch(e){ S.busy=false; g("pp-err").textContent=e.message.replace(/^.*?: /,""); }
+}
+function dAccount(){
+  const me=PL.me()||{};
+  return drawerShell("Signed in", me.name||"You", `<p class="lede">${esc(permSummary(me))}${me.crew?" · "+esc(teamName(me.crew)):""}</p>
+  <form class="form" id="pinForm" autocomplete="off"><fieldset><legend>Change my PIN</legend><div class="two">
+    <div class="f"><label for="np1">New 6-digit PIN</label><input id="np1" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required></div>
+    <div class="f"><label for="np2">Type it again</label><input id="np2" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required></div></div></fieldset>
+    <div class="actions"><button type="button" class="btn danger" data-act="signout">Sign out</button><button type="submit" class="btn amber">Save new PIN</button></div></form>`);
+}
+async function saveMyPin(){
+  const a=$("#np1").value.trim(), b=$("#np2").value.trim();
+  if(!/^[0-9]{6}$/.test(a)){ toast("Use exactly 6 digits"); return; }
+  if(a!==b){ toast("The two PINs don't match"); return; }
+  try{ await PL.setPin(S.me.id,a); toast("PIN changed"); closeDrawer(); }catch(e){ toast("Couldn't change the PIN. Try again."); }
+}
+function autoGeo(id){
+  const j=S.jobs.get(id); if(!j) return; const a=addrOf({...j,id});
+  if(!a || (typeof j.lat==="number" && j.geoAddr===a)) return;
+  PL.geocode(a).then(r=>{ if(r) S.db.doc("jobs/"+id).update({lat:+(+r.lat).toFixed(5),lng:+(+r.lng).toFixed(5),geo:r.source,geoAddr:a}); }).catch(()=>{});
+}
+
+/* ---------- render ---------- */
+function renderMain(){
+  renderNav();
+  const a=document.activeElement, fid=a&&a.id&&a.id.startsWith("q-")?a.id:null, pos=fid?a.selectionStart:0;
+  const md=$("#map-date"); if(md && md.value) MAP.date=md.value;
+  $("#view").innerHTML = S.view==="route"?vRoute(): S.view==="jobs"?vJobs(): S.view==="map"?vMap(): S.view==="clients"?vClients(): S.view==="week"?vWeek(): vOffice();
+  if(S.view==="map") mountMap();
+  if(fid){ const el=document.getElementById(fid); if(el){ el.focus(); try{el.setSelectionRange(pos,pos);}catch(e){} } }
+}
+window.addEventListener("resize",()=>{ if(S.view==="map"&&LMAP) LMAP.invalidateSize(); });
+function refresh(){ renderMain(); if(S.drawer && (S.drawer.kind==="job"||S.drawer.kind==="client")) renderDrawer(); }
+
+/* ---------- writes ---------- */
+function fail(e,what){
+  const c=e&&e.code;
+  if(c==="invalid_argument") toast(`You don't have permission to ${what}.`);
+  else if(c==="quota_exceeded") toast("The board is full. Delete old entries to make room.");
+  else toast(`Couldn't ${what}. Check your signal and try again.`);
+}
+async function markDone(jobId,visitId){
+  try{ await S.db.collection("log").add({jobId,visitId,kind:"done",by:S.me.id||"",at:new Date().toISOString()}); toast("Marked done"); }catch(e){ fail(e,"mark this done"); }
+}
+async function delEntry(id){ try{ await S.db.doc("log/"+id).delete(); }catch(e){ fail(e,"change that"); } }
+async function shrink(file){
+  try{ const bmp=await createImageBitmap(file); const m=2000, sc=Math.min(1,m/Math.max(bmp.width,bmp.height));
+    const cv=document.createElement("canvas"); cv.width=Math.round(bmp.width*sc); cv.height=Math.round(bmp.height*sc);
+    cv.getContext("2d").drawImage(bmp,0,0,cv.width,cv.height);
+    const blob=await new Promise((res,rej)=>cv.toBlob(b=>b?res(b):rej(new Error("encode")),"image/jpeg",0.85));
+    return {blob,type:"image/jpeg"}; }
+  catch(e){ return {blob:file,type:file.type}; }
+}
+async function upload(file){
+  let blob=file, type=file.type||"";
+  const n=file.name||"";
+  if(type.startsWith("image/") && type!=="image/gif" && type!=="image/svg+xml"){ ({blob,type}=await shrink(file)); }
+  else if(type==="video/quicktime" || (!type && /\.mov$/i.test(n)) || (!type && /\.mp4$/i.test(n))) type="video/mp4";
+  else if(!type && /\.pdf$/i.test(n)) type="application/pdf";
+  if(blob.size>50*1024*1024) throw {code:"too_large"};
+  const r=await S.assets.upload(blob,{type});
+  return {id:r.id, type:type.startsWith("video")?"video":type==="application/pdf"?"pdf":"image", name:n};
+}
+function upFail(e){
+  const c=e&&e.code;
+  toast(c==="too_large"?"That file is over 50 MB. Trim videos to about 30 seconds.": c==="unsupported_type"?"That file type can't be uploaded. Use a photo or an MP4/MOV video.": c==="quota_or_state"?"The board's storage is full.": c==="not_granted"?"You don't have permission to upload here.":"Upload failed. Check your signal and try again.");
+}
+async function post(jobId){
+  const text=S.compose.text.trim(), files=S.compose.files; if(!text && !files.length){ toast("Write a note or add a photo first"); return; }
+  S.busy=true; renderDrawer();
+  const media=[];
+  try{
+    for(let i=0;i<files.length;i++){ toast(`Uploading ${i+1} of ${files.length}…`); media.push(await upload(files[i])); }
+    await S.db.collection("log").add({jobId,kind:"note",text,media,by:S.me.id||"",at:new Date().toISOString()});
+    S.compose={text:"",files:[]}; toast("Posted");
+  }catch(e){ if(e&&("code" in e)&&["too_large","unsupported_type","quota_or_state","not_granted","rate_limited","upstream_error","store_unavailable"].includes(e.code)) upFail(e); else fail(e,"post that"); }
+  S.busy=false; renderDrawer();
+}
+async function addMockups(files){
+  const id=S.drawer.id, j=S.jobs.get(id); if(!j) return;
+  const list=[...(j.mockups||[])];
+  try{ for(const f of files){ toast("Uploading mockup…"); list.push(await upload(f)); }
+    await S.db.doc("jobs/"+id).update({mockups:list,updatedAt:new Date().toISOString()}); toast("Mockup added"); }
+  catch(e){ e&&e.code==="invalid_argument"?fail(e,"add mockups"):upFail(e); }
+}
+async function rmMockup(aid){
+  const id=S.drawer.id, j=S.jobs.get(id); if(!j) return;
+  try{ await S.db.doc("jobs/"+id).update({mockups:(j.mockups||[]).filter(m=>m.id!==aid)}); if(S.assets){ try{ await S.assets.delete(aid); }catch(e){} } }catch(e){ fail(e,"remove that mockup"); }
+}
+async function move(jobId,visitId,dir){
+  const j=S.jobs.get(jobId), v=(j.visits||[]).find(x=>x.id===visitId); const crew=crewOf(j,v);
+  const list=stopsFor(S.day,crew); const i=list.findIndex(s=>s.j.id===jobId&&s.v.id===visitId), k=i+dir;
+  if(i<0||k<0||k>=list.length) return;
+  [list[i],list[k]]=[list[k],list[i]];
+  const changes=new Map();
+  list.forEach((s,idx)=>{ if(s.v.order!==idx+1){ const base=changes.get(s.j.id)||(S.jobs.get(s.j.id).visits||[]).map(x=>({...x})); const t=base.find(x=>x.id===s.v.id); t.order=idx+1; changes.set(s.j.id,base); } });
+  try{ for(const [id,visits] of changes) await S.db.doc("jobs/"+id).update({visits}); }catch(e){ fail(e,"reorder"); }
+}
+async function finTog(id,k){
+  const f=S.fin.get(id)||{};
+  try{ await S.db.doc("fin/"+id).set({...f,[k]:!f[k]}); }catch(e){ fail(e,"update that"); }
+}
+function startJobForm(id,clientId){
+  const j=id?{...S.jobs.get(id)}:{clientId:clientId||"",source:"tcl",crew:"",stage:"booked",visits:[],mockups:[]};
+  j.visits=(j.visits||[]).map(v=>({...v}));
+  S.form={id:id||null, job:j, fin:{...(id?S.fin.get(id)||{}:{})}, clientMode:"existing", nc:{name:"",phone:"",email:"",address:"",gate:""}, confirmDel:false};
+  if(!id && !clientId && !S.clients.size) S.form.clientMode="new";
+  openDrawer("jobEdit",id);
+}
+function readJobForm(){
+  const F=S.form; if(!F||!$("#jobForm")) return; const g=id=>{ const el=document.getElementById(id); return el?el.value:undefined; };
+  const sel=g("f-client"); if(sel==="__new") F.clientMode="new"; else if(sel!==undefined){ F.clientMode="existing"; F.job.clientId=sel; }
+  for(const k of ["name","phone","email","address","gate"]){ const v=g("nc-"+k); if(v!==undefined) F.nc[k]=v; }
+  for(const k of ["address","tclRef","stage","rooflineFt","scope","notes"]){ const v=g("f-"+k); if(v!==undefined) F.job[k]=v; }
+  (F.job.visits||[]).forEach((v,i)=>{ for(const k of ["date","time","crew","note"]){ const x=g(`v${i}-${k}`); if(x!==undefined) v[k]=x; } });
+  const p=g("m-price"); if(p!==undefined) F.fin.price=p; const iv=g("m-invoice"); if(iv!==undefined) F.fin.invoiceNo=iv; const pn=g("m-note"); if(pn!==undefined) F.fin.privateNote=pn; const sp=g("m-ss"); if(sp!==undefined) F.fin.ssPct=sp.trim();
+}
+async function saveJob(){
+  readJobForm(); const F=S.form, j=F.job, now=new Date().toISOString();
+  if(F.clientMode==="new" && !F.nc.name.trim()){ toast("Add the client's name"); return; }
+  if(F.clientMode!=="new" && !j.clientId){ toast("Choose a client"); return; }
+  S.busy=true; renderDrawer();
+  try{
+    let clientId=j.clientId;
+    if(F.clientMode==="new"){ const cref=S.db.collection("clients").doc(); await cref.set({name:F.nc.name.trim(),phone:F.nc.phone,email:F.nc.email,address:F.nc.address,gate:F.nc.gate,notes:"",createdAt:now}); clientId=cref.id; }
+    const visits=(j.visits||[]).map(v=>({id:v.id||uid(),type:v.type,date:v.date||"",time:v.time||"",crew:v.crew||"",note:v.note||"",order:v.order??null}));
+    for(const v of visits){ if(v.order==null && v.date){ const crew=v.crew||j.crew||""; const peers=stopsFor(v.date,crew||"all").filter(s=>s.j.id!==F.id); v.order=peers.reduce((m,s)=>Math.max(m,s.v.order||0),0)+1+visits.filter(o=>o!==v&&o.date===v.date&&o.order!=null&&(o.crew||j.crew)===crew).length; } }
+    const firstDate=visits.map(v=>v.date).filter(Boolean).sort()[0];
+    const season=j.season || String(firstDate?(parseISO(firstDate).getMonth()<6?parseISO(firstDate).getFullYear()-1:parseISO(firstDate).getFullYear()):(new Date().getMonth()<6?new Date().getFullYear()-1:new Date().getFullYear()));
+    const ref=F.id?S.db.doc("jobs/"+F.id):S.db.collection("jobs").doc();
+    await ref.set({...(F.id?S.jobs.get(F.id):{}),clientId,address:F.clientMode==="new"?"":(j.address||""),source:j.source||"prolight",tclRef:j.source==="tcl"?(j.tclRef||""):"",crew:j.crew||"",stage:j.stage||"booked",season,scope:j.scope||"",rooflineFt:j.rooflineFt||"",notes:j.notes||"",visits,mockups:j.mockups||[],createdAt:j.createdAt||now,updatedAt:now});
+    if(S.me.money){ const price=parseFloat(String(F.fin.price||"").replace(/[$,]/g,""))||0, old=S.fin.get(ref.id)||{};
+    await S.db.doc("fin/"+ref.id).set({price,invoiceNo:F.fin.invoiceNo||"",privateNote:F.fin.privateNote||"",collected:!!old.collected,ssPaid:!!old.ssPaid,ssPct:hasPct(F.fin.ssPct)?Number(F.fin.ssPct):null}); }
+    autoGeo(ref.id);
+    S.busy=false; S.form=null; toast(F.id?"Job saved":"Job added"); openDrawer("job",ref.id);
+  }catch(e){ S.busy=false; fail(e,"save this job"); renderDrawer(); }
+}
+async function deleteJob(){
+  const id=S.form.id;
+  try{ await S.db.doc("jobs/"+id).delete(); try{ await S.db.doc("fin/"+id).delete(); }catch(e){} toast("Job deleted"); closeDrawer(); }catch(e){ fail(e,"delete this job"); }
+}
+async function saveClient(){
+  const F=S.form, g=id=>document.getElementById(id).value;
+  const body={name:g("c-name").trim(),phone:g("c-phone"),email:g("c-email"),address:g("c-address"),gate:g("c-gate"),notes:g("c-notes")};
+  if(!body.name){ toast("Add the client's name"); return; }
+  try{ const ref=F.id?S.db.doc("clients/"+F.id):S.db.collection("clients").doc(); await ref.set({...(F.id?S.clients.get(F.id):{createdAt:new Date().toISOString()}),...body}); toast(F.id?"Client saved":"Client added"); jobsArr().filter(x=>x.clientId===ref.id&&!x.address).forEach(x=>autoGeo(x.id)); S.form=null; openDrawer("client",ref.id); }
+  catch(e){ fail(e,"save this client"); }
+}
+function collectCrews(){
+  const g=id=>{ const el=document.getElementById(id); return el?el.value:null; };
+  return crews().map(c=>({id:c.id,co:c.co,
+    name:((g(`s-${c.id}-name`)??c.name).trim()||c.name),
+    chat:(g(`s-${c.id}-chat`)??c.chat??"").trim(),
+    members:(g(`s-${c.id}-members`)??(c.members||[]).join("\n")).split("\n").map(s=>s.trim()).filter(Boolean)}));
+}
+async function writeCrews(C,msg){ try{ await S.db.doc("settings/board").set({...S.settings,crews:C}); toast(msg); }catch(e){ fail(e,"update crews"); } }
+async function saveSettings(){
+  const g=id=>document.getElementById(id).value;
+  try{ await S.db.doc("settings/board").set({...S.settings, crews:collectCrews()}); if(S.me.money) await S.db.doc("fin/settings").set({tclRate:Number(g("s-tcl"))||40,ssRate:Number(g("s-ss"))||30}); toast("Settings saved"); }
+  catch(e){ fail(e,"save settings"); }
+}
+
+/* ---------- events ---------- */
+document.addEventListener("click", async ev=>{
+  const t=ev.target.closest("[data-act]"); if(!t) return;
+  const a=t.dataset.act, v=t.dataset.v, id=t.dataset.id;
+  if(t.tagName==="A") return;
+  switch(a){
+    case "view": S.view=v; closeDrawer(); renderMain(); window.scrollTo(0,0); break;
+    case "team": S.team=v; ls("team",v); renderMain(); break;
+    case "account": openDrawer("account"); break;
+    case "signout": PL.signOut(); break;
+    case "person-new": S.form={person:{name:"",crew:"",active:true,...PRESETS.member}}; openDrawer("person"); break;
+    case "person": S.form={person:{...PL.staff().find(p=>p.id===id)}}; openDrawer("person",id); break;
+    case "preset": for(const [k,val] of Object.entries(PRESETS[v])){ const el=document.getElementById("pp-"+k); if(el) el.checked=val; } break;
+    case "map-find": { const j=S.jobs.get(id); const a=j&&addrOf({...j,id}); if(!a){ toast("This job has no address"); break; } t.disabled=true; const r=await PL.geocode(a).catch(()=>null); if(r){ await S.db.doc("jobs/"+id).update({lat:+(+r.lat).toFixed(5),lng:+(+r.lng).toFixed(5),geo:r.source,geoAddr:a}); toast("Found it"); } else { t.disabled=false; toast("Couldn't find that address. Tap Place to pin it by hand."); } break; }
+    case "map-mode": MAP.mode=v; renderMain(); break;
+    case "map-day": MAP.day=addDays(MAP.day,Number(v)); renderMain(); break;
+    case "map-zoom": if(LMAP) LMAP.setZoom(LMAP.getZoom()+(Number(v)>0?1:-1)); break;
+    case "map-fit": mapFit(); break;
+    case "map-sel": { MAP.sel=id; const j=S.jobs.get(id); if(j&&hasLL(j)){ MAP.center=[j.lat,j.lng]; } renderMain(); break; }
+    case "map-unsel": MAP.sel=null; renderMain(); break;
+    case "map-place": MAP.placing=id; MAP.sel=id; renderMain(); window.scrollTo(0,0); break;
+    case "map-place-cancel": MAP.placing=null; renderMain(); break;
+    case "map-sched": t.disabled=true; await mapSchedule(id); break;
+    case "add-crew": { const C=collectCrews(), n=C.filter(c=>c.co===v).length+1; C.push({id:(v==="prolight"?"pl":"ss")+uid().slice(0,5),co:v,name:(v==="prolight"?"ProLight Crew ":"ShipShape Crew ")+n,chat:"",members:[]}); await writeCrews(C,"Crew added"); break; }
+    case "rm-crew": await writeCrews(collectCrews().filter(c=>c.id!==v),"Crew removed"); break;
+    case "day": S.day = v==="0"?todayISO():addDays(S.day,Number(v)); renderMain(); break;
+    case "go-day": S.day=v; S.view="route"; renderMain(); window.scrollTo(0,0); break;
+    case "week": S.week = v==="0"?monday(todayISO()):addDays(S.week,Number(v)); renderMain(); break;
+    case "jf": S.jf=v; renderMain(); break;
+    case "office": S.office=v; renderMain(); break;
+    case "texts": S.view="office"; S.office="texts"; S.briefDay=v; renderMain(); window.scrollTo(0,0); break;
+    case "brief-day": S.briefDay=addDays(S.briefDay,Number(v)); renderMain(); break;
+    case "job": if(id){ S.compose={text:"",files:[]}; openDrawer("job",id); } break;
+    case "client": if(id) openDrawer("client",id); break;
+    case "close": closeDrawer(); break;
+    case "done": t.disabled=true; await markDone(t.dataset.j,v); break;
+    case "undone": t.disabled=true; await delEntry(id); break;
+    case "del-entry": await delEntry(id); break;
+    case "move": t.disabled=true; await move(t.dataset.j,v,Number(t.dataset.d)); break;
+    case "fin-tog": t.disabled=true; await finTog(id,t.dataset.k); break;
+    case "assign": try{ await S.db.doc("jobs/"+id).update({crew:v||"",updatedAt:new Date().toISOString()}); toast(v?"Assigned to "+teamName(v):"Crew cleared"); }catch(e){ fail(e,"assign this job"); } break;
+    case "new-job": startJobForm(null,t.dataset.client); break;
+    case "edit-job": startJobForm(id); break;
+    case "new-client": S.form={id:null,client:{}}; openDrawer("clientEdit"); break;
+    case "edit-client": S.form={id,client:{...S.clients.get(id)}}; openDrawer("clientEdit",id); break;
+    case "seg": readJobForm(); S.form.job[t.dataset.k]=v; renderDrawer(); break;
+    case "add-visit": readJobForm(); S.form.job.visits.push({id:uid(),type:v,date:"",time:"",crew:"",note:""}); renderDrawer(); break;
+    case "del-visit": readJobForm(); S.form.job.visits.splice(Number(v),1); renderDrawer(); break;
+    case "del-job": readJobForm(); S.form.confirmDel=true; renderDrawer(); break;
+    case "del-job-no": readJobForm(); S.form.confirmDel=false; renderDrawer(); break;
+    case "del-job-yes": await deleteJob(); break;
+    case "post": await post(id); break;
+    case "rm-pend": S.compose.files.splice(Number(v),1); renderDrawer(); break;
+    case "rm-mockup": await rmMockup(id); break;
+    case "zoom": $("#lightRoot").innerHTML=`<div class="lightbox" data-act="unzoom"><img src="${esc(t.dataset.src)}" alt=""><button type="button" class="btn small" data-act="unzoom">Close</button></div>`; break;
+    case "unzoom": $("#lightRoot").innerHTML=""; break;
+    case "copy": { const el=document.getElementById(v); try{ await navigator.clipboard.writeText(el.value); toast("Copied. Paste it into the group chat."); }catch(e){ el.focus(); el.select(); toast("Text selected. Copy it from here."); } break; }
+    case "copytext": try{ await navigator.clipboard.writeText(v); toast("Copied "+v); }catch(e){ toast(v); } break;
+  }
+});
+document.addEventListener("input", ev=>{
+  const t=ev.target;
+  if(t.id==="q-jobs"){ S.q.jobs=t.value; renderMain(); }
+  else if(t.id==="q-clients"){ S.q.clients=t.value; renderMain(); }
+  else if(t.id==="compose-text"){ S.compose.text=t.value; }
+  else if((t.id==="m-price"||t.id==="m-ss") && S.form){ readJobForm(); const c=$("#calc"); const p=Number(String(S.form.fin.price||"").replace(/[$,]/g,"")); c.innerHTML=p?calcLines(S.form.job,p,S.form.fin.ssPct):`<span class="count">Enter a price to see the split.</span>`; }
+});
+document.addEventListener("change", async ev=>{
+  const t=ev.target;
+  if(t.id==="compose-files"){ S.compose.files.push(...t.files); renderDrawer(); }
+  else if(t.id==="mockup-file"){ await addMockups([...t.files]); }
+  else if(t.id==="f-client"){ readJobForm(); renderDrawer(); }
+});
+document.addEventListener("submit", ev=>{
+  ev.preventDefault();
+  if(ev.target.id==="pinForm") return saveMyPin(); if(ev.target.id==="personForm") return savePerson();
+  if(ev.target.id==="jobForm") saveJob(); else if(ev.target.id==="clientForm") saveClient(); else if(ev.target.id==="settingsForm") saveSettings();
+});
+document.addEventListener("keydown", ev=>{ if(ev.key==="Escape"){ if($("#lightRoot").innerHTML) $("#lightRoot").innerHTML=""; else if(S.drawer) closeDrawer(); } });
+
+/* ---------- boot ---------- */
+renderMain();
+(async()=>{
+  const use = n => (window.claude && window.claude.use) ? window.claude.use(n).catch(()=>null) : Promise.resolve(null);
+  const [db,user,assets]=await Promise.all([use("db"),use("user"),use("assets")]);
+  S.user=user; S.assets=assets;
+  if(!db){ S.err="The board can't load here. Open it signed in to claude.ai."; renderMain(); return; }
+  S.db=db;
+  if(user){ const me=await user.me(); S.me.id=me.id; applyPerms(me.perms); }
+  if(!ls("team")) S.team="all"; else if(S.team!=="all") S.team=normCrew(S.team);
+  { const P0=PL.me(); if(P0&&!P0.all_crews&&P0.crew) S.team=P0.crew; }
+  const got={c:false,j:false,l:false};
+  const ready=()=>{ if(got.c&&got.j){ S.ready=true; } };
+  setTimeout(()=>{ if(!S.ready){ S.err="The board is taking too long to load. Check your connection and reload."; renderMain(); } }, 12000);
+  db.collection("clients").onSnapshot(s=>{ S.clients=new Map(s.docs.map(d=>[d.id,d.data()])); got.c=true; ready(); refresh(); }, e=>{ S.err="Lost connection to the board. Reload the page."; renderMain(); });
+  db.collection("jobs").onSnapshot(s=>{ S.jobs=new Map(s.docs.map(d=>[d.id,d.data()])); got.j=true; ready(); refresh(); }, e=>{ S.err="Lost connection to the board. Reload the page."; renderMain(); });
+  db.collection("log").onSnapshot(s=>{ S.log=new Map(s.docs.map(d=>[d.id,d.data()])); recompute(); got.l=true; refresh(); fetchNames(); }, e=>{ got.l=true; refresh(); });
+  db.doc("settings/board").onSnapshot(s=>{ S.settings=s.exists?s.data():{}; refresh(); }, e=>{});
+  if(S.me.money){
+    db.collection("fin").onSnapshot(s=>{ const m=new Map(); for(const d of s.docs){ if(d.id==="settings") S.finSet=d.data(); else m.set(d.id,d.data()); } S.fin=m; refresh(); }, e=>{});
+  }
+})();
+</script>
+
+</body>
+</html>
