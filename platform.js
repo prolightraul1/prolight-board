@@ -68,6 +68,13 @@
       if (error) throw new Error(error.message);
       window.dispatchEvent(new CustomEvent("prolight:msg", { detail: { eventType: "DELETE", old: { id } } }));
     },
+    async jobber(action) {
+      const { data } = await sb.auth.getSession();
+      const r = await fetch("/api/jobber?action=" + action, { method: action === "status" ? "GET" : "POST", headers: { Authorization: "Bearer " + (data.session ? data.session.access_token : "") } });
+      const j = await r.json().catch(() => ({ error: "No response" }));
+      if (!r.ok) throw new Error(j.error || "Request failed");
+      return j;
+    },
     async signOut() {
       await sb.auth.signOut();
       try { localStorage.removeItem("prolight-last"); if (ME) localStorage.removeItem(ckey(ME.id)); } catch (e) {}

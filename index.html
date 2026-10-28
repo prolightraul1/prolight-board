@@ -787,6 +787,7 @@ function vSettings(){
     <fieldset ${S.me.money?"":"hidden"}><legend>Split</legend><div class="two">
       <div class="f"><label for="s-tcl">TCL pays ProLight (%)</label><input id="s-tcl" inputmode="decimal" value="${esc(S.finSet.tclRate??40)}"></div>
       <div class="f"><label for="s-ss">ShipShape gets (%)</label><input id="s-ss" inputmode="decimal" value="${esc(S.finSet.ssRate??30)}"><small>Percent of the TCL job price.</small></div><div class="f"><label for="s-ssown">ShipShape gets on ProLight jobs (%)</label><input id="s-ssown" inputmode="decimal" value="${esc(S.finSet.ssOwnRate??30)}"><small>When you give one of ProLight's own jobs to ShipShape. Percent of the job price.</small></div></div></fieldset>
+    ${S.me.manage?jobberCard():""}
     <div><button type="submit" class="btn amber">Save settings</button></div>
   </form>`;
 }
@@ -1851,6 +1852,38 @@ async function fillPins(){
     await new Promise(r=>setTimeout(r,1200)); }
 }
 
+/* ---------- Jobber sync ---------- */
+S.jb = S.jb || { st:null, busy:false };
+async function jobberStatus(){ try{ S.jb.st=await PL.jobber("status"); }catch(e){ S.jb.st={error:e.message}; } if(S.view==="office") renderMain(); return S.jb.st; }
+function jobberCard(){
+  const st=S.jb.st;
+  if(!st){ jobberStatus(); return `<fieldset><legend>Jobber</legend><p class="count">Checking the Jobber connection…</p></fieldset>`; }
+  if(st.error) return `<fieldset><legend>Jobber</legend><div class="note" style="margin:0">${esc(st.error)}</div></fieldset>`;
+  const L=st.last, when=L?ago(L.at):"";
+  const sum=L?[`${L.added} new`, L.updated?`${L.updated} filled in`:"", L.photos?`${L.photos} photo${L.photos>1?"s":""}`:"", `${L.prowash} ProWash and ${L.tcl} TCL skipped`].filter(Boolean).join(" · "):"";
+  return `<fieldset><legend>Jobber</legend>
+    ${st.connected?`<p style="margin:0">Connected. New ProLight jobs from Jobber land here on their own: every night, and whenever you open the board.</p>
+      ${L?`<p class="count" style="margin:6px 0 0">Last sync ${esc(when)}: ${esc(sum)}${L.photosLeft?` · ${L.photosLeft} jobs' photos still coming`:""}${L.names&&L.names.length?`<br>Added: ${esc(L.names.join(", "))}`:""}</p>`:""}
+      ${st.lastError?`<div class="note" style="margin:8px 0 0">Last try failed: ${esc(st.lastError)}</div>`:""}
+      <div class="bar" style="margin-top:10px"><button type="button" class="btn amber" data-act="jb-sync" ${S.jb.busy?"disabled":""}>${S.jb.busy?"Syncing…":"Sync now"}</button><button type="button" class="btn" data-act="jb-connect">Reconnect</button></div>`
+    :`<p style="margin:0">Connect Jobber once and new ProLight jobs (name, address, scope, notes, mockup photos, price) come over on their own. ProWash and TCL jobs are never touched.</p>
+      <div class="bar" style="margin-top:10px"><button type="button" class="btn amber" data-act="jb-connect">Connect Jobber</button></div>`}
+  </fieldset>`;
+}
+async function jobberSync(quiet){
+  if(S.jb.busy) return; S.jb.busy=true; if(!quiet) renderMain();
+  try{ const r=await PL.jobber("sync"); ls("jbLast",String(Date.now())); if(!quiet||r.added) toast(r.added?`${r.added} new job${r.added>1?"s":""} from Jobber`:"Up to date with Jobber"); }
+  catch(e){ if(!quiet) toast(e.message.slice(0,120)); }
+  S.jb.busy=false; S.jb.st=null; if(S.view==="office") renderMain();
+}
+function jobberAuto(){
+  if(!S.me.manage||!window.PL||!PL.jobber) return;
+  const q=new URLSearchParams(location.search).get("jobber");
+  if(q){ history.replaceState(null,"",location.pathname); toast(q==="connected"?"Jobber connected. Pulling your ProLight jobs…":"Jobber connected, but the first sync hit a problem. See Office → Settings."); S.view="office"; S.office="settings"; renderMain(); return; }
+  if(Date.now()-Number(ls("jbLast")||0) < 20*60e3) return;
+  PL.jobber("status").then(st=>{ S.jb.st=st; if(st.connected) jobberSync(true); }).catch(()=>{});
+}
+
 /* ---------- render ---------- */
 function renderMain(){
   renderNav();
@@ -2001,6 +2034,8 @@ document.addEventListener("click", async ev=>{
     case "view": S.view=v; closeDrawer(); renderMain(); window.scrollTo(0,0); break;
     case "team": S.team=v; ls("team",v); renderMain(); break;
     case "account": openDrawer("account"); break;
+    case "jb-sync": await jobberSync(false); break;
+    case "jb-connect": try{ const r=await PL.jobber("connect"); location.href=r.url; }catch(e){ toast(e.message.slice(0,140)); } break;
     case "crewtruck": openDrawer("crewtruck",v); break;
     case "partial": S.form={partial:{reason:"",left:"",why:""}}; openDrawer("partial",v); S.form={partial:{reason:"",left:"",why:""}}; break;
     case "partial-reason": readPartialForm(); if(S.form&&S.form.partial){ S.form.partial.reason=v; renderDrawer(); } break;
@@ -2127,7 +2162,7 @@ renderMain();
   if(!ls("team")) S.team="all"; else if(S.team!=="all") S.team=normCrew(S.team);
   { const P0=PL.me(); if(P0&&!P0.all_crews&&P0.crew) S.team=P0.crew; }
   const got={c:false,j:false,l:false};
-  const ready=()=>{ if(got.c&&got.j){ S.ready=true; setTimeout(fillPins,4000); } };
+  const ready=()=>{ if(got.c&&got.j){ S.ready=true; setTimeout(fillPins,4000); setTimeout(jobberAuto,1500); } };
   setTimeout(()=>{ if(!S.ready){ S.err="The board is taking too long to load. Check your connection and reload."; renderMain(); } }, 12000);
   db.collection("clients").onSnapshot(s=>{ S.clients=new Map(s.docs.map(d=>[d.id,d.data()])); got.c=true; ready(); refresh(); }, e=>{ S.err="Lost connection to the board. Reload the page."; renderMain(); });
   db.collection("jobs").onSnapshot(s=>{ S.jobs=new Map(s.docs.map(d=>[d.id,d.data()])); got.j=true; ready(); refresh(); }, e=>{ S.err="Lost connection to the board. Reload the page."; renderMain(); });
