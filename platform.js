@@ -200,7 +200,7 @@
   function showGate(html) {
     let g = $("#gate");
     if (!g) { g = document.createElement("div"); g.id = "gate"; document.body.appendChild(g); }
-    g.innerHTML = `<div class="gate-card"><div class="gate-brand"><b>PRO<i>LIGHT</i></b><span>Season Board</span></div>${html}</div>`;
+    g.innerHTML = `<div class="gate-card"><div class="gate-brand"><img src="/brand/prolight.png" alt="ProLight Tallahassee" width="220" height="91"><span>Season Board</span></div>${html}</div>`;
     g.hidden = false;
     return g;
   }

@@ -205,6 +205,14 @@ main{padding-block:16px 32px}
 .gate-form label{display:grid;gap:4px;font-weight:700;font-size:14px}
 .gate-form input{min-height:46px;border-radius:var(--r);border:1px solid #2a3832;background:var(--night-2);color:var(--night-ink);padding:0 12px;font-size:16px}
 .gate-go{min-height:48px;border:0;border-radius:var(--r);background:var(--amber);color:var(--amber-ink);font-weight:800;font-size:16px;padding:0 18px}
+.topbar .brand{align-items:center}
+.topbar .logo{height:30px;width:auto;display:block}
+.rail .logo{width:150px;height:auto;display:block}
+.d-marks{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:6px}
+.d-marks img{display:block;width:auto}
+.d-marks .mk-tcl{height:58px}
+.d-marks .mk-ss{height:40px}
+.gate-brand img{width:220px;height:auto;margin:0 auto}
 .who-btn{background:none;border:1px solid #2a3832;border-radius:999px;color:var(--night-ink);font-size:12px;font-weight:700;padding:5px 10px;max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .checks{display:grid;gap:8px}
 .checks label{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;font-size:15px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
@@ -359,11 +367,11 @@ legend{font-family:var(--f-sign);font-weight:800;font-size:20px;text-transform:u
 </style>
 
 <div class="topbar"><div class="wrap">
-  <div class="brand"><b>PRO<i>LIGHT</i></b><span>Season Board</span></div><span class="sp"></span><span class="who" id="whoTop"></span>
+  <div class="brand"><img class="logo" src="/brand/prolight.png" alt="ProLight Tallahassee" width="112" height="46"><span>Season Board</span></div><span class="sp"></span><span class="who" id="whoTop"></span>
 </div></div>
 
 <aside class="rail" aria-label="Board navigation">
-  <div class="brand"><b>PRO<i>LIGHT</i></b><span>Season Board · Tallahassee</span></div>
+  <div class="brand"><img class="logo" src="/brand/prolight.png" alt="ProLight Tallahassee" width="172" height="71"><span>Season Board</span></div>
   <nav id="railNav"></nav>
   <div class="foot"><div class="strand" id="railStrand" aria-hidden="true"></div><span id="whoRail"></span><button type="button" class="who-btn" id="whoRailBtn" data-act="account" style="justify-self:start">Account</button></div>
 </aside>
@@ -715,9 +723,9 @@ function vSettings(){
 }
 
 /* ---------- drawers ---------- */
-function drawerShell(eyebrow,title,body){
+function drawerShell(eyebrow,title,body,marks){
   return `<div class="scrim" data-act="close"></div><aside class="drawer" role="dialog" aria-modal="true" aria-label="${esc(title)}">
-    <div class="d-head"><div class="t"><span class="eyebrow">${eyebrow}</span><h2>${esc(title)}</h2></div><button type="button" class="btn small" data-act="close">Close</button></div>
+    <div class="d-head"><div class="t"><span class="eyebrow">${eyebrow}</span><h2>${esc(title)}</h2>${marks?`<div class="d-marks">${marks}</div>`:""}</div><button type="button" class="btn small" data-act="close">Close</button></div>
     <div class="d-body" id="dbody">${body}</div></aside>`;
 }
 function dJob(id){
@@ -746,7 +754,7 @@ function dJob(id){
     ${S.assets?`<small class="count" style="font-size:12px">Photos are resized automatically. Videos up to 50 MB, about 30 seconds.</small>`:""}</div>`;
   b+= entries.length ? `<div class="feed">${entries.map(e=>entryCard(e,j)).join("")}</div>` : `<p class="lede">Nothing posted yet.</p>`;
   b+=`</section>`;
-  return drawerShell(esc(fmtDay(nextVisit(j)?.date||"")||"Job"), c.name||"Customer", b);
+  return drawerShell(esc(fmtDay(nextVisit(j)?.date||"")||"Job"), c.name||"Customer", b, partnerMarks(j));
 }
 function visitRow(j,v){
   const d=isDone(j.id,v.id);
@@ -953,6 +961,12 @@ async function mapSchedule(id){
   try{ await S.db.doc("jobs/"+id).update({visits,updatedAt:new Date().toISOString()}); toast(`${VTYPE[pv.type]} set for ${fmtDay(d,{weekday:"short",month:"short",day:"numeric"})}`); }catch(e){ fail(e,"schedule this job"); }
 }
 
+function partnerMarks(j){
+  const m=[];
+  if(j.source==="tcl") m.push(`<img src="/brand/tcl.png" alt="Tallahassee Christmas Lights" title="TCL job" class="mk-tcl">`);
+  if(coOf(j.crew)==="shipshape") m.push(`<img src="/brand/shipshape.png" alt="ShipShape Exteriors" title="ShipShape crew" class="mk-ss">`);
+  return m.join("");
+}
 /* ---------- people & sign-in ---------- */
 function applyPerms(P){ P=P||{}; S.me.owner=!!P.can_edit; S.me.money=!!P.can_money; S.me.manage=!!P.can_manage; S.me.canLog=!!P.can_log; S.me.name=P.name||""; }
 window.addEventListener("prolight:staff",()=>{ applyPerms(PL.me()); for(const p of PL.staff()) S.names.set(p.id,p.name); refresh(); if(S.drawer&&S.drawer.kind==="person"){} });
