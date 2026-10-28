@@ -12,7 +12,7 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/icon-180.png">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+
 <style>
 :root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0;font-size:14px;-webkit-text-size-adjust:100%}
@@ -456,7 +456,6 @@ legend{font-family:var(--f-sign);font-weight:800;font-size:20px;text-transform:u
 <div id="lightRoot"></div>
 <div class="toast" id="toast" hidden></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="/config.js"></script>
 <script src="/platform.js"></script>
@@ -527,7 +526,7 @@ function assignUI(cur, act, extra){
   if(co && sub.length>1) h+=`<div class="seg" role="group" aria-label="Which crew">${sub.map(c=>`<button type="button" data-act="${act}" ${extra} data-v="${esc(c.id)}" aria-pressed="${cur===c.id}">${esc(c.name)}</button>`).join("")}</div>`;
   return h;
 }
-const rates = () => ({ tcl:(Number(S.finSet.tclRate)||40)/100, ss:(Number(S.finSet.ssRate)||30)/100 });
+const rates = () => ({ tcl:(Number(S.finSet.tclRate)||40)/100, ss:(Number(S.finSet.ssRate)||30)/100, ssOwn:(Number(S.finSet.ssOwnRate)||30)/100 });
 const clientOf = j => S.clients.get(j.clientId) || {};
 const addrOf = j => j.address || clientOf(j).address || "";
 const crewOf = (j,v) => normCrew((v && v.crew) || j.crew);
@@ -551,12 +550,15 @@ function nextVisit(j){
   const t=todayISO();
   return (j.visits||[]).filter(v=>v.date && !isDone(j.id,v.id)).sort((a,b)=>a.date.localeCompare(b.date))[0] || null;
 }
-function jobsArr(){ return [...S.jobs.entries()].map(([id,d])=>({id,...d})); }
+let _jaSrc=null,_ja=[]; function jobsArr(){ if(_jaSrc!==S.jobs){ _jaSrc=S.jobs; _ja=[...S.jobs.entries()].map(([id,d])=>({id,...d})); STOPS.clear(); } return _ja.slice(); }
+const STOPS=new Map(); let _stC=null,_stL=null;
 function stopsFor(date, team){
-  const out=[];
+  jobsArr(); if(_stC!==S.clients||_stL!==S.log){ _stC=S.clients; _stL=S.log; STOPS.clear(); }
+  const ck=date+"|"+team; if(STOPS.has(ck)) return STOPS.get(ck).slice();
+  const out=[]; STOPS.set(ck,out);
   for(const j of jobsArr()){ if(j.stage==="cancelled") continue;
     for(const v of (j.visits||[])) if(v.date===date && (team==="all"||visitCrews(j,v).includes(team))) out.push({j,v}); }
-  return out.sort((a,b)=>ordOf(a.v,team)-ordOf(b.v,team) || String(a.v.time||"").localeCompare(String(b.v.time||"")) || String(clientOf(a.j).name).localeCompare(String(clientOf(b.j).name)));
+  return out.sort((a,b)=>ordOf(a.v,team)-ordOf(b.v,team) || String(a.v.time||"").localeCompare(String(b.v.time||"")) || String(clientOf(a.j).name).localeCompare(String(clientOf(b.j).name))).slice();
 }
 function recompute(){
   doneMap=new Map(); logByJob=new Map(); partialMap=new Map();
@@ -725,7 +727,7 @@ const hasPct = v => v!==undefined && v!==null && v!=="" && !isNaN(Number(v));
 const pctTxt = x => (Math.round(x*1000)/10)+"%";
 function split(j,f){
   const R=rates(), p=Number(f&&f.price)||0, custom=hasPct(f&&f.ssPct);
-  const sp = custom ? Number(f.ssPct)/100 : (j.source==="tcl"&&coOf(j.crew)==="shipshape" ? R.ss : 0);
+  const sp = custom ? Number(f.ssPct)/100 : (coOf(j.crew)==="shipshape" ? (j.source==="tcl" ? R.ss : R.ssOwn) : 0);
   const ex = j.source==="tcl" ? extraTotal(f) : 0, inc = (j.source==="tcl" ? p*R.tcl : p) + ex, ss=p*sp;
   return {price:p,incoming:inc,ss,net:inc-ss,ssPct:sp,custom,extras:ex};
 }
@@ -784,7 +786,7 @@ function vSettings(){
     <div class="bar"><button type="button" class="btn small" data-act="add-crew" data-v="prolight">+ ProLight crew</button><button type="button" class="btn small" data-act="add-crew" data-v="shipshape">+ ShipShape crew</button></div></fieldset>
     <fieldset ${S.me.money?"":"hidden"}><legend>Split</legend><div class="two">
       <div class="f"><label for="s-tcl">TCL pays ProLight (%)</label><input id="s-tcl" inputmode="decimal" value="${esc(S.finSet.tclRate??40)}"></div>
-      <div class="f"><label for="s-ss">ShipShape gets (%)</label><input id="s-ss" inputmode="decimal" value="${esc(S.finSet.ssRate??30)}"><small>Percent of the TCL job price.</small></div></div></fieldset>
+      <div class="f"><label for="s-ss">ShipShape gets (%)</label><input id="s-ss" inputmode="decimal" value="${esc(S.finSet.ssRate??30)}"><small>Percent of the TCL job price.</small></div><div class="f"><label for="s-ssown">ShipShape gets on ProLight jobs (%)</label><input id="s-ssown" inputmode="decimal" value="${esc(S.finSet.ssOwnRate??30)}"><small>When you give one of ProLight's own jobs to ShipShape. Percent of the job price.</small></div></div></fieldset>
     <div><button type="submit" class="btn amber">Save settings</button></div>
   </form>`;
 }
@@ -999,8 +1001,15 @@ function drawMap(){
   }
   if(MAP.center){ LMAP.panTo(MAP.center); MAP.center=null; }
 }
+let LLOAD=null;
+function loadLeaflet(){
+  if(window.L) return Promise.resolve(); if(LLOAD) return LLOAD;
+  LLOAD=new Promise((ok,no)=>{ const c=document.createElement("link"); c.rel="stylesheet"; c.href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"; c.integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="; c.crossOrigin=""; document.head.appendChild(c);
+    const s=document.createElement("script"); s.src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"; s.integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="; s.crossOrigin=""; s.onload=ok; s.onerror=()=>{ LLOAD=null; no(); }; document.head.appendChild(s); });
+  return LLOAD;
+}
 function mountMap(){
-  const box=$("#map"); if(!box||!window.L) return;
+  const box=$("#map"); if(!box) return; if(!window.L){ loadLeaflet().then(()=>{ if(S.view==="map") mountMap(); }).catch(()=>toast("Couldn't load the map. Check your signal.")); return; }
   if(!LMAP){
     LHOLD=document.createElement("div"); LHOLD.className="lmap";
     LMAP=L.map(LHOLD,{zoomControl:false}).setView([30.46,-84.27],11);
@@ -1853,7 +1862,7 @@ function renderMain(){
   if(fid){ const el=document.getElementById(fid); if(el){ el.focus(); try{el.setSelectionRange(pos,pos);}catch(e){} } }
 }
 window.addEventListener("resize",()=>{ if(S.view==="map"&&LMAP) LMAP.invalidateSize(); });
-function refresh(){ renderMain(); if(S.drawer && (S.drawer.kind==="job"||S.drawer.kind==="client")) renderDrawer(); }
+function refresh(){ if(refresh.q) return; refresh.q=requestAnimationFrame(()=>{ refresh.q=0; renderMain(); if(S.drawer && (S.drawer.kind==="job"||S.drawer.kind==="client")) renderDrawer(); }); }
 
 /* ---------- writes ---------- */
 function fail(e,what){
@@ -1979,7 +1988,7 @@ function collectCrews(){
 async function writeCrews(C,msg){ try{ await S.db.doc("settings/board").set({...S.settings,crews:C}); toast(msg); }catch(e){ fail(e,"update crews"); } }
 async function saveSettings(){
   const g=id=>document.getElementById(id).value;
-  try{ await S.db.doc("settings/board").set({...S.settings, crews:collectCrews(), shop: await shopFromForm(), trucks: linesOf("s-trucks")??(S.settings.trucks||[]), trailers: linesOf("s-trailers")??(S.settings.trailers||[])}); if(S.me.money) await S.db.doc("fin/settings").set({tclRate:Number(g("s-tcl"))||40,ssRate:Number(g("s-ss"))||30}); toast("Settings saved"); }
+  try{ await S.db.doc("settings/board").set({...S.settings, crews:collectCrews(), shop: await shopFromForm(), trucks: linesOf("s-trucks")??(S.settings.trucks||[]), trailers: linesOf("s-trailers")??(S.settings.trailers||[])}); if(S.me.money) await S.db.doc("fin/settings").set({tclRate:Number(g("s-tcl"))||40,ssRate:Number(g("s-ss"))||30,ssOwnRate:Number(g("s-ssown"))||30}); toast("Settings saved"); }
   catch(e){ fail(e,"save settings"); }
 }
 

@@ -70,7 +70,7 @@
     },
     async signOut() {
       await sb.auth.signOut();
-      try { localStorage.removeItem("prolight-last"); } catch (e) {}
+      try { localStorage.removeItem("prolight-last"); if (ME) localStorage.removeItem(ckey(ME.id)); } catch (e) {}
       location.reload();
     },
     geocode: async (q) => {
@@ -98,19 +98,45 @@
       if (c === coll && (!id || i === id)) set.forEach((f) => { try { f(snap(i, m.get(i))); } catch (e) { console.error(e); } });
     }
   }
-  async function loadAll() {
-    for (const c of COLLS) {
-      const fresh = new Map();
-      for (let from = 0; ; from += 1000) {
-        const { data, error } = await sb.from("docs").select("id,data").eq("coll", c).range(from, from + 999);
-        if (error) throw error;
-        data.forEach((r) => fresh.set(r.id, r.data));
-        if (data.length < 1000) break;
-      }
-      cache.set(c, fresh);
-    }
-    loaded = true;
-    COLLS.forEach((c) => emit(c));
+  /* last copy of the board on this device, so it opens instantly; refreshed in the background */
+  const ckey = (uid) => "prolight-cache:" + uid;
+  function saveCache() {
+    clearTimeout(saveCache.t);
+    saveCache.t = setTimeout(() => {
+      if (!ME) return;
+      try { localStorage.setItem(ckey(ME.id), JSON.stringify({ v: 1, at: Date.now(), staff: [...STAFF.values()], d: Object.fromEntries(COLLS.map((c) => [c, [...cache.get(c)]])) })); }
+      catch (e) { try { localStorage.removeItem(ckey(ME.id)); } catch (x) {} }
+    }, 1500);
+  }
+  function readCache(uid) {
+    try { const o = JSON.parse(localStorage.getItem(ckey(uid)) || "null"); return o && o.v === 1 && Date.now() - o.at < 7 * 864e5 ? o : null; } catch (e) { return null; }
+  }
+  let lastLoad = 0, loading = null;
+  function loadAll() {
+    if (loading) return loading;
+    loading = (async () => {
+      const fresh = await Promise.all(COLLS.map(async (c) => {
+        const m = new Map();
+        for (let from = 0; ; from += 1000) {
+          const { data, error } = await sb.from("docs").select("id,data").eq("coll", c).range(from, from + 999);
+          if (error) throw error;
+          data.forEach((r) => m.set(r.id, r.data));
+          if (data.length < 1000) break;
+        }
+        return [c, m];
+      }));
+      const changed = fresh.filter(([c, m]) => !sameMap(cache.get(c), m)).map(([c]) => c);
+      fresh.forEach(([c, m]) => cache.set(c, m));
+      const first = !loaded; loaded = true; lastLoad = Date.now();
+      (first ? COLLS : changed).forEach((c) => emit(c));
+      saveCache();
+    })().finally(() => { loading = null; });
+    return loading;
+  }
+  function sameMap(a, b) {
+    if (!a || a.size !== b.size) return false;
+    for (const [k, v] of b) if (!a.has(k) || JSON.stringify(a.get(k)) !== JSON.stringify(v)) return false;
+    return true;
   }
   let channel = null;
   function subscribe() {
@@ -123,6 +149,7 @@
         if (p.eventType === "DELETE") cache.get(row.coll).delete(row.id);
         else cache.get(row.coll).set(row.id, row.data);
         emit(row.coll, row.id);
+        saveCache();
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, (p) => {
         window.dispatchEvent(new CustomEvent("prolight:msg", { detail: p }));
@@ -132,7 +159,7 @@
       })
       .subscribe((status) => { if (status === "SUBSCRIBED" && loaded) { loadAll().catch(() => {}); window.dispatchEvent(new Event("prolight:chatreload")); } });
   }
-  document.addEventListener("visibilitychange", () => { if (!document.hidden && loaded) { loadAll().catch(() => {}); window.dispatchEvent(new Event("prolight:chatreload")); } });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && loaded && Date.now() - lastLoad > 30000) { loadAll().catch(() => {}); window.dispatchEvent(new Event("prolight:chatreload")); } });
 
   const asErr = (e) => {
     const x = new Error(e && e.message ? e.message : "Request failed");
@@ -290,6 +317,18 @@
   }
 
   async function afterSignIn() {
+    const { data: ss } = await sb.auth.getSession();
+    const uid = ss && ss.session && ss.session.user.id, c = uid && readCache(uid);
+    if (c) {
+      STAFF = new Map(c.staff.map((x) => [x.id, x])); ME = STAFF.get(uid) || null;
+      if (ME && ME.active) {
+        COLLS.forEach((k) => cache.set(k, new Map(c.d[k] || [])));
+        loaded = true; hideGate(); document.onkeydown = null; resolveReady();
+        PL.reloadStaff().then((me) => { if (!me || !me.active) PL.signOut(); }).catch(() => {});
+        loadAll().catch(() => {}).then(subscribe);
+        return;
+      }
+    }
     let me = null;
     try { me = await PL.reloadStaff(); } catch (e) {}
     if (!me || !me.active) {
