@@ -565,7 +565,7 @@ function recompute(){
     if(e.kind==="done") doneMap.set(e.jobId+"|"+e.visitId, x); else if(e.kind==="partial"){ const k=e.jobId+"|"+e.visitId, o=partialMap.get(k); if(!o||String(o.at)<String(e.at)) partialMap.set(k,x); } }
   for(const a of logByJob.values()) a.sort((p,q)=>String(q.at).localeCompare(String(p.at)));
 }
-function who(id){ if(!id) return "TCL import"; if(id===S.me.id) return "You"; return S.names.get(id) || "Crew member"; }
+function who(id){ if(!id) return "TCL import"; if(id==="jobber") return "Jobber"; if(id===S.me.id) return "You"; return S.names.get(id) || "Crew member"; }
 let nameReq=false;
 async function fetchNames(){
   if(!S.user||nameReq) return; const ids=[...new Set([...S.log.values()].map(e=>e.by).filter(id=>id && !S.names.has(id)))]; if(!ids.length) return;
@@ -802,7 +802,7 @@ function dJob(id){
   const entries=logByJob.get(id)||[];
   let b=`<div class="bar"><span class="bulb ${BULB[st]}"></span><span class="st ${st}">${STATUS[st]}</span><span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span>${j.tclRef?`<span class="mono count">TCL #${esc(j.tclRef)}</span>`:""}</div>
   <div class="bar">${a?`<a class="btn" href="${esc(mapsUrl(a))}" target="_blank" rel="noopener">Directions ↗</a>`:""}${c.phone?`<button type="button" class="btn" data-act="copytext" data-v="${esc(c.phone)}">Copy phone</button>`:""}
-    ${S.me.owner?`<button type="button" class="btn" data-act="edit-job" data-id="${esc(id)}">Edit job</button>`:""}<button type="button" class="btn" data-act="client" data-id="${esc(j.clientId)}">Client</button></div>
+    ${S.me.owner?`<button type="button" class="btn" data-act="edit-job" data-id="${esc(id)}">Edit job</button>`:""}<button type="button" class="btn" data-act="client" data-id="${esc(j.clientId)}">Client</button>${j.jobberUrl&&S.me.owner?`<a class="btn" href="${esc(j.jobberUrl)}" target="_blank" rel="noopener">Jobber #${esc(j.jobberNo||"")} ↗</a>`:""}</div>
   ${S.me.owner?`<div class="f"><label>Who's doing this job</label>${assignUI(j.crew,"assign",`data-id="${esc(id)}"`)}${membersOf(j.crew).length?`<small>${esc(membersOf(j.crew).join(", "))}</small>`:""}</div>`:""}
   <dl class="kv">${a?`<dt>Address</dt><dd>${esc(a)}</dd>`:""}${c.phone?`<dt>Phone</dt><dd class="mono">${esc(c.phone)}</dd>`:""}${c.gate?`<dt>Access</dt><dd>${esc(c.gate)}</dd>`:""}
     ${j.scope?`<dt>Lights</dt><dd>${esc(j.scope)}</dd>`:""}${j.rooflineFt?`<dt>Roofline</dt><dd class="mono">${esc(j.rooflineFt)} ft</dd>`:""}${j.season?`<dt>Season</dt><dd class="mono">${esc(j.season)}</dd>`:""}${j.tclWhen?`<dt>TCL target</dt><dd>${esc(j.tclWhen)}</dd>`:""}${j.priority?`<dt>Priority</dt><dd>${esc(j.priority)}</dd>`:""}${j.ready?`<dt>Ready</dt><dd class="mono">${esc(j.ready)} on TCL's checklist</dd>`:""}</dl>
@@ -1832,6 +1832,16 @@ document.addEventListener("input", e=>{ if(e.target.id==="chat-text"){ S.chat.dr
 document.addEventListener("keydown", e=>{ if(e.target.id==="chat-text"&&e.key==="Enter"&&!e.shiftKey&&window.innerWidth>=960){ e.preventDefault(); sendChat(); } });
 function readPartialForm(){ if(!S.form||!S.form.partial) return; const l=$("#pt-left"), w=$("#pt-why"); if(l) S.form.partial.left=l.value; if(w) S.form.partial.why=w.value; }
 
+/* fill in map pins for jobs that came in without coordinates (imports) */
+let pinRun=false;
+async function fillPins(){
+  if(pinRun||!S.me.owner||!window.PL||!PL.geocode) return; pinRun=true;
+  const todo=jobsArr().filter(j=>j.stage!=="cancelled"&&typeof j.lat!=="number"&&addrOf(j)).slice(0,80);
+  for(const j of todo){ const a=addrOf(j);
+    try{ const r=await PL.geocode(a); if(r) await S.db.doc("jobs/"+j.id).update({lat:+(+r.lat).toFixed(5),lng:+(+r.lng).toFixed(5),geo:r.source,geoAddr:a}); }catch(e){}
+    await new Promise(r=>setTimeout(r,1200)); }
+}
+
 /* ---------- render ---------- */
 function renderMain(){
   renderNav();
@@ -2108,7 +2118,7 @@ renderMain();
   if(!ls("team")) S.team="all"; else if(S.team!=="all") S.team=normCrew(S.team);
   { const P0=PL.me(); if(P0&&!P0.all_crews&&P0.crew) S.team=P0.crew; }
   const got={c:false,j:false,l:false};
-  const ready=()=>{ if(got.c&&got.j){ S.ready=true; } };
+  const ready=()=>{ if(got.c&&got.j){ S.ready=true; setTimeout(fillPins,4000); } };
   setTimeout(()=>{ if(!S.ready){ S.err="The board is taking too long to load. Check your connection and reload."; renderMain(); } }, 12000);
   db.collection("clients").onSnapshot(s=>{ S.clients=new Map(s.docs.map(d=>[d.id,d.data()])); got.c=true; ready(); refresh(); }, e=>{ S.err="Lost connection to the board. Reload the page."; renderMain(); });
   db.collection("jobs").onSnapshot(s=>{ S.jobs=new Map(s.docs.map(d=>[d.id,d.data()])); got.j=true; ready(); refresh(); }, e=>{ S.err="Lost connection to the board. Reload the page."; renderMain(); });
