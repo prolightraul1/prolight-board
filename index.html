@@ -1873,7 +1873,7 @@ function jobberCard(){
 }
 async function jobberSync(quiet){
   if(S.jb.busy) return; S.jb.busy=true; if(!quiet) renderMain();
-  try{ const r=await PL.jobber("sync"); ls("jbLast",String(Date.now())); if(!quiet||r.added) toast(r.added?`${r.added} new job${r.added>1?"s":""} from Jobber`:"Up to date with Jobber"); }
+  try{ const r=await PL.jobber(quiet?"sync&quick=1":"sync"); ls("jbLast",String(Date.now())); if(!quiet||r.added) toast(r.added?`${r.added} new job${r.added>1?"s":""} from Jobber`:"Up to date with Jobber"); }
   catch(e){ if(!quiet) toast(e.message.slice(0,120)); }
   S.jb.busy=false; S.jb.st=null; if(S.view==="office") renderMain();
 }

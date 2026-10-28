@@ -83,7 +83,13 @@ async function gql(token, query, variables) {
     });
     const j = await r.json().catch(() => ({}));
     const throttled = r.status === 429 || (j.errors || []).some((e) => /throttl/i.test(e.message || ""));
-    if (throttled && tries < 4) { await new Promise((ok) => setTimeout(ok, 2500 * (tries + 1))); continue; }
+    if (throttled && tries < 6) {
+      // Jobber refills its request budget over time; wait just long enough for this query.
+      const c = (j.extensions && j.extensions.cost) || {}, t = c.throttleStatus || {};
+      const need = (c.requestedQueryCost || 1000) - (t.currentlyAvailable || 0), rate = t.restoreRate || 500;
+      await new Promise((ok) => setTimeout(ok, Math.min(12000, Math.max(1500, (need / rate) * 1000 + 500))));
+      continue;
+    }
     if (!r.ok || j.errors) throw new Error("Jobber: " + ((j.errors || []).map((e) => e.message).join("; ") || r.status));
     return j.data;
   }
@@ -91,15 +97,15 @@ async function gql(token, query, variables) {
 const JOB_FIELDS = `id jobNumber title instructions createdAt startAt completedAt total jobberWebUri
   client { id name }
   property { address { street1 street2 city province postalCode } }
-  lineItems(first: 20) { nodes { name description totalPrice } }`;
+  lineItems(first: 12) { nodes { name description totalPrice } }`;
 async function fetchJobs(token, since) {
   const out = [];
   const run = async (filtered) => {
     let after = null;
     for (let page = 0; page < 60; page++) {
       const q = filtered
-        ? `query($a:String,$s:ISO8601DateTime!){ jobs(first:25, after:$a, filter:{createdAt:{after:$s}}){ nodes{ ${JOB_FIELDS} } pageInfo{ hasNextPage endCursor } } }`
-        : `query($a:String){ jobs(first:25, after:$a){ nodes{ ${JOB_FIELDS} } pageInfo{ hasNextPage endCursor } } }`;
+        ? `query($a:String,$s:ISO8601DateTime!){ jobs(first:20, after:$a, filter:{createdAt:{after:$s}}){ nodes{ ${JOB_FIELDS} } pageInfo{ hasNextPage endCursor } } }`
+        : `query($a:String){ jobs(first:20, after:$a){ nodes{ ${JOB_FIELDS} } pageInfo{ hasNextPage endCursor } } }`;
       const d = await gql(token, q, filtered ? { a: after, s: since } : { a: after });
       out.push(...d.jobs.nodes);
       if (!d.jobs.pageInfo.hasNextPage) return;
@@ -164,11 +170,11 @@ async function notesSel(token, nf) {
     const has = (n) => ft.fields.some((f) => f.name === n);
     const pick = ["url", "fileName", "contentType", "name", "fileSize"].filter(has);
     if (!pick.includes("url")) { const u = ft.fields.find((f) => /url/i.test(f.name)); if (u) pick.push(u.name); else continue; }
-    const args = af.args && af.args.some((x) => x.name === "first") ? "(first:20)" : "";
+    const args = af.args && af.args.some((x) => x.name === "first") ? "(first:8)" : "";
     frags.push(`... on ${m.name} { __typename ${af.name}${args} { ${viaNodes ? `nodes { ${pick.join(" ")} }` : pick.join(" ")} } }`);
   }
   if (!frags.length) return "";
-  const nargs = nf.args && nf.args.some((x) => x.name === "first") ? "(first:40)" : "";
+  const nargs = nf.args && nf.args.some((x) => x.name === "first") ? "(first:15)" : "";
   return `notes${nargs} { nodes { ${frags.join(" ")} } }`;
 }
 async function noteQuery(token) {
@@ -237,11 +243,12 @@ async function copyFiles(token, j, wid) {
   return out;
 }
 
-async function sync(trigger) {
+async function sync(trigger, quick) {
+  const t0 = Date.now();
   const conn = await getInt("jobber");
   if (!conn || !conn.refresh_token) throw new Error("Jobber isn't connected yet.");
   const token = await accessToken();
-  const since = (conn.since || SINCE_DEFAULT);
+  const since = quick && conn.last ? new Date(Date.parse(conn.last.at) - 3 * 864e5).toISOString() : (conn.since || SINCE_DEFAULT);
   const jobs = await fetchJobs(token, since);
   const [boardJobs, boardClients, boardFin, boardLog] = await Promise.all(["jobs", "clients", "fin", "log"].map(allDocs));
   const byWeb = new Map(), clientByName = new Map(), clientByJobber = new Map();
@@ -296,9 +303,8 @@ async function sync(trigger) {
   }
   for (let i = 0; i < rows.length; i += 200) await putDocs(rows.slice(i, i + 200));
   // Photos: a few jobs per run so each sync stays quick; the rest come on the next sync.
-  const started = Date.now();
   for (const [j, wid, id, d] of media) {
-    if (Date.now() - started > 35e3) { res.photosLeft = (res.photosLeft || 0) + 1; continue; }
+    if (Date.now() - t0 > 45e3) { res.photosLeft = (res.photosLeft || 0) + 1; continue; }
     try {
       const files = await copyFiles(token, j, wid);
       const fresh = (await sb(`/rest/v1/docs?coll=eq.jobs&id=eq.${encodeURIComponent(id)}&select=data`))[0];
@@ -346,7 +352,7 @@ module.exports = async (req, res) => {
       return res.status(200).json({ connected: !!c.refresh_token, connectedAt: c.connectedAt || null, last: c.last || null, lastError: c.lastError || null });
     }
     if (action === "sync") {
-      try { return res.status(200).json(await sync("manual · " + me.name)); }
+      try { return res.status(200).json(await sync((req.query.quick ? "auto · " : "manual · ") + me.name, !!req.query.quick)); }
       catch (e) { await putInt("jobber", { ...((await getInt("jobber")) || {}), lastError: e.message }).catch(() => {}); throw e; }
     }
     if (action === "probe") {
