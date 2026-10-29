@@ -89,6 +89,8 @@
       await PL.reloadStaff();
       return path;
     },
+    outbox: () => outCount,
+    flushOutbox: () => flush(),
     photoUrl: (p) => (p && p.photo ? sb.storage.from("media").getPublicUrl(p.photo).data.publicUrl : ""),
     squarePhoto,
     async signOut() {
@@ -102,7 +104,7 @@
       return r.json();
     },
   });
-  window.mediaUrl = (id) => sb.storage.from("media").getPublicUrl(id).data.publicUrl;
+  window.mediaUrl = (id) => pendingUrl.get(id) || sb.storage.from("media").getPublicUrl(id).data.publicUrl;
 
   /* ---------- documents ---------- */
   const COLLS = ["clients", "jobs", "log", "fin", "settings"];
@@ -138,6 +140,7 @@
   function loadAll() {
     if (loading) return loading;
     loading = (async () => {
+      if (outCount && navigator.onLine) await flush();
       const fresh = await Promise.all(COLLS.map(async (c) => {
         const m = new Map();
         for (let from = 0; ; from += 1000) {
@@ -153,6 +156,7 @@
       const first = !loaded; loaded = true; lastLoad = Date.now();
       (first ? COLLS : changed).forEach((c) => emit(c));
       saveCache();
+      if (first) { outboxChanged(); setTimeout(flush, 500); }
     })().finally(() => { loading = null; });
     return loading;
   }
@@ -190,25 +194,66 @@
     return x;
   };
   const newId = () => (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, "").slice(0, 20) : Math.random().toString(36).slice(2, 14));
+  /* ---------- offline outbox: changes made with no signal wait here and send when it's back ---------- */
+  const isNet = (e) => !navigator.onLine || /failed to fetch|networkerror|load failed|network request failed|fetch failed|timed? ?out/i.test((e && (e.message || e.details)) || "");
+  const IDB = (() => {
+    let dbp = null;
+    const open = () => dbp || (dbp = new Promise((ok, no) => { const r = indexedDB.open("prolight-outbox", 1); r.onupgradeneeded = () => r.result.createObjectStore("q", { keyPath: "seq", autoIncrement: true }); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); }));
+    const tx = async (mode, fn) => { const d = await open(); return new Promise((ok, no) => { const t = d.transaction("q", mode), st = t.objectStore("q"), res = fn(st); t.oncomplete = () => ok(res && res.result); t.onerror = () => no(t.error); }); };
+    return { add: (o) => tx("readwrite", (st) => st.add(o)), all: () => tx("readonly", (st) => st.getAll()), del: (k) => tx("readwrite", (st) => st.delete(k)) };
+  })();
+  let outCount = 0;
+  const pendingUrl = new Map();
+  async function outboxChanged() { try { outCount = (await IDB.all()).length; } catch (e) {} window.dispatchEvent(new CustomEvent("prolight:outbox", { detail: outCount })); }
+  async function queue(op) { await IDB.add({ ...op, at: Date.now(), uid: ME && ME.id }); saveCache(); outboxChanged(); }
+  async function runOp(o) {
+    if (o.kind === "set") { const { error } = await sb.from("docs").upsert({ coll: o.coll, id: o.id, data: o.data, updated_at: new Date().toISOString() }); if (error) throw error; }
+    else if (o.kind === "merge") { const { error } = await sb.rpc("doc_merge", { p_coll: o.coll, p_id: o.id, p_patch: o.patch }); if (error) throw error; }
+    else if (o.kind === "del") { const { error } = await sb.from("docs").delete().eq("coll", o.coll).eq("id", o.id); if (error) throw error; }
+    else if (o.kind === "upload") { const { error } = await sb.storage.from("media").upload(o.path, o.blob, { contentType: o.type, upsert: false }); if (error && !/exists|duplicate/i.test(error.message)) throw error; }
+  }
+  let flushing = null;
+  function flush() {
+    if (flushing || !loaded || !navigator.onLine) return flushing;
+    flushing = (async () => {
+      let sent = 0, dropped = 0;
+      for (const o of await IDB.all().catch(() => [])) {
+        if (o.uid && ME && o.uid !== ME.id) { await IDB.del(o.seq); continue; }
+        try { await runOp(o); await IDB.del(o.seq); sent++; }
+        catch (e) { if (isNet(e)) break; await IDB.del(o.seq); dropped++; }
+      }
+      await outboxChanged();
+      if (sent || dropped) { window.dispatchEvent(new CustomEvent("prolight:outboxSent", { detail: { sent, dropped } })); loadAll().catch(() => {}); }
+    })().finally(() => { flushing = null; });
+    return flushing;
+  }
+  window.addEventListener("online", () => setTimeout(flush, 800));
+  setInterval(() => { if (outCount) flush(); }, 20000);
+  async function write(op, local) {
+    local(); emit(op.coll, op.id);
+    if (!navigator.onLine) return queue(op);
+    try { await runOp(op); }
+    catch (e) { if (isNet(e)) return queue(op); throw asErr(e); }
+  }
   function docRef(path) {
     const [coll, id] = path.split("/");
     return {
       id, path,
       async get() { return snap(id, cache.get(coll).get(id)); },
       async set(data) {
-        const { error } = await sb.from("docs").upsert({ coll, id, data, updated_at: new Date().toISOString() });
-        if (error) throw asErr(error);
-        cache.get(coll).set(id, data); emit(coll, id);
+        const prev = cache.get(coll).get(id);
+        try { await write({ kind: "set", coll, id, data }, () => cache.get(coll).set(id, data)); }
+        catch (e) { if (prev === undefined) cache.get(coll).delete(id); else cache.get(coll).set(id, prev); emit(coll, id); throw e; }
       },
       async update(patch) {
-        const { error } = await sb.rpc("doc_merge", { p_coll: coll, p_id: id, p_patch: patch });
-        if (error) throw asErr(error);
-        cache.get(coll).set(id, { ...(cache.get(coll).get(id) || {}), ...patch }); emit(coll, id);
+        const prev = cache.get(coll).get(id);
+        try { await write({ kind: "merge", coll, id, patch }, () => cache.get(coll).set(id, { ...(prev || {}), ...patch })); }
+        catch (e) { if (prev === undefined) cache.get(coll).delete(id); else cache.get(coll).set(id, prev); emit(coll, id); throw e; }
       },
       async delete() {
-        const { error } = await sb.from("docs").delete().eq("coll", coll).eq("id", id);
-        if (error) throw asErr(error);
-        cache.get(coll).delete(id); emit(coll, id);
+        const prev = cache.get(coll).get(id);
+        try { await write({ kind: "del", coll, id }, () => cache.get(coll).delete(id)); }
+        catch (e) { if (prev !== undefined) cache.get(coll).set(id, prev); emit(coll, id); throw e; }
       },
       onSnapshot(fn) {
         const k = coll + "/" + id;
@@ -248,7 +293,11 @@
       const type = opts.type || blob.type || "application/octet-stream";
       const ext = ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "video/mp4": "mp4", "video/quicktime": "mov", "video/webm": "webm", "application/pdf": "pdf" })[type] || "bin";
       const path = `${new Date().getFullYear()}/${newId()}.${ext}`;
-      const { error } = await sb.storage.from("media").upload(path, blob, { contentType: type, upsert: false });
+      const offline = async () => { await queue({ kind: "upload", path, blob, type }); pendingUrl.set(path, URL.createObjectURL(blob)); return { id: path, url: pendingUrl.get(path), sizeBytes: blob.size, contentType: type, pending: true }; };
+      if (!navigator.onLine) return offline();
+      let error;
+      try { ({ error } = await sb.storage.from("media").upload(path, blob, { contentType: type, upsert: false })); } catch (e) { error = e; }
+      if (error && isNet(error)) return offline();
       if (error) {
         const e = new Error(error.message);
         e.code = /size|large|exceed/i.test(error.message) ? "too_large" : /mime|type/i.test(error.message) ? "unsupported_type" : /security|policy|unauthor/i.test(error.message) ? "not_granted" : "upstream_error";
