@@ -1291,7 +1291,7 @@ function routeTools(d,stops){
       ${team!=="all"&&routeUrls(stops)?`<a class="btn small" href="${esc(routeUrls(stops).apple)}" target="_blank" rel="noopener">Apple Maps route ↗</a><a class="btn small" href="${esc(routeUrls(stops).google)}" target="_blank" rel="noopener">Google Maps route ↗</a>`:""}
       <button type="button" class="btn small" data-act="truck" data-v="${d}">Truck list</button>
       ${d===todayISO()?`<button type="button" class="btn small" data-act="hungry" data-v="live">I'm hungry</button>`:""}
-      ${S.me.canLog&&d===todayISO()?`<button type="button" class="chip" data-act="auto-clock" aria-pressed="${AUTO.on}">Auto clock-in${AUTO.on?" · on":""}</button>`:""}
+      ${d===todayISO()?dayBtn():""}${S.me.canLog&&d===todayISO()?`<button type="button" class="chip" data-act="auto-clock" aria-pressed="${AUTO.on}">Auto clock-in${AUTO.on?" · on":""}</button>`:""}
     </div>`:""}
     ${stops.length?(team!=="all"?truckLine(d,team):truckAllLines(d)):""}
     ${AUTO.on&&d===todayISO()?`<div class="count" style="font-size:13px">${esc(autoStatus())}</div>`:""}
@@ -1363,7 +1363,7 @@ function dTruck(d){
 const AUTO={on:false,watch:null,lock:null,far:0,last:null,near:""};
 const fmtDur=ms=>{ const m=Math.max(0,Math.round(ms/60000)); return `${Math.floor(m/60)}h ${pad(m%60)}m`; };
 function clocks(jid,vid){ const out=[]; for(const [id,e] of S.log) if(e.kind==="clock"&&e.jobId===jid&&(!vid||e.visitId===vid)) out.push({id,...e}); return out; }
-function myOpenClock(){ for(const [id,e] of S.log) if(e.kind==="clock"&&e.by===S.me.id&&!e.out) return {id,...e}; return null; }
+function myOpenClock(){ for(const [id,e] of S.log) if(e.kind==="clock"&&!e.general&&e.by===S.me.id&&!e.out) return {id,...e}; return null; }
 function clockMs(c){ return (c.out?Date.parse(c.out):Date.now())-Date.parse(c.in); }
 function onSite(jid,vid){ const cs=clocks(jid,vid); if(!cs.length) return ""; const ppl=new Set(cs.map(c=>c.by)).size; return ` · on site ${fmtDur(cs.reduce((t,c)=>t+clockMs(c),0))}${ppl>1?` (${ppl} people)`:""}`; }
 function clockBtn(j,v){
@@ -1374,13 +1374,14 @@ function clockBtn(j,v){
 }
 async function clockIn(jid,vid,auto){
   const open=myOpenClock();
-  if(open){ if(open.jobId===jid&&open.visitId===vid) return; await clockOut(open.id,auto,true); }
+  if(open){ if(open.jobId===jid&&open.visitId===vid) return; await clockOut(open.id,auto,true,true); }
+  { const g=myOpenGeneral(); if(g) await S.db.doc("log/"+g.id).update({out:new Date().toISOString(),autoOut:!!auto}).catch(()=>{}); }
   const now=new Date().toISOString();
   try{ await S.db.collection("log").add({kind:"clock",jobId:jid,visitId:vid,by:S.me.id,in:now,out:null,auto:!!auto,at:now}); toast(auto?`Clocked in at ${clientOf(S.jobs.get(jid)||{}).name||"this stop"}`:"Clocked in"); }
   catch(e){ fail(e,"clock in"); }
 }
-async function clockOut(id,auto,quiet){
-  try{ await S.db.doc("log/"+id).update({out:new Date().toISOString(),autoOut:!!auto}); if(!quiet) toast(auto?"Clocked out. You left the stop.":"Clocked out"); }
+async function clockOut(id,auto,quiet,noResume){
+  try{ await S.db.doc("log/"+id).update({out:new Date().toISOString(),autoOut:!!auto}); if(!quiet) toast(auto?"Clocked out. Driving time is on.":"Clocked out"); if(!noResume) setTimeout(()=>resumeGeneral(auto),300); }
   catch(e){ fail(e,"clock out"); }
 }
 function clockEntry(e){
@@ -1391,8 +1392,11 @@ function clockEntry(e){
 const isoOf=x=>toISO(new Date(x));
 function autoStatus(){
   if(!AUTO.last) return "Waiting for your location…";
+  if(dayEnded()) return "Your day is done.";
+  if(!dayStarted()) return "You'll clock in when you get to the shop, or at your first stop.";
   const open=myOpenClock(); if(open) return `On site at ${clientOf(S.jobs.get(open.jobId)||{}).name||"a stop"}. You'll clock out when you drive off.`;
-  return AUTO.near ? `Nearest stop: ${AUTO.near}. You'll clock in when you get there.` : "No open stops left today.";
+  const g=myOpenGeneral(), lead=g?(g.where==="shop"?"At the shop, clocked in. ":"Driving time is on. "):"";
+  return lead+(AUTO.near ? `Next: ${AUTO.near}. You'll switch to that job when you get there.` : "No stops left. You'll clock out for the day when you leave the shop.");
 }
 function autoStops(){
   const me=PL.me()||{}; const team=S.team!=="all"?S.team:(me.crew||"all");
@@ -1409,6 +1413,16 @@ async function onPos(p){
     if(p.coords.accuracy<=150){
       if(open){ const j=S.jobs.get(open.jobId); if(j&&hasLL(j)){ if(miles(me,j)*1609>300){ if(++AUTO.far>=2){ AUTO.far=0; await clockOut(open.id,true); } } else AUTO.far=0; } }
       else if(best && bd<=120) await clockIn(best.j.id,best.v.id,true);
+      const sh=shop(), dShop=hasLL(sh)?miles(me,sh)*1609:Infinity;
+      if(dShop<=150){
+        if(!dayStarted()) await startGeneral("shop",true);
+        else if(!dayEnded() && myToday().some(c=>!c.general)) AUTO.backAtShop=true;
+        AUTO.shopFar=0;
+      } else if(!AUTO.backAtShop && dShop>300 && (myOpenGeneral()||{}).where==="shop"){
+        if(++AUTO.shopFar>=2){ AUTO.shopFar=0; const g=myOpenGeneral(); await S.db.doc("log/"+g.id).update({out:new Date().toISOString(),autoOut:true}); await startGeneral("travel",true); }
+      } else if(AUTO.backAtShop && !myOpenClock() && dShop>400 && !list.length){
+        if(++AUTO.shopFar>=2){ AUTO.backAtShop=false; AUTO.shopFar=0; await stopGeneral(true,true); }
+      }
     }
   } finally { autoBusy=false; if(S.view==="route"&&!S.drawer) renderMain(); }
 }
@@ -1417,11 +1431,11 @@ async function setAuto(on){
     if(!navigator.geolocation){ toast("This phone can't share its location with the board."); return; }
     AUTO.watch=navigator.geolocation.watchPosition(onPos,err=>{ toast(err.code===1?"Location is blocked. Allow it for this site in your phone's settings.":"Can't get your location right now."); if(err.code===1) setAuto(false); },{enableHighAccuracy:true,maximumAge:15000,timeout:30000});
     try{ AUTO.lock=await navigator.wakeLock.request("screen"); }catch(e){}
-    AUTO.on=true; toast("Auto clock-in is on. Keep the board open on screen.");
+    AUTO.on=true; ls("autoClock","1"); toast("Auto clock-in is on. Keep the board open on screen.");
   } else {
     if(AUTO.watch!=null) navigator.geolocation.clearWatch(AUTO.watch);
     try{ AUTO.lock&&AUTO.lock.release(); }catch(e){}
-    Object.assign(AUTO,{on:false,watch:null,lock:null,far:0,last:null,near:""});
+    Object.assign(AUTO,{on:false,watch:null,lock:null,far:0,last:null,near:""}); ls("autoClock","0");
   }
   renderMain();
 }
@@ -1432,13 +1446,13 @@ setInterval(()=>{ if(myOpenClock()&&S.view==="route"&&!S.drawer) renderMain(); }
 function vHours(){
   const days=[...Array(7)].map((_,i)=>addDays(S.week,i));
   const rows=[...S.log.entries()].map(([id,e])=>({id,...e})).filter(e=>e.kind==="clock"&&e.in&&days.includes(isoOf(e.in))).sort((a,b)=>a.in.localeCompare(b.in));
-  const per=new Map(); for(const r of rows){ const p=per.get(r.by)||{ms:0,stops:new Set()}; p.ms+=clockMs(r); p.stops.add(r.jobId+"|"+r.visitId); per.set(r.by,p); }
+  const per=new Map(); for(const r of rows){ const p=per.get(r.by)||{ms:0,job:0,gen:0,stops:new Set()}; const m=clockMs(r); p.ms+=m; if(r.general) p.gen+=m; else { p.job+=m; p.stops.add(r.jobId+"|"+r.visitId); } per.set(r.by,p); }
   const t=x=>new Date(x).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
   return `<div class="bar"><button type="button" class="btn icon" data-act="week" data-v="-7" aria-label="Previous week">‹</button><b class="sign grow" style="font-size:22px">Week of ${fmtDay(S.week)}</b><button type="button" class="btn icon" data-act="week" data-v="7" aria-label="Next week">›</button></div>
-  ${per.size?`<div class="tiles">${[...per.entries()].map(([id,p])=>`<div class="tile"><span class="l">${esc(who(id))}</span><span class="v">${fmtDur(p.ms)}</span><span class="count" style="font-size:13px">${p.stops.size} stop${p.stops.size>1?"s":""}</span></div>`).join("")}</div>
-  <div class="tbl"><table><thead><tr><th>Day</th><th>Person</th><th>Stop</th><th>In</th><th>Out</th><th class="r">Time</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${fmtDay(isoOf(r.in),{weekday:"short",month:"short",day:"numeric"})}</td><td>${esc(who(r.by))}</td><td>${esc(clientOf(S.jobs.get(r.jobId)||{}).name||"Job")}</td><td class="mono">${t(r.in)}${r.auto?" ·a":""}</td><td class="mono">${r.out?t(r.out)+(r.autoOut?" ·a":""):"open"}</td><td class="r">${fmtDur(clockMs(r))}</td></tr>`).join("")}</tbody></table></div>
+  ${per.size?`<div class="tiles">${[...per.entries()].map(([id,p])=>`<div class="tile"><span class="l">${esc(who(id))}</span><span class="v">${fmtDur(p.ms)}</span><span class="count" style="font-size:13px">On jobs ${fmtDur(p.job)} · ${p.stops.size} stop${p.stops.size===1?"":"s"}<br>Shop & driving ${fmtDur(p.gen)}</span></div>`).join("")}</div>
+  <div class="tbl"><table><thead><tr><th>Day</th><th>Person</th><th>Stop</th><th>In</th><th>Out</th><th class="r">Time</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${fmtDay(isoOf(r.in),{weekday:"short",month:"short",day:"numeric"})}</td><td>${esc(who(r.by))}</td><td>${r.general?`<i>${r.where==="shop"?"Shop":"Driving"}${r.endDay?" · end of day":""}</i>`:esc(clientOf(S.jobs.get(r.jobId)||{}).name||"Job")}</td><td class="mono">${t(r.in)}${r.auto?" ·a":""}</td><td class="mono">${r.out?t(r.out)+(r.autoOut?" ·a":""):"open"}</td><td class="r">${fmtDur(clockMs(r))}</td></tr>`).join("")}</tbody></table></div>
   <p class="count" style="font-size:13px">·a = automatic, from the phone's location.</p>`
-  :`<div class="empty"><h3>No hours this week</h3><p>Hours show up here when crews clock in and out at stops, by hand or with auto clock-in.</p></div>`}`;
+  :`<div class="empty"><h3>No hours this week</h3><p>Hours show up here when crews start their day at the shop and clock in at stops, by hand or with auto clock-in.</p></div>`}`;
 }
 async function shopFromForm(){
   const el=$("#s-shop"), lv=$("#s-leave"); const cur=shop();
@@ -2247,6 +2261,33 @@ function dSvcPick(){
 }
 document.addEventListener("input",e=>{ if(e.target.id==="svc-q"){ S.form={...(S.form||{}),svcq:e.target.value}; const pos=e.target.selectionStart; renderDrawer(); const n=$("#svc-q"); if(n){ n.focus(); try{ n.setSelectionRange(pos,pos); }catch(x){} } } });
 
+/* ---------- day clock: shop + driving time between jobs ----------
+   General clock runs from arriving at the shop, pauses while you're clocked in at a job,
+   and picks back up when you leave the job. It ends when you leave the shop after the day's stops. */
+function myOpenGeneral(){ for(const [id,e] of S.log) if(e.kind==="clock"&&e.general&&e.by===S.me.id&&!e.out) return {id,...e}; return null; }
+function myToday(){ const t=todayISO(), out=[]; for(const [id,e] of S.log) if(e.kind==="clock"&&e.by===S.me.id&&e.in&&isoOf(e.in)===t) out.push({id,...e}); return out; }
+const dayStarted = () => myToday().length>0;
+const dayEnded = () => myToday().some(e=>e.endDay);
+async function startGeneral(where,auto){
+  if(myOpenGeneral()||myOpenClock()||dayEnded()) return;
+  const now=new Date().toISOString();
+  try{ await S.db.collection("log").add({kind:"clock",general:true,where,jobId:"",visitId:"",by:S.me.id,in:now,out:null,auto:!!auto,at:now}); if(where==="shop") toast(auto?"Clocked in at the shop. Have a good day!":"Day started"); }
+  catch(e){ fail(e,"start your day"); }
+}
+async function stopGeneral(endDay,auto){
+  const g=myOpenGeneral(); if(!g){ if(endDay&&dayStarted()&&!dayEnded()){ const last=myToday().sort((a,b)=>String(b.in).localeCompare(String(a.in)))[0]; if(last) await S.db.doc("log/"+last.id).update({endDay:true}); toast("Day ended"); } return; }
+  try{ await S.db.doc("log/"+g.id).update({out:new Date().toISOString(),autoOut:!!auto,...(endDay?{endDay:true}:{})}); if(endDay) toast(auto?"Clocked out for the day. Get home safe!":"Day ended"); }
+  catch(e){ fail(e,"clock out"); }
+}
+const resumeGeneral = auto => { if(dayStarted()&&!dayEnded()&&!myOpenClock()) return startGeneral("travel",auto); };
+function dayBtn(){
+  if(!S.me.canLog) return "";
+  const g=myOpenGeneral(), j=myOpenClock(), ms=myToday().reduce((t,c)=>t+clockMs(c),0);
+  if(dayEnded()) return `<span class="chip" style="cursor:default">Day done · ${fmtDur(ms)}</span>`;
+  if(!dayStarted()) return `<button type="button" class="chip" data-act="day-start">Start my day</button>`;
+  return `<button type="button" class="chip" data-act="day-end" title="${g?(g.where==="shop"?"At the shop":"Driving"):j?"On a job":""}">${g?(g.where==="shop"?"At shop":"Driving"):j?"On a job":"Clocked in"} · ${fmtDur(ms)} · End day</button>`;
+}
+
 /* ---------- render ---------- */
 function renderMain(){
   renderNav();
@@ -2449,6 +2490,8 @@ document.addEventListener("click", async ev=>{
     case "clock-in": t.disabled=true; await clockIn(t.dataset.j,v,false); break;
     case "clock-out": t.disabled=true; await clockOut(id,false); break;
     case "auto-clock": await setAuto(!AUTO.on); break;
+    case "day-start": await startGeneral("shop",false); renderMain(); break;
+    case "day-end": { const j=myOpenClock(); if(j) await clockOut(j.id,false,true,true); await stopGeneral(true,false); AUTO.backAtShop=false; renderMain(); break; }
     case "truck": openDrawer("truck",v); break;
     case "best-order": { t.disabled=true; const ids=S.team==="all"?crews().map(c=>c.id):[S.team]; let b=0,a=0,u=0,n=0;
       try{ for(const c of ids){ const r=await applyOrder(v,c); if(r){ b+=r.before; a+=r.after; u+=r.unplaced; n++; } }
@@ -2549,7 +2592,7 @@ renderMain();
   if(!ls("team")) S.team="all"; else if(S.team!=="all") S.team=normCrew(S.team);
   { const P0=PL.me(); if(P0&&!P0.all_crews&&P0.crew) S.team=P0.crew; }
   const got={c:false,j:false,l:false};
-  const ready=()=>{ if(got.c&&got.j){ S.ready=true; setTimeout(fillPins,4000); setTimeout(jobberAuto,1500); } };
+  const ready=()=>{ if(got.c&&got.j){ S.ready=true; setTimeout(fillPins,4000); if(ls("autoClock")==="1"&&S.me.canLog&&!AUTO.on) setTimeout(()=>setAuto(true),1200); setTimeout(jobberAuto,1500); } };
   setTimeout(()=>{ if(!S.ready){ S.err="The board is taking too long to load. Check your connection and reload."; renderMain(); } }, 12000);
   db.collection("clients").onSnapshot(s=>{ S.clients=new Map(s.docs.map(d=>[d.id,d.data()])); got.c=true; ready(); refresh(); }, e=>{ S.err="Lost connection to the board. Reload the page."; renderMain(); });
   db.collection("jobs").onSnapshot(s=>{ S.jobs=new Map(s.docs.map(d=>[d.id,d.data()])); got.j=true; ready(); refresh(); }, e=>{ S.err="Lost connection to the board. Reload the page."; renderMain(); });
