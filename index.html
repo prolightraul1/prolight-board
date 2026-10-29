@@ -114,7 +114,7 @@ main{padding-block:16px 32px}
 .bulb{--b:var(--glass);--glow:none;position:relative;display:inline-block;flex:none;width:14px;height:21px}
 .bulb::before{content:"";position:absolute;left:4px;top:0;width:6px;height:6px;border-radius:1px 1px 0 0;background:var(--wire)}
 .bulb::after{content:"";position:absolute;left:0;top:5px;width:14px;height:16px;border-radius:50% 50% 50% 50%/38% 38% 62% 62%;background:radial-gradient(circle at 35% 30%,var(--glass-hi) 0 18%,transparent 19%),var(--b);box-shadow:var(--glow)}
-.bulb.on{--b:var(--amber);--glow:0 0 10px 2px color-mix(in srgb,var(--amber) 60%,transparent),0 0 24px 6px color-mix(in srgb,var(--amber) 22%,transparent)}
+.bulb.on{--b:var(--bc,var(--amber));--glow:0 0 10px 2px color-mix(in srgb,var(--bc,var(--amber)) 60%,transparent),0 0 24px 6px color-mix(in srgb,var(--bc,var(--amber)) 22%,transparent)}
 .bulb.green{--b:var(--cord)} .bulb.blue{--b:var(--blue)} .bulb.red{--b:var(--red)} .bulb.dim{--b:color-mix(in srgb,var(--amber) 45%,var(--glass))}
 .bulb.lg{width:22px;height:32px}
 .bulb.lg::before{left:6px;width:10px;height:9px}
@@ -287,6 +287,47 @@ tfoot td{border-top:2px solid var(--line);border-bottom:0}
   .chat-back{display:none}
   .chat-thread{max-height:calc(100dvh - 120px)}
 }
+/* looks */
+.bulb.pop::after{animation:pop 1.1s cubic-bezier(.2,.9,.3,1.3)}
+@keyframes pop{0%{transform:scale(.6);filter:brightness(.6)}35%{transform:scale(1.45);filter:brightness(1.8);box-shadow:0 0 18px 8px var(--bc,var(--amber)),0 0 46px 18px color-mix(in srgb,var(--bc,var(--amber)) 40%,transparent)}100%{transform:scale(1);filter:none}}
+#intro,#routelit{position:fixed;inset:0;z-index:300;display:grid;place-items:center;align-content:center;gap:10px;background:radial-gradient(ellipse at 50% 45%,#16241d 0,#080c0a 70%);color:#eaf0eb;transition:opacity .45s;cursor:pointer;overflow:hidden}
+#routelit{background:color-mix(in srgb,#080c0a 82%,transparent);backdrop-filter:blur(3px)}
+#intro.out,#routelit.out{opacity:0;pointer-events:none}
+.intro-strand,.rl-strand{position:relative;width:min(92vw,900px);aspect-ratio:900/160}
+.rl-strand{width:min(88vw,700px);aspect-ratio:700/120}
+.intro-cord,.rl-cord{position:absolute;inset:0;width:100%;height:100%}
+.intro-cord path,.rl-cord path{stroke-dasharray:1400;stroke-dashoffset:1400;animation:cord .5s ease-out forwards}
+@keyframes cord{to{stroke-dashoffset:0}}
+.ib{position:absolute;width:22px;height:32px;margin:-4px 0 0 -11px;transform-origin:50% 0}
+.ib::before{content:"";position:absolute;left:6px;top:0;width:10px;height:9px;border-radius:2px 2px 0 0;background:#2a6e4e}
+.ib::after{content:"";position:absolute;left:0;top:8px;width:22px;height:24px;border-radius:50% 50% 50% 50%/38% 38% 62% 62%;background:#34413b;animation:on .35s ease-out forwards;animation-delay:calc(.45s + var(--d)*.09s)}
+@keyframes on{0%{background:#34413b}60%{background:#fff;box-shadow:0 0 30px 12px var(--bc)}100%{background:radial-gradient(circle at 35% 30%,#fff8 0 18%,transparent 19%),var(--bc);box-shadow:0 0 14px 4px color-mix(in srgb,var(--bc) 70%,transparent),0 0 40px 14px color-mix(in srgb,var(--bc) 30%,transparent)}}
+.intro-logo{width:min(64vw,300px);height:auto;opacity:0;animation:fadein .5s ease-out 1.25s forwards;filter:drop-shadow(0 0 18px color-mix(in srgb,var(--amber) 40%,transparent))}
+.intro-sub,.rl-s{font-family:var(--f-mono);font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:#8a9b93;opacity:0;animation:fadein .4s ease-out 1.45s forwards}
+.rl-t{font-family:var(--f-sign);font-weight:900;font-size:clamp(44px,12vw,84px);line-height:1;color:var(--amber);text-transform:uppercase;letter-spacing:.02em;text-shadow:0 0 24px color-mix(in srgb,var(--amber) 55%,transparent);opacity:0;animation:fadein .4s ease-out 1.2s forwards}
+.rl-s{animation-delay:1.35s}
+@keyframes fadein{to{opacity:1}}
+@media (prefers-reduced-motion: reduce){ .ib::after,.intro-cord path,.rl-cord path,.intro-logo,.intro-sub,.rl-t,.rl-s{animation-duration:.01s!important;animation-delay:0s!important} .bulb.pop::after{animation:none} }
+canvas.snow{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+#gate .gate-card{position:relative;z-index:1}
+.season{position:relative;overflow:hidden;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 14px;background:var(--night);color:var(--night-ink);border-radius:var(--r);padding:10px 14px;margin-bottom:12px}
+.season-t{position:relative;z-index:1;font-family:var(--f-sign);font-weight:800;font-size:19px;letter-spacing:.03em;text-transform:uppercase}
+.season-strand{position:relative;z-index:1;display:flex;gap:5px;align-items:flex-start;flex-wrap:wrap}
+.season-strand .bulb{width:10px;height:15px}
+.season-strand .bulb::before{left:3px;width:4px;height:4px}
+.season-strand .bulb::after{top:4px;width:10px;height:11px}
+.season.after .season-t{color:var(--night-dim)}
+.look-combos{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.look-combo{display:flex;align-items:center;gap:8px;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;font-size:14px}
+.look-combo[aria-pressed="true"],.look-color[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.look-swatch{display:inline-flex;gap:3px;flex:none}
+.look-swatch i,.look-color i{display:inline-block;width:11px;height:16px;border-radius:50% 50% 50% 50%/38% 38% 62% 62%;background:var(--c);box-shadow:0 0 6px 1px color-mix(in srgb,var(--c) 55%,transparent);font-style:normal}
+.look-colors{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.look-color{display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 11px;font-size:14px}
+.look-color b{font-family:var(--f-mono);font-size:11px;background:var(--ink);color:var(--bg);border-radius:9px;min-width:16px;text-align:center;padding:0 4px}
+.look .seg{display:flex;flex-wrap:wrap} .look .seg button{flex:1 1 auto}
+.night-map .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.82) contrast(.92) saturate(.6)}
+.night-map .leaflet-container{background:#0b100e}
 .who-btn{background:none;border:1px solid #2a3832;border-radius:999px;color:var(--night-ink);font-size:12px;font-weight:700;padding:5px 10px;max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .checks{display:grid;gap:8px}
 .checks label{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;font-size:15px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
@@ -298,7 +339,7 @@ tfoot td{border-top:2px solid var(--line);border-bottom:0}
 .map-ctl,.map-legend,.map-hint{z-index:500}
 .leaflet-container{font-family:var(--f-body)}
 .pin-tip{font-weight:700;font-size:12px;padding:2px 6px;border-radius:3px}
-.pin-lit{filter:drop-shadow(0 0 5px #f2a516)}
+.pin-lit{filter:drop-shadow(0 0 5px var(--amber))} .night-map .pin-lit{filter:drop-shadow(0 0 7px currentColor) drop-shadow(0 0 14px var(--amber))} .night-map .pin-down{opacity:.55}
 @media (prefers-color-scheme: dark){ .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.92) saturate(.6)} }
 .map-ctl{position:absolute;top:8px;right:8px;display:flex;gap:6px}
 .map-hint{position:absolute;left:8px;right:8px;top:52px;background:var(--ink);color:var(--bg);border-radius:var(--r);padding:8px 10px;font-weight:700;font-size:14px;display:flex;gap:8px;align-items:center;justify-content:space-between}
@@ -597,7 +638,7 @@ function teamSeg(){
 function vRoute(){
   const d=S.day, stops=stopsFor(d,S.team), done=stops.filter(s=>isDone(s.j.id,s.v.id)).length, r=rel(d);
   S._eta=estTimes(stops);
-  let h=annBanner()+`<div class="dayhead">
+  let h=annBanner()+(S.ready?seasonBar():"")+`<div class="dayhead">
     <div class="pager">
       <button type="button" class="btn icon" data-act="day" data-v="-1" aria-label="Previous day">‹</button>
       <div class="d"><span class="eyebrow">${r?fmtDay(d,{weekday:"long",month:"short",day:"numeric"}):"Route"}</span><h1 class="h-view">${r||fmtDay(d,{weekday:"short",month:"short",day:"numeric"})}</h1></div>
@@ -628,7 +669,7 @@ function stopCard(s,i,n){
   if(d){ const can=S.me.owner||d.by===S.me.id; doneBtn = can ? `<button type="button" class="btn done" data-act="undone" data-id="${esc(d.id)}" title="Undo">✓ Done · ${esc(who(d.by))}, ${new Date(d.at).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}</button>` : `<span class="btn done">✓ Done · ${esc(who(d.by))}</span>`; }
   else if(S.me.canLog) doneBtn=`<button type="button" class="btn amber" data-act="done" data-j="${esc(j.id)}" data-v="${esc(v.id)}">Mark ${VTYPE[v.type].toLowerCase()} done</button>`;
   return `<article class="stop ${d?"is-done":""}">
-    <div class="rail-c"><span class="bulb lg ${d?"on":""}"></span></div>
+    <div class="rail-c"><span class="bulb lg ${d?"on":""}${popCls(j,v)}"></span></div>
     <div class="ticket">
       <div class="t-top"><span class="ord">STOP ${pad(i+1)}</span><span class="vt ${v.type}">${VTYPE[v.type]}</span>${stopTimeTag(s)}${crewTags(j,v)}<span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span><span class="sp"></span>
         ${S.me.owner&&n>1?`<button type="button" class="btn icon small" data-act="move" data-j="${esc(j.id)}" data-v="${esc(v.id)}" data-d="-1" ${i===0?"disabled":""} aria-label="Move up">↑</button><button type="button" class="btn icon small" data-act="move" data-j="${esc(j.id)}" data-v="${esc(v.id)}" data-d="1" ${i===n-1?"disabled":""} aria-label="Move down">↓</button>`:""}</div>
@@ -995,7 +1036,7 @@ function drawMap(){
   const order = MAP.mode==="day" ? new Map(crews().flatMap(c=>stopsFor(MAP.day,c.id).map((s,i)=>[s.j.id,i+1]))) : null;
   for(const j of [...list].sort((a,b)=>(a.id===MAP.sel)-(b.id===MAP.sel))){
     const col=crewColor(j.crew), sel=j.id===MAP.sel, st=status(j);
-    const m=L.circleMarker([j.lat,j.lng],{radius:sel?11:8,weight:sel?3:2,color:sel?tok("--ink"):(col?"#ffffff":tok("--ink-2")),fillColor:col||tok("--card"),fillOpacity:1,className:(st==="lit"||st==="down")?"pin-lit":""}).addTo(LAYER);
+    const m=L.circleMarker([j.lat,j.lng],{radius:sel?11:8,weight:sel?3:2,color:sel?tok("--ink"):(col?"#ffffff":tok("--ink-2")),fillColor:(st==="lit"&&effectiveDark())?bulbColors()[list.indexOf(j)%bulbColors().length]:(col||tok("--card")),fillOpacity:1,className:st==="lit"?"pin-lit":(st==="down"?"pin-down":"")}).addTo(LAYER);
     m.on("click",e=>{ L.DomEvent.stopPropagation(e); if(MAP.placing) return; MAP.sel=j.id; renderMain(); });
     const lbl=(order&&order.get(j.id)?order.get(j.id)+". ":"")+(clientOf(j).name||"Customer");
     m.bindTooltip(esc(lbl),{permanent:!!(sel||z>=15||order),direction:"right",offset:[10,0],className:"pin-tip"});
@@ -1094,6 +1135,7 @@ async function savePerson(){
 function dAccount(){
   const me=PL.me()||{};
   return drawerShell("Signed in", me.name||"You", `<p class="lede">${esc(permSummary(me))}${me.crew?" · "+esc(teamName(me.crew)):""}</p>
+  ${lookPanel()}
   <div class="f"><label>Directions open in</label><div class="seg" role="group">${[["apple","Apple Maps"],["google","Google Maps"]].map(([k,l])=>`<button type="button" data-act="maps-app" data-v="${k}" aria-pressed="${MAPS_APP()===k}">${l}</button>`).join("")}</div></div>
   <form class="form" id="pinForm" autocomplete="off"><fieldset><legend>Change my PIN</legend><div class="two">
     <div class="f"><label for="np1">New 6-digit PIN</label><input id="np1" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required></div>
@@ -1890,6 +1932,148 @@ async function jobberProbe(){
   renderMain();
 }
 
+/* ---------- looks: bulb colors, day/night, intro, celebrations, season ---------- */
+const PALETTE = {
+  warm:  {n:"Warm white", c:"#FFB23E"}, white:{n:"Pure white", c:"#EEF3FF"}, red:{n:"Red", c:"#E8352B"},
+  green: {n:"Green", c:"#22B04F"},      blue: {n:"Blue", c:"#2F6BFF"},       purple:{n:"Purple", c:"#8E4DFF"},
+  orange:{n:"Orange", c:"#FF7A1A"},     yellow:{n:"Yellow", c:"#FFD21F"},    teal:{n:"Teal", c:"#14B8A6"} };
+const COMBOS = [
+  ["Warm white",["warm"]], ["Pure white",["white"]], ["Warm + pure white",["warm","white"]],
+  ["Classic multicolor",["red","green","blue","orange","yellow"]], ["Red & green",["red","green"]],
+  ["Candy cane",["red","white"]], ["Red, white & green",["red","white","green"]], ["Blue & white",["blue","white"]],
+  ["Icy",["white","blue","teal"]], ["Red, white & blue",["red","white","blue"]], ["Green & gold",["green","yellow"]],
+  ["Purple & teal",["purple","teal"]], ["Halloween",["orange","purple"]], ["Rainbow",["red","orange","yellow","green","teal","blue","purple","white","warm"]] ];
+const LOOK_DEF = {colors:["warm"], mode:"auto", intro:"daily", snow:true, buzz:true};
+function look(){ try{ const o={...LOOK_DEF,...JSON.parse(ls("look")||"{}")}; o.colors=(o.colors||[]).filter(k=>PALETTE[k]); if(!o.colors.length) o.colors=["warm"]; return o; }catch(e){ return {...LOOK_DEF}; } }
+function setLook(p){ ls("look",JSON.stringify({...look(),...p})); applyLook(); }
+const bulbColors = () => look().colors.map(k=>PALETTE[k].c);
+const lum = h => { const n=parseInt(h.slice(1),16), f=v=>{ v/=255; return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4); }; return .2126*f(n>>16&255)+.7152*f(n>>8&255)+.0722*f(n&255); };
+
+/* day / night */
+function sunriseFor(dateISO){ const ss=sunsetFor(dateISO); if(!ss) return null; const d=parseISO(dateISO); const noon=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate(),17,37)); return new Date(noon.getTime()-(ss-noon)); }
+function nightNow(){ const t=todayISO(), now=new Date(), ss=sunsetFor(t), sr=sunriseFor(t); return ss&&sr ? (now>=ss||now<sr) : (now.getHours()>=18||now.getHours()<7); }
+function effectiveDark(){ const m=look().mode; return m==="dark" || (m==="auto"&&nightNow()) || (m==="system"&&matchMedia("(prefers-color-scheme: dark)").matches); }
+function applyLook(){
+  const L=look(), root=document.documentElement, dark=effectiveDark();
+  if(L.mode==="system") delete root.dataset.theme; else root.dataset.theme = dark?"dark":"light";
+  let a=PALETTE[L.colors[0]].c;
+  // keep the main button color readable on the background
+  if(!dark && lum(a)>.6) a=`color-mix(in srgb, ${a} 62%, #6b5a2a)`;
+  const ink = lum(PALETTE[L.colors[0]].c)>.35 ? "#1a1406" : "#ffffff";
+  root.style.setProperty("--amber", a);
+  root.style.setProperty("--amber-ink", ink);
+  root.style.setProperty("--amber-soft", `color-mix(in srgb, ${PALETTE[L.colors[0]].c} ${dark?18:22}%, ${dark?"#161e1a":"#ffffff"})`);
+  root.style.setProperty("--amber-text", `color-mix(in srgb, ${PALETTE[L.colors[0]].c} ${dark?85:60}%, ${dark?"#ffffff":"#141916"})`);
+  root.classList.toggle("night-map", dark);
+  const meta=document.querySelector('meta[name="theme-color"]'); if(meta) meta.content=dark?"#080c0a":"#111916";
+  paintBulbs(true);
+}
+setInterval(()=>{ if(look().mode==="auto") { const d=effectiveDark(); if((document.documentElement.dataset.theme==="dark")!==d) { applyLook(); if(S.view==="map"&&typeof drawMap==="function") drawMap(); } } }, 60e3);
+
+/* every lit bulb on the page takes the next color in your set */
+let paintQ=0;
+function paintBulbs(force){
+  const C=bulbColors(); let i=0;
+  document.querySelectorAll(".bulb").forEach(b=>{ if(b.closest("#intro,#routelit,.look-swatch")) return; const c=C[i++%C.length]; if(force||b.dataset.bc!==c){ b.dataset.bc=c; b.style.setProperty("--bc",c); } });
+}
+new MutationObserver(()=>{ if(paintQ) return; paintQ=requestAnimationFrame(()=>{ paintQ=0; paintBulbs(); }); }).observe(document.documentElement,{childList:true,subtree:true});
+
+/* phone buzz */
+const buzz = p => { if(look().buzz && navigator.vibrate) try{ navigator.vibrate(p); }catch(e){} };
+
+/* snow */
+function snowIn(el, density=60){
+  if(!el || el.querySelector("canvas.snow") || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const cv=document.createElement("canvas"); cv.className="snow"; el.prepend(cv);
+  const ctx=cv.getContext("2d"); let W=0,H=0, flakes=[];
+  const size=()=>{ const r=el.getBoundingClientRect(), d=Math.min(2,devicePixelRatio||1); W=r.width; H=r.height; cv.width=W*d; cv.height=H*d; ctx.setTransform(d,0,0,d,0,0);
+    flakes=[...Array(Math.round(density*W*H/400000)+8)].map(()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*2.2+.6,s:Math.random()*.6+.25,w:Math.random()*Math.PI*2})); };
+  size(); addEventListener("resize",size);
+  (function tick(){ if(!cv.isConnected) return; ctx.clearRect(0,0,W,H); ctx.fillStyle="rgba(255,255,255,.85)";
+    for(const f of flakes){ f.y+=f.s; f.w+=.01; f.x+=Math.sin(f.w)*.3; if(f.y>H+4){ f.y=-4; f.x=Math.random()*W; } ctx.beginPath(); ctx.arc(f.x,f.y,f.r,0,7); ctx.fill(); }
+    requestAnimationFrame(tick); })();
+}
+const md = () => { const d=new Date(); return (d.getMonth()+1)*100+d.getDate(); };
+const snowSeason = () => look().snow && (md()>=1101 || md()<=110);
+const christmasWeek = () => md()>=1219 && md()<=1226;
+
+/* the startup "plug-in" */
+function strandSVG(n, w, h, cls){
+  const C=bulbColors(), pts=[...Array(n)].map((_,i)=>{ const x=(i+.5)*w/n, y=h*.38+Math.sin(i/(n-1)*Math.PI)*h*.22; return [x,y]; });
+  const path="M0,"+(h*.3)+" "+pts.map(([x,y])=>`L${x.toFixed(1)},${y.toFixed(1)}`).join(" ")+` L${w},${h*.3}`;
+  return `<svg class="${cls}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><path d="${path}" fill="none" stroke="#2a6e4e" stroke-width="3" stroke-linejoin="round"/></svg>`+
+    pts.map(([x,y],i)=>`<span class="ib" style="left:${(x/w*100).toFixed(2)}%;top:${(y/h*100).toFixed(2)}%;--bc:${C[i%C.length]};--d:${i}"></span>`).join("");
+}
+function playIntro(force){
+  const L=look();
+  if(!force){ if(L.intro==="off") return; if(L.intro==="daily" && ls("introDay")===todayISO()) return; }
+  ls("introDay",todayISO());
+  const old=$("#intro"); if(old) old.remove();
+  const el=document.createElement("div"); el.id="intro"; el.setAttribute("role","presentation");
+  el.innerHTML=`<div class="intro-strand">${strandSVG(9,900,160,"intro-cord")}</div>
+    <img class="intro-logo" src="/brand/prolight.png" alt="ProLight"><div class="intro-sub">Season board</div>`;
+  document.body.appendChild(el);
+  if(snowSeason()) snowIn(el, christmasWeek()?120:70);
+  const done=()=>{ if(!el.isConnected) return; el.classList.add("out"); setTimeout(()=>el.remove(),450); };
+  el.addEventListener("click",done);
+  setTimeout(done, matchMedia("(prefers-reduced-motion: reduce)").matches?900:2300);
+}
+
+/* bulb pop when a stop is done, and the whole route lighting up */
+S.pop = S.pop || null;
+const popCls = (j,v) => S.pop && S.pop.k===j.id+"|"+v.id && Date.now()-S.pop.t<1600 ? " pop" : "";
+function celebrate(jid,vid){
+  S.pop={k:jid+"|"+vid,t:Date.now()}; buzz(35);
+  const day=S.day, team=S.team; let tries=0;
+  const check=()=>{ const st=stopsFor(day,team); if(!st.length) return;
+    if(!isDone(jid,vid)){ if(++tries<12) setTimeout(check,250); return; }
+    if(st.every(s=>isDone(s.j.id,s.v.id))) routeLit(st.length, team); };
+  setTimeout(check,200);
+}
+function routeLit(n, team){
+  buzz([40,60,40,60,140]);
+  const el=document.createElement("div"); el.id="routelit";
+  el.innerHTML=`<div class="rl-in"><div class="rl-strand">${strandSVG(Math.max(4,Math.min(14,n)),700,120,"rl-cord")}</div>
+    <div class="rl-t">Route lit</div><div class="rl-s">${n} of ${n} stops done${team&&team!=="all"?" · "+esc(teamName(team)):""}</div></div>`;
+  document.body.appendChild(el);
+  const done=()=>{ if(!el.isConnected) return; el.classList.add("out"); setTimeout(()=>el.remove(),450); };
+  el.addEventListener("click",done); setTimeout(done,3200);
+}
+
+/* season header: countdown, houses lit, then takedown */
+function seasonBar(){
+  const all=jobsArr().filter(j=>j.stage!=="cancelled" && (j.visits||[]).some(v=>v.type==="install"));
+  if(!all.length) return "";
+  const st=all.map(status), lit=st.filter(s=>s==="lit"||s==="partial").length, down=st.filter(s=>s==="down").length, total=all.length;
+  const t=parseISO(todayISO()), y=t.getMonth()===0||t.getMonth()===1 ? t.getFullYear()-1 : t.getFullYear();
+  const xmas=new Date(y,11,25), days=Math.round((xmas-t)/864e5);
+  const after = days<0;
+  let txt, on, n=Math.min(24,total);
+  if(!after){ txt = days===0 ? `Merry Christmas · ${lit+down} houses lit` : `${days} day${days>1?"s":""} to Christmas · ${lit+down} of ${total} houses lit`; on=Math.round((lit+down)/total*n); }
+  else { const up=lit+down; txt = `Takedown · ${down} of ${up} down`; on=up?Math.round((up-down)/up*n):0; }
+  return `<div class="season ${after?"after":""} ${christmasWeek()?"xmas":""}"><span class="season-t">${esc(txt)}</span><span class="season-strand">${[...Array(n)].map((_,i)=>`<span class="bulb ${i<on?"on":""}"></span>`).join("")}</span></div>`;
+}
+
+/* settings panel in the account drawer */
+function lookPanel(){
+  const L=look(), sw=keys=>`<span class="look-swatch">${keys.map(k=>`<i style="--c:${PALETTE[k].c}"></i>`).join("")}</span>`;
+  const same=(a,b)=>a.length===b.length&&a.every((x,i)=>x===b[i]);
+  return `<fieldset class="look"><legend>Look</legend>
+    <div class="f"><label>Bulb colors</label><div class="look-combos">${COMBOS.map(([n,k],i)=>`<button type="button" class="look-combo" data-act="look-combo" data-v="${i}" aria-pressed="${same(L.colors,k)}">${sw(k)}<span>${esc(n)}</span></button>`).join("")}</div>
+      <small>Or build your own: tap colors in the order you want them on the strand.</small>
+      <div class="look-colors">${Object.entries(PALETTE).map(([k,p])=>{ const i=L.colors.indexOf(k); return `<button type="button" class="look-color" data-act="look-color" data-v="${k}" aria-pressed="${i>=0}"><i style="--c:${p.c}"></i>${esc(p.n)}${i>=0&&L.colors.length>1?`<b>${i+1}</b>`:""}</button>`; }).join("")}</div></div>
+    <div class="f"><label>Light or dark</label><div class="seg" role="group">${[["auto","Dark after sunset"],["light","Always light"],["dark","Always dark"],["system","Match my phone"]].map(([k,l])=>`<button type="button" data-act="look-mode" data-v="${k}" aria-pressed="${L.mode===k}">${l}</button>`).join("")}</div></div>
+    <div class="f"><label>Startup lights</label><div class="seg" role="group">${[["daily","Once a day"],["always","Every open"],["off","Off"]].map(([k,l])=>`<button type="button" data-act="look-intro" data-v="${k}" aria-pressed="${L.intro===k}">${l}</button>`).join("")}</div>
+      <div class="bar" style="margin-top:6px"><button type="button" class="btn small" data-act="look-play">Play it now</button>
+      <button type="button" class="tog" data-act="look-snow" aria-pressed="${L.snow}">${L.snow?"Snow on":"Snow off"}</button>
+      <button type="button" class="tog" data-act="look-buzz" aria-pressed="${L.buzz}">${L.buzz?"Buzz on":"Buzz off"}</button></div></div>
+  </fieldset>`;
+}
+applyLook();
+playIntro();
+function gateSnow(){ const g=$("#gate"); if(g && !g.hidden && snowSeason()) snowIn(g, christmasWeek()?110:55); }
+new MutationObserver(()=>{ if(gateSnow.q) return; gateSnow.q=requestAnimationFrame(()=>{ gateSnow.q=0; gateSnow(); }); }).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:["hidden"]});
+
 /* ---------- render ---------- */
 function renderMain(){
   renderNav();
@@ -1911,7 +2095,7 @@ function fail(e,what){
   else toast(`Couldn't ${what}. Check your signal and try again.`);
 }
 async function markDone(jobId,visitId){
-  try{ await S.db.collection("log").add({jobId,visitId,kind:"done",by:S.me.id||"",at:new Date().toISOString()}); { const oc=myOpenClock(); if(oc&&oc.jobId===jobId&&oc.visitId===visitId) await clockOut(oc.id,false,true); } toast("Marked done"); }catch(e){ fail(e,"mark this done"); }
+  try{ await S.db.collection("log").add({jobId,visitId,kind:"done",by:S.me.id||"",at:new Date().toISOString()}); { const oc=myOpenClock(); if(oc&&oc.jobId===jobId&&oc.visitId===visitId) await clockOut(oc.id,false,true); } toast("Marked done"); celebrate(jobId,visitId); }catch(e){ fail(e,"mark this done"); }
 }
 async function delEntry(id){ try{ await S.db.doc("log/"+id).delete(); }catch(e){ fail(e,"change that"); } }
 async function shrink(file){
@@ -2040,6 +2224,13 @@ document.addEventListener("click", async ev=>{
     case "view": S.view=v; closeDrawer(); renderMain(); window.scrollTo(0,0); break;
     case "team": S.team=v; ls("team",v); renderMain(); break;
     case "account": openDrawer("account"); break;
+    case "look-combo": setLook({colors:[...COMBOS[+v][1]]}); renderDrawer(); renderMain(); break;
+    case "look-color": { const c=look().colors.slice(), i=c.indexOf(v); if(i>=0){ if(c.length>1) c.splice(i,1); } else c.push(v); setLook({colors:c}); renderDrawer(); renderMain(); break; }
+    case "look-mode": setLook({mode:v}); renderDrawer(); renderMain(); if(S.view==="map"&&typeof drawMap==="function") drawMap(); break;
+    case "look-intro": setLook({intro:v}); renderDrawer(); break;
+    case "look-play": playIntro(true); break;
+    case "look-snow": setLook({snow:!look().snow}); renderDrawer(); break;
+    case "look-buzz": setLook({buzz:!look().buzz}); renderDrawer(); buzz(30); break;
     case "jb-sync": await jobberSync(false); break;
     case "jb-probe": await jobberProbe(); break;
     case "jb-connect": try{ const r=await PL.jobber("connect"); location.href=r.url; }catch(e){ toast(e.message.slice(0,140)); } break;
