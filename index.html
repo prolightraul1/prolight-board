@@ -650,6 +650,7 @@ function renderNav(){
   const items=navItems();
   $("#railNav").innerHTML=items.map(([k,l])=>`<button type="button" data-act="view" data-v="${k}" aria-current="${S.view===k?"page":"false"}">${ICON[k]}${l}</button>`).join("");
   $("#tabNav").innerHTML=items.map(([k,l])=>`<button type="button" data-act="view" data-v="${k}" aria-current="${S.view===k?"page":"false"}">${ICON[k]}${l}</button>`).join("");
+  { const rc=reqCount(); if(rc) document.querySelectorAll('#railNav [data-v="office"],#tabNav [data-v="office"]').forEach(b=>b.insertAdjacentHTML("beforeend",`<i class="nbadge">${rc>9?"9+":rc}</i>`)); }
   { const sc=svcCount(); if(sc) document.querySelectorAll('#railNav [data-v="week"],#tabNav [data-v="week"]').forEach(b=>b.insertAdjacentHTML("beforeend",`<i class="nbadge">${sc>9?"9+":sc}</i>`)); }
   { const un=S.chatOff?0:unreadTotal(); if(un) document.querySelectorAll('#railNav [data-v="chat"],#tabNav [data-v="chat"]').forEach(b=>b.insertAdjacentHTML("beforeend",`<i class="nbadge">${un>9?"9+":un}</i>`)); }
   const today=stopsFor(todayISO(),S.team), lit=today.filter(s=>isDone(s.j.id,s.v.id)).length;
@@ -993,7 +994,7 @@ function renderDrawer(){
   if(!D){ root.innerHTML=""; return; }
   const prev=$("#dbody"), top=prev?prev.scrollTop:0;
   const focusId=document.activeElement&&document.activeElement.id;
-  root.innerHTML = D.kind==="job"?dJob(D.id): D.kind==="client"?dClient(D.id): D.kind==="jobEdit"?dJobEdit(): D.kind==="truck"?dTruck(D.id): D.kind==="sale"?dSale(D.id): D.kind==="salepick"?dSalePick(): D.kind==="clockedit"?dClockEdit(D.id): D.kind==="svc"?dService(D.id): D.kind==="issue"?dIssue(D.id): D.kind==="svcpick"?dSvcPick(): D.kind==="crewtruck"?dCrewTruck(D.id): D.kind==="partial"?dPartial(D.id): D.kind==="return"?dReturn(D.id): D.kind==="pay"?dPay(): D.kind==="assign"?dAssign(D.id): D.kind==="food"?dFood(D.id): D.kind==="account"?dAccount(): D.kind==="person"?dPerson(): dClientEdit();
+  root.innerHTML = D.kind==="job"?dJob(D.id): D.kind==="client"?dClient(D.id): D.kind==="jobEdit"?dJobEdit(): D.kind==="truck"?dTruck(D.id): D.kind==="treq"?dTimeReq(D.id): D.kind==="sale"?dSale(D.id): D.kind==="salepick"?dSalePick(): D.kind==="clockedit"?dClockEdit(D.id): D.kind==="svc"?dService(D.id): D.kind==="issue"?dIssue(D.id): D.kind==="svcpick"?dSvcPick(): D.kind==="crewtruck"?dCrewTruck(D.id): D.kind==="partial"?dPartial(D.id): D.kind==="return"?dReturn(D.id): D.kind==="pay"?dPay(): D.kind==="assign"?dAssign(D.id): D.kind==="food"?dFood(D.id): D.kind==="account"?dAccount(): D.kind==="person"?dPerson(): dClientEdit();
   const nb=$("#dbody"); if(nb && D.keep) nb.scrollTop=top;
   if(focusId){ const el=document.getElementById(focusId); if(el && el.id==="compose-text"){ el.focus(); el.setSelectionRange(el.value.length,el.value.length); } }
   D.keep=true;
@@ -1172,6 +1173,7 @@ async function savePerson(){
 function dAccount(){
   const me=PL.me()||{};
   return drawerShell("Signed in", me.name||"You", `<p class="lede">${esc(permSummary(me))}${me.crew?" · "+esc(teamName(me.crew)):""}</p>
+  ${myTime()}
   <div class="f"><label>My headshot</label><div class="bar">${avatar(S.me.id,"lg")}<label class="btn small file-btn">${(staffOf(S.me.id)||{}).photo?"Change photo":"Add photo"}<input type="file" accept="image/*" data-photo-for="${esc(S.me.id)}" hidden></label></div>${(PL.me()||{}).title?`<small>${esc(PL.me().title)}</small>`:""}</div>
   ${lookPanel()}
   <div class="f"><label>Directions open in</label><div class="seg" role="group">${[["apple","Apple Maps"],["google","Google Maps"]].map(([k,l])=>`<button type="button" data-act="maps-app" data-v="${k}" aria-pressed="${MAPS_APP()===k}">${l}</button>`).join("")}</div></div>
@@ -1365,7 +1367,7 @@ function dTruck(d){
 /* ---------- clock in / out ---------- */
 const AUTO={on:false,watch:null,lock:null,far:0,last:null,near:""};
 const fmtDur=ms=>{ const m=Math.max(0,Math.round(ms/60000)); return `${Math.floor(m/60)}h ${pad(m%60)}m`; };
-function clocks(jid,vid){ const out=[]; for(const [id,e] of S.log) if(e.kind==="clock"&&e.jobId===jid&&(!vid||e.visitId===vid)) out.push({id,...e}); return out; }
+function clocks(jid,vid){ const out=[]; for(const [id,e] of S.log) if(e.kind==="clock"&&!e.pending&&e.jobId===jid&&(!vid||e.visitId===vid)) out.push({id,...e}); return out; }
 function myOpenClock(){ for(const [id,e] of S.log) if(e.kind==="clock"&&!e.general&&e.by===S.me.id&&!e.out) return {id,...e}; return null; }
 function clockMs(c){ return (c.out?Date.parse(c.out):Date.now())-Date.parse(c.in); }
 function onSite(jid,vid){ const cs=clocks(jid,vid); if(!cs.length) return ""; const ppl=new Set(cs.map(c=>c.by)).size; return ` · on site ${fmtDur(cs.reduce((t,c)=>t+clockMs(c),0))}${ppl>1?` (${ppl} people)`:""}`; }
@@ -1380,7 +1382,7 @@ async function clockIn(jid,vid,auto){
   if(open){ if(open.jobId===jid&&open.visitId===vid) return; await clockOut(open.id,auto,true,true); }
   { const g=myOpenGeneral(); if(g) await S.db.doc("log/"+g.id).update({out:new Date().toISOString(),autoOut:!!auto}).catch(()=>{}); }
   const now=new Date().toISOString();
-  try{ await S.db.collection("log").add({kind:"clock",jobId:jid,visitId:vid,by:S.me.id,in:now,out:null,auto:!!auto,at:now}); toast(auto?`Clocked in at ${clientOf(S.jobs.get(jid)||{}).name||"this stop"}`:"Clocked in"); }
+  try{ await S.db.collection("log").add({kind:"clock",jobId:jid,visitId:vid,by:S.me.id,in:now,out:null,auto:!!auto,at:now,...(navigator.onLine?{}:{offline:true})}); toast(auto?`Clocked in at ${clientOf(S.jobs.get(jid)||{}).name||"this stop"}`:"Clocked in"); }
   catch(e){ fail(e,"clock in"); }
 }
 async function clockOut(id,auto,quiet,noResume){
@@ -1447,13 +1449,16 @@ setInterval(()=>{ if(myOpenClock()&&S.view==="route"&&!S.drawer) renderMain(); }
 
 /* ---------- hours report ---------- */
 function vHours(){
+  return reqBlock()+vHours2();
+}
+function vHours2(){
   const days=[...Array(7)].map((_,i)=>addDays(S.week,i));
-  const rows=[...S.log.entries()].map(([id,e])=>({id,...e})).filter(e=>e.kind==="clock"&&e.in&&days.includes(isoOf(e.in))).sort((a,b)=>a.in.localeCompare(b.in));
+  const rows=[...S.log.entries()].map(([id,e])=>({id,...e})).filter(e=>e.kind==="clock"&&!e.pending&&e.in&&days.includes(isoOf(e.in))).sort((a,b)=>a.in.localeCompare(b.in));
   const per=new Map(); for(const r of rows){ const p=per.get(r.by)||{ms:0,job:0,gen:0,stops:new Set()}; const m=clockMs(r); p.ms+=m; if(r.general) p.gen+=m; else { p.job+=m; p.stops.add(r.jobId+"|"+r.visitId); } per.set(r.by,p); }
   const t=x=>new Date(x).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
   return `<div class="bar"><button type="button" class="btn icon" data-act="week" data-v="-7" aria-label="Previous week">‹</button><b class="sign grow" style="font-size:22px">Week of ${fmtDay(S.week)}</b><button type="button" class="btn icon" data-act="week" data-v="7" aria-label="Next week">›</button></div>
   ${per.size?`<div class="tiles">${[...per.entries()].map(([id,p])=>`<div class="tile"><span class="l">${esc(who(id))}</span><span class="v">${fmtDur(p.ms)}</span><span class="count" style="font-size:13px">On jobs ${fmtDur(p.job)} · ${p.stops.size} stop${p.stops.size===1?"":"s"}<br>Shop & driving ${fmtDur(p.gen)}</span></div>`).join("")}</div>
-  <div class="tbl"><table><thead><tr><th>Day</th><th>Person</th><th>Stop</th><th>In</th><th>Out</th><th class="r">Time</th></tr></thead><tbody>${rows.map(r=>`<tr ${S.me.owner?`data-act="clock-edit" data-id="${esc(r.id)}" style="cursor:pointer"`:""}><td>${fmtDay(isoOf(r.in),{weekday:"short",month:"short",day:"numeric"})}${r.edited?" ✎":""}</td><td>${esc(who(r.by))}</td><td>${r.general?`<i>${r.where==="shop"?"Shop":"Driving"}${r.endDay?" · end of day":""}</i>`:esc(clientOf(S.jobs.get(r.jobId)||{}).name||"Job")}</td><td class="mono">${t(r.in)}${r.auto?" ·a":""}</td><td class="mono">${r.out?t(r.out)+(r.autoOut?" ·a":""):"open"}</td><td class="r">${fmtDur(clockMs(r))}</td></tr>`).join("")}</tbody></table></div>
+  <div class="tbl"><table><thead><tr><th>Day</th><th>Person</th><th>Stop</th><th>In</th><th>Out</th><th class="r">Time</th></tr></thead><tbody>${rows.map(r=>`<tr ${S.me.owner?`data-act="clock-edit" data-id="${esc(r.id)}" style="cursor:pointer"`:""}><td>${fmtDay(isoOf(r.in),{weekday:"short",month:"short",day:"numeric"})}${r.edited?" ✎":""}</td><td>${esc(who(r.by))}${isSS(r.by)?' <small class="count">(ShipShape · job tracking)</small>':""}</td><td>${r.general?`<i>${r.where==="shop"?"Shop":"Driving"}${r.endDay?" · end of day":""}</i>`:esc(clientOf(S.jobs.get(r.jobId)||{}).name||"Job")}</td><td class="mono">${t(r.in)}${r.auto?" ·a":""}</td><td class="mono">${r.out?t(r.out)+(r.autoOut?" ·a":""):"open"}</td><td class="r">${fmtDur(clockMs(r))}</td></tr>`).join("")}</tbody></table></div>
   <p class="count" style="font-size:13px">·a = automatic, from the phone's location.</p>`
   :`<div class="empty"><h3>No hours this week</h3><p>Hours show up here when crews start their day at the shop and clock in at stops, by hand or with auto clock-in.</p></div>`}`;
 }
@@ -2268,13 +2273,13 @@ document.addEventListener("input",e=>{ if(e.target.id==="svc-q"){ S.form={...(S.
    General clock runs from arriving at the shop, pauses while you're clocked in at a job,
    and picks back up when you leave the job. It ends when you leave the shop after the day's stops. */
 function myOpenGeneral(){ for(const [id,e] of S.log) if(e.kind==="clock"&&e.general&&e.by===S.me.id&&!e.out) return {id,...e}; return null; }
-function myToday(){ const t=todayISO(), out=[]; for(const [id,e] of S.log) if(e.kind==="clock"&&e.by===S.me.id&&e.in&&isoOf(e.in)===t) out.push({id,...e}); return out; }
+function myToday(){ const t=todayISO(), out=[]; for(const [id,e] of S.log) if(e.kind==="clock"&&!e.pending&&e.by===S.me.id&&e.in&&isoOf(e.in)===t) out.push({id,...e}); return out; }
 const dayStarted = () => myToday().length>0;
 const dayEnded = () => myToday().some(e=>e.endDay);
 async function startGeneral(where,auto){
-  if(myOpenGeneral()||myOpenClock()||dayEnded()) return;
+  if(isSS(S.me.id)||myOpenGeneral()||myOpenClock()||dayEnded()) return;
   const now=new Date().toISOString();
-  try{ await S.db.collection("log").add({kind:"clock",general:true,where,jobId:"",visitId:"",by:S.me.id,in:now,out:null,auto:!!auto,at:now}); if(where==="shop") toast(auto?"Clocked in at the shop. Have a good day!":"Day started"); }
+  try{ await S.db.collection("log").add({kind:"clock",general:true,where,jobId:"",visitId:"",by:S.me.id,in:now,out:null,auto:!!auto,at:now,...(navigator.onLine?{}:{offline:true})}); if(where==="shop") toast(auto?"Clocked in at the shop. Have a good day!":"Day started"); }
   catch(e){ fail(e,"start your day"); }
 }
 async function stopGeneral(endDay,auto){
@@ -2284,7 +2289,7 @@ async function stopGeneral(endDay,auto){
 }
 const resumeGeneral = auto => { if(dayStarted()&&!dayEnded()&&!myOpenClock()) return startGeneral("travel",auto); };
 function dayBtn(){
-  if(!S.me.canLog) return "";
+  if(!S.me.canLog||isSS(S.me.id)) return "";
   const g=myOpenGeneral(), j=myOpenClock(), ms=myToday().reduce((t,c)=>t+clockMs(c),0);
   if(dayEnded()) return `<span class="chip" style="cursor:default">Day done · ${fmtDur(ms)}</span>`;
   if(!dayStarted()) return `<button type="button" class="chip" data-act="day-start">Start my day</button>`;
@@ -2364,11 +2369,11 @@ const OT_AFTER = 40;
 const payRate = id => +(((S.payroll.rates||{})[id]||{}).rate)||0;
 function payWeek(){
   const days=[...Array(7)].map((_,i)=>addDays(S.week,i)), set=new Set(days);
-  const rows=[...S.log.entries()].map(([id,e])=>({id,...e})).filter(e=>e.kind==="clock"&&e.in&&set.has(isoOf(e.in))).sort((a,b)=>a.in.localeCompare(b.in));
+  const rows=[...S.log.entries()].map(([id,e])=>({id,...e})).filter(e=>e.kind==="clock"&&!e.pending&&e.in&&set.has(isoOf(e.in))&&!isSS(e.by)).sort((a,b)=>a.in.localeCompare(b.in));
   const ppl=new Map(), touch=id=>{ if(!ppl.has(id)) ppl.set(id,{id,ms:0,job:0,gen:0,open:0,days:new Set(),comm:0,sales:[]}); return ppl.get(id); };
   for(const r of rows){ const p=touch(r.by), m=clockMs(r); p.ms+=m; r.general?p.gen+=m:p.job+=m; if(!r.out) p.open++; p.days.add(isoOf(r.in)); }
   for(const s of allSales()) if(s.earnedOn&&set.has(s.earnedOn)&&!s.paidAt){ const p=touch(s.by); p.comm+=s.comm; p.sales.push(s); }
-  for(const id of Object.keys(S.payroll.rates||{})) if(payRate(id)>0 && (PL.staff().find(x=>x.id===id)||{}).active) touch(id);
+  for(const id of Object.keys(S.payroll.rates||{})) if(payRate(id)>0 && !isSS(id) && (PL.staff().find(x=>x.id===id)||{}).active) touch(id);
   const out=[...ppl.values()].map(p=>{ const hrs=Math.round(p.ms/36e4)/10, reg=Math.min(hrs,OT_AFTER), ot=Math.max(0,Math.round((hrs-OT_AFTER)*10)/10), rate=payRate(p.id);
     return {...p, hrs, reg, ot, rate, regPay:reg*rate, otPay:ot*rate*1.5, total:reg*rate+ot*rate*1.5+p.comm, name:staffName(p.id), title:(PL.staff().find(x=>x.id===p.id)||{}).title||""}; })
     .sort((a,b)=>a.name.localeCompare(b.name));
@@ -2376,6 +2381,11 @@ function payWeek(){
 }
 const h1 = n => (Math.round(n*10)/10).toFixed(1);
 function vPayroll(){
+  if(pendingReqs().length) return reqBlockWrap()+vPayroll2();
+  return vPayroll2();
+}
+const reqBlockWrap = () => reqBlock()+`<p class="count" style="font-size:13px">Approve or deny time fixes before you send payroll.</p>`;
+function vPayroll2(){
   const W=payWeek(), P=W.people, end=W.days[6], tot=P.reduce((t,p)=>t+p.total,0);
   const warn=[...P.filter(p=>p.open).map(p=>`${p.name} has ${p.open} open clock-in${p.open>1?"s":""} (never clocked out)`), ...P.filter(p=>!p.rate&&p.hrs).map(p=>`${p.name} has no pay rate`)];
   let h=`<div class="bar" style="margin-top:12px"><button type="button" class="btn icon" data-act="week" data-v="-7" aria-label="Previous week">‹</button><b class="sign grow" style="font-size:22px">Pay week ${fmtDay(S.week)} – ${fmtDay(end)}</b><button type="button" class="btn icon" data-act="week" data-v="7" aria-label="Next week">›</button></div>
@@ -2394,9 +2404,9 @@ function vPayroll(){
   return h+rateList();
 }
 function rateList(){
-  const ppl=PL.staff().filter(p=>p.active);
+  const ppl=PL.staff().filter(p=>p.active&&!isSS(p.id));
   return `<h2 class="h-sec" style="margin-top:18px">Pay rates</h2><div class="rows">${ppl.map(p=>`<div class="row" style="cursor:default">${avatar(p.id)}<span class="m"><span class="n">${esc(p.name)}</span><span class="s">${esc(p.title||permSummary(p))}</span></span><span class="r"><input class="search rate-in" data-rate-for="${esc(p.id)}" inputmode="decimal" value="${payRate(p.id)||""}" placeholder="$/hr" style="width:90px;min-height:34px;text-align:right"></span></div>`).join("")}</div>
-    <p class="count" style="font-size:13px">Only people with money access can see pay rates.</p>`;
+    <p class="count" style="font-size:13px">Only people with money access can see pay rates. ShipShape crews aren't on ProLight payroll, so their time is tracked per job only.</p>`;
 }
 async function saveRate(id,val){
   const n=Number(String(val).replace(/[^0-9.]/g,""))||0, rates={...(S.payroll.rates||{})};
@@ -2447,6 +2457,95 @@ async function saveClockEdit(form){
   const id=form.dataset.key, i=$("#ck-in").value, o=$("#ck-out").value;
   if(o && new Date(o)<=new Date(i)){ toast("Clock out has to be after clock in"); return; }
   try{ await S.db.doc("log/"+id).update({in:new Date(i).toISOString(),out:o?new Date(o).toISOString():null,edited:S.me.id}); toast("Time fixed"); closeDrawer(); }catch(e){ fail(e,"fix that time"); }
+}
+
+/* ---------- ShipShape crews: job tracking only, no payroll hours ---------- */
+const isSS = id => { const p=(window.PL&&PL.staff().find(x=>x.id===id))||null; return !!p && (p.partner==="shipshape" || coOf(p.crew)==="shipshape"); };
+
+/* ---------- time fix requests ---------- */
+const isClock = e => e.kind==="clock" && !e.pending;
+function timeReqs(){ return [...S.log.entries()].map(([id,e])=>({id,...e})).filter(e=>e.kind==="timereq").sort((a,b)=>String(b.at).localeCompare(String(a.at))); }
+const pendingReqs = () => timeReqs().filter(r=>r.status==="pending");
+const managers = () => PL.staff().filter(p=>p.active&&p.can_manage);
+const canApprove = r => S.me.manage && (r.by!==S.me.id || managers().length<2);
+const tfmt = x => x ? new Date(x).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}) : "–";
+const clockLabel = e => e.general ? (e.where==="shop"?"Shop":"Driving") : (clientOf(S.jobs.get(e.jobId)||{}).name||"Job");
+const reqCount = () => S.me.manage ? pendingReqs().filter(canApprove).length : 0;
+
+function myTime(){
+  if(!S.me.canLog || isSS(S.me.id)) return "";
+  const days=new Set([...Array(7)].map((_,i)=>addDays(monday(todayISO()),i)));
+  const mine=[...S.log.entries()].map(([id,e])=>({id,...e})).filter(e=>e.kind==="clock"&&e.by===S.me.id&&e.in&&days.has(isoOf(e.in))).sort((a,b)=>b.in.localeCompare(a.in));
+  const reqs=timeReqs().filter(r=>r.by===S.me.id).slice(0,6), pend=new Set(reqs.filter(r=>r.status==="pending").map(r=>r.target));
+  const tot=mine.filter(e=>!e.pending).reduce((t,e)=>t+clockMs(e),0);
+  return `<fieldset><legend>My time this week · ${fmtDur(tot)}</legend>
+    ${mine.length?`<div class="rows">${mine.map(e=>`<div class="row" style="cursor:default"><span class="m"><span class="n">${esc(fmtDay(isoOf(e.in),{weekday:"short",month:"short",day:"numeric"}))} · ${esc(clockLabel(e))}</span>
+      <span class="s mono">${tfmt(e.in)} – ${e.out?tfmt(e.out):"now"} · ${fmtDur(clockMs(e))}${e.pending?" · waiting for approval":""}${e.edited?" · fixed":""}</span></span>
+      <span class="r">${pend.has(e.id)||e.pending?`<span class="st booked">Requested</span>`:`<button type="button" class="btn small" data-act="treq-fix" data-v="${esc(e.id)}">Request fix</button>`}</span></div>`).join("")}</div>`:`<p class="count">No time yet this week.</p>`}
+    <div class="bar" style="margin-top:8px"><button type="button" class="btn small" data-act="treq-add">+ Add missing time</button></div>
+    ${reqs.length?`<p class="eyebrow" style="margin:10px 0 4px">My requests</p>${reqs.map(r=>`<div class="count" style="font-size:13px">${esc(fmtDay(isoOf(r.at)))}: ${esc(r.summary||"")} · <b>${r.status==="pending"?"Waiting":r.status==="approved"?"Approved":r.status==="denied"?"Denied":"Canceled"}</b>${r.note?` (${esc(r.note)})`:""}${r.status==="pending"?` · <button type="button" class="linkbtn" data-act="treq-cancel" data-v="${esc(r.id)}">Cancel</button>`:""}</div>`).join("")}`:""}
+    <small>Location missed something, or you forgot to clock in or out? Send a fix and a manager approves it.</small></fieldset>`;
+}
+function dTimeReq(key){
+  const [mode,cid]=key.split("|"), e=mode==="fix"?S.log.get(cid):null;
+  const loc=x=>{ if(!x) return ""; const d=new Date(x); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  const day=e?isoOf(e.in):todayISO(), stops=[...new Map([...stopsFor(day,"all"),...stopsFor(addDays(day,-1),"all")].map(s=>[s.j.id+"|"+s.v.id,s])).values()];
+  const b=`<form class="form" id="treqForm" data-key="${esc(key)}">
+    ${e?`<div class="note" style="margin:0">Now: ${esc(clockLabel(e))} · ${tfmt(e.in)} – ${e.out?tfmt(e.out):"still clocked in"}</div>`:""}
+    <div class="two"><div class="f"><label for="tq-day">Day</label><input id="tq-day" type="date" value="${esc(day)}" ${e?"disabled":""}></div>
+      ${e?"":`<div class="f"><label for="tq-type">What</label><select id="tq-type"><option value="job">At a job</option><option value="shop">At the shop</option><option value="travel">Driving</option></select></div>`}</div>
+    ${e?"":`<div class="f" id="tq-jobf"><label for="tq-job">Which job</label><select id="tq-job"><option value="">Pick the job</option>${stops.map(s=>`<option value="${esc(s.j.id+"|"+s.v.id)}">${esc(clientOf(s.j).name||"Customer")} · ${esc(fmtDay(s.v.date))}</option>`).join("")}</select><small>Only that day's stops are listed.</small></div>`}
+    <div class="two"><div class="f"><label for="tq-in">Start</label><input id="tq-in" type="time" value="${loc(e&&e.in)}" required></div>
+      <div class="f"><label for="tq-out">End</label><input id="tq-out" type="time" value="${loc(e&&e.out)}" required></div></div>
+    <div class="f"><label for="tq-why">What happened</label><textarea id="tq-why" required placeholder="e.g. Phone died at the Klees job, I left at 3:40"></textarea></div>
+    <div class="actions"><span class="count" id="tq-err" style="color:var(--red)"></span><button type="submit" class="btn amber">Send to a manager</button></div></form>`;
+  return drawerShell(e?"Fix my time":"Add missing time", (PL.me()||{}).name||"", b);
+}
+async function saveTimeReq(form){
+  const [mode,cid]=form.dataset.key.split("|"), e=mode==="fix"?S.log.get(cid):null;
+  const day=e?isoOf(e.in):$("#tq-day").value, i=$("#tq-in").value, o=$("#tq-out").value, why=$("#tq-why").value.trim();
+  const at=(t)=>new Date(day+"T"+t+":00").toISOString();
+  if(!day||!i||!o){ $("#tq-err").textContent="Fill in the day, start and end."; return; }
+  let pin=at(i), pout=at(o); if(new Date(pout)<=new Date(pin)) pout=new Date(new Date(pout).getTime()+864e5).toISOString();
+  if(!why){ $("#tq-err").textContent="Say what happened."; return; }
+  const now=new Date().toISOString();
+  try{
+    if(e){
+      await S.db.collection("log").add({kind:"timereq",status:"pending",target:cid,propIn:pin,propOut:pout,reason:why,by:S.me.id,at:now,
+        summary:`${clockLabel(e)} ${tfmt(e.in)}–${e.out?tfmt(e.out):"open"} → ${tfmt(pin)}–${tfmt(pout)}`});
+    } else {
+      const type=$("#tq-type").value, jv=$("#tq-job").value;
+      if(type==="job"&&!jv){ $("#tq-err").textContent="Pick the job."; return; }
+      const [jid,vid]=jv?jv.split("|"):["",""];
+      const ref=await S.db.collection("log").add({kind:"clock",pending:true,general:type!=="job",where:type==="job"?undefined:type,jobId:type==="job"?jid:"",visitId:type==="job"?vid:"",by:S.me.id,in:pin,out:pout,auto:false,at:now});
+      const label=type==="job"?(clientOf(S.jobs.get(jid)||{}).name||"Job"):type==="shop"?"Shop":"Driving";
+      await S.db.collection("log").add({kind:"timereq",status:"pending",target:ref.id,isNew:true,propIn:pin,propOut:pout,reason:why,by:S.me.id,at:now,
+        summary:`Add ${label} ${fmtDay(day)} ${tfmt(pin)}–${tfmt(pout)}`});
+    }
+    toast("Sent. A manager will approve it."); closeDrawer();
+  }catch(x){ fail(x,"send the request"); }
+}
+function reqBlock(){
+  if(!S.me.manage) return "";
+  const P=pendingReqs(); if(!P.length) return "";
+  return `<h2 class="h-sec" style="margin-top:14px">Time fix requests · ${P.length}</h2><div class="rows">${P.map(r=>{ const t=S.log.get(r.target);
+    return `<div class="row svc" style="cursor:default">${avatar(r.by)}<span class="m"><span class="n">${esc(staffName(r.by))}</span>
+      <span class="s"><b>${esc(r.summary||"")}</b><br>“${esc(r.reason||"")}” · ${esc(ago(r.at))}${!t?" · the original time was deleted":""}</span></span>
+      <span class="r">${canApprove(r)?`<button type="button" class="btn small amber" data-act="treq-ok" data-v="${esc(r.id)}" ${t?"":"disabled"}>Approve</button><button type="button" class="btn small" data-act="treq-no" data-v="${esc(r.id)}">Deny</button>`:`<span class="count" style="font-size:13px">Another manager has to approve your own time</span>`}</span></div>`; }).join("")}</div>`;
+}
+async function decideReq(id, ok){
+  const r=S.log.get(id); if(!r) return; const t=S.log.get(r.target), now=new Date().toISOString();
+  let note="";
+  if(!ok){ note=(prompt("Why? (optional, they'll see this)")||"").trim(); }
+  try{
+    if(ok){
+      if(!t){ toast("The original time is gone"); return; }
+      if(r.isNew) await S.db.doc("log/"+r.target).update({pending:false,approvedBy:S.me.id,edited:S.me.id});
+      else await S.db.doc("log/"+r.target).update({in:r.propIn,out:r.propOut,edited:S.me.id,fixReq:id});
+    } else if(r.isNew && t) await S.db.doc("log/"+r.target).delete();
+    await S.db.doc("log/"+id).update({status:ok?"approved":"denied",decidedBy:S.me.id,decidedAt:now,note});
+    toast(ok?"Approved. Hours updated.":"Denied");
+  }catch(x){ fail(x,ok?"approve it":"deny it"); }
 }
 
 /* ---------- render ---------- */
@@ -2599,6 +2698,11 @@ document.addEventListener("click", async ev=>{
     case "view": S.view=v; closeDrawer(); renderMain(); window.scrollTo(0,0); break;
     case "team": S.team=v; ls("team",v); renderMain(); break;
     case "account": openDrawer("account"); break;
+    case "treq-fix": openDrawer("treq","fix|"+v); break;
+    case "treq-add": openDrawer("treq","add|"); break;
+    case "treq-cancel": try{ await S.db.doc("log/"+v).update({status:"canceled"}); const r=S.log.get(v); if(r&&r.isNew&&r.target) await S.db.doc("log/"+r.target).delete().catch(()=>{}); toast("Request canceled"); renderDrawer(); }catch(e){ fail(e,"cancel it"); } break;
+    case "treq-ok": await decideReq(v,true); break;
+    case "treq-no": await decideReq(v,false); break;
     case "sales-by": S.salesBy=v; renderMain(); break;
     case "sale-pick": S.form={saleq:""}; openDrawer("salepick"); break;
     case "sale-edit": S.form=null; openDrawer("sale",v); break;
@@ -2741,6 +2845,7 @@ document.addEventListener("change", async ev=>{
 });
 document.addEventListener("submit", ev=>{
   ev.preventDefault();
+  if(ev.target.id==="treqForm") return saveTimeReq(ev.target);
   if(ev.target.id==="saleForm") return saveSale(ev.target);
   if(ev.target.id==="clockForm") return saveClockEdit(ev.target);
   if(ev.target.id==="svcForm") return saveSvc(ev.target);
