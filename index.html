@@ -2108,7 +2108,7 @@ function avatar(id, cls){ const p=staffOf(id), url=p&&PL.photoUrl(p), n=(p&&p.na
   return `<span class="ava ${cls||""}">${url?`<img src="${esc(url)}" alt="" loading="lazy">`:esc(n[0].toUpperCase())}</span>`; }
 async function changePhoto(file, id){
   if(!file) return; toast("Saving photo…");
-  try{ await PL.setPhoto(id||S.me.id, await PL.squarePhoto(file)); toast("Photo saved"); renderDrawer(); renderNav(); }catch(e){ toast("Couldn't save the photo. Try again."); }
+  try{ await PL.setPhoto(id||S.me.id, await PL.squarePhoto(file)); toast("Photo saved"); renderDrawer(); renderNav(); }catch(e){ toast("Couldn't save the photo: "+e.message.slice(0,90)); }
 }
 
 /* ---------- render ---------- */

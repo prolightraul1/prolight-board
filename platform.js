@@ -82,7 +82,7 @@
     },
     async setPhoto(id, blob) {
       const path = `staff/${id}-${Date.now()}.jpg`;
-      const up = await sb.storage.from("media").upload(path, blob, { contentType: "image/jpeg", upsert: true });
+      const up = await sb.storage.from("media").upload(path, blob, { contentType: blob.type || "image/jpeg", upsert: false });
       if (up.error) throw new Error(up.error.message);
       const { error } = await sb.rpc("staff_set_photo", { p_id: id, p_photo: path });
       if (error) throw new Error(error.message);
@@ -328,14 +328,14 @@
       let blob = null;
       g.querySelector("#hs-file").onchange = async (e) => {
         const f = e.target.files[0]; if (!f) return;
-        try { blob = await squarePhoto(f); } catch (x) { $("#gate-err").textContent = "Couldn't read that photo. Try another."; return; }
+        try { blob = await squarePhoto(f); } catch (x) { if (/jpe?g|png|webp/i.test(f.type)) blob = f; else { $("#gate-err").textContent = "Couldn't read that photo. Try a different one (JPG or PNG)."; return; } }
         $("#hs-prev").innerHTML = `<img src="${URL.createObjectURL(blob)}" alt="">`;
         $("#hs-save").hidden = false; g.querySelector(".head-pick").firstChild.textContent = "Pick a different one";
       };
       g.querySelector("#hs-save").onclick = async (e) => {
         e.target.disabled = true; e.target.textContent = "Saving…";
         try { await PL.setPhoto(ME.id, blob); resolve(); }
-        catch (x) { e.target.disabled = false; e.target.textContent = "Use this photo"; $("#gate-err").textContent = "Couldn't save it. Check your signal and try again."; }
+        catch (x) { e.target.disabled = false; e.target.textContent = "Use this photo"; $("#gate-err").textContent = "Couldn't save it: " + (x.message || "check your signal") + ". Try again."; }
       };
       g.querySelector("#hs-skip").onclick = () => resolve();
     });
