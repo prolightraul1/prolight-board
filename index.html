@@ -2302,12 +2302,19 @@ S.payroll = S.payroll || {};
 const LEADS = [["inbound","Inbound lead"],["outbound","Outbound lead"],["custom","Custom"]];
 const commRate = t => t==="inbound" ? (+S.finSet.commIn||10) : t==="outbound" ? (+S.finSet.commOut||14) : null;
 const commWhen = () => S.finSet.commWhen||"installed";
+const leadLabel = t => t==="referral" ? "Referral" : (LEADS.find(l=>l[0]===t)||[,""])[1];
+/* only Raul, Jarrod and Brayden sell jobs; anyone can get referral pay, added by a manager */
+const sellers = () => PL.staff().filter(p=>p.active && (p.can_manage || /^(raul|jarrod|brayden)\b/i.test(p.name||"")));
 function saleOf(j){ const f=S.fin.get(j.id)||{}, s=f.sale; if(!s||!s.by) return null;
   const base = j.source==="tcl" ? split(j,f).incoming : (+f.price||0);
   const pct = s.type==="custom" ? (+s.pct||0) : commRate(s.type);
   const inst = installedOn(j), earnedOn = commWhen()==="sold" ? isoOf(s.at||new Date().toISOString()) : inst;
-  return {...s, pct, base, comm: Math.round(base*pct)/100, installed: inst, earnedOn, job:j}; }
-const allSales = () => jobsArr().filter(j=>j.stage!=="cancelled").map(saleOf).filter(Boolean);
+  return {...s, key:"sale", pct, base, comm: Math.round(base*pct)/100, installed: inst, earnedOn, job:j}; }
+function refOf(j){ const f=S.fin.get(j.id)||{}, s=f.referral; if(!s||!s.by) return null;
+  const base = j.source==="tcl" ? split(j,f).incoming : (+f.price||0), pct=+s.pct||0;
+  const inst = installedOn(j), earnedOn = commWhen()==="sold" ? isoOf(s.at||new Date().toISOString()) : inst;
+  return {...s, key:"referral", type:"referral", pct, base, comm: Math.round(base*pct)/100, installed: inst, earnedOn, job:j}; }
+const allSales = () => jobsArr().filter(j=>j.stage!=="cancelled").flatMap(j=>[saleOf(j),refOf(j)]).filter(Boolean);
 const q = v => `"${String(v??"").replace(/"/g,'""')}"`;
 function download(name, rows){ const blob=new Blob(["﻿"+rows.map(r=>r.map(q).join(",")).join("\r\n")],{type:"text/csv"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },500); }
 const staffName = id => (PL.staff().find(p=>p.id===id)||{}).name || who(id);
@@ -2325,7 +2332,7 @@ function vSales(){
   if(!list.length) return h+`<div class="empty"><h3>No sales recorded yet</h3><p>Tap <b>Record a sale</b>, pick the job, and choose inbound (${commRate("inbound")}%), outbound (${commRate("outbound")}%) or a custom rate. You can also do it from any job's Money section.</p></div>`;
   h+=`<div class="tbl" style="margin-top:12px"><table><thead><tr><th>Sold</th><th>Customer</th>${cur==="all"?"<th>By</th>":""}<th>Lead</th><th class="r">Price</th><th class="r">%</th><th class="r">Commission</th><th>Status</th><th></th></tr></thead><tbody>
     ${list.map(s=>`<tr><td>${esc(fmtDay(isoOf(s.at||s.job.createdAt||new Date().toISOString())))}</td><td><button type="button" class="linkbtn" data-act="job" data-id="${esc(s.job.id)}">${esc(clientOf(s.job).name||"Customer")}</button></td>${cur==="all"?`<td>${esc(staffName(s.by))}</td>`:""}
-      <td>${esc((LEADS.find(l=>l[0]===s.type)||[,""])[1])}</td><td class="r">${money2(s.base)}</td><td class="r">${s.pct}%</td><td class="r"><b>${money2(s.comm)}</b></td>
+      <td>${esc(leadLabel(s.type))}</td><td class="r">${money2(s.base)}</td><td class="r">${s.pct}%</td><td class="r"><b>${money2(s.comm)}</b></td>
       <td>${s.paidAt?`<span class="st down">Paid ${esc(fmtDay(isoOf(s.paidAt)))}</span>`:s.earnedOn?`<span class="st lit">Earned ${esc(fmtDay(s.earnedOn))}</span>`:`<span class="st booked">Not installed yet</span>`}</td>
       <td><button type="button" class="btn small" data-act="sale-edit" data-v="${esc(s.job.id)}">Edit</button></td></tr>`).join("")}</tbody></table></div>
     <div class="bar" style="margin-top:10px"><button type="button" class="btn" data-act="sales-csv" data-v="${esc(cur)}">Download CSV</button></div>`;
@@ -2340,29 +2347,35 @@ function dSalePick(){
     <div class="rows">${list.map(j=>`<button type="button" class="row" data-act="sale-edit" data-v="${esc(j.id)}"><span class="bulb ${BULB[status(j)]}"></span><span class="m"><span class="n">${esc(clientOf(j).name||"Customer")}</span><span class="s">${esc(addrOf(j))}</span></span><span class="r mono">${money2((S.fin.get(j.id)||{}).price||0)}</span></button>`).join("")||`<p class="count">No match.</p>`}</div>`);
 }
 function dSale(jid){
-  const j={id:jid,...(S.jobs.get(jid)||{})}, f=S.fin.get(jid)||{}, s=f.sale||{}, F=(S.form&&S.form.sale)||(S.form={sale:{by:s.by||S.me.id,type:s.type||"inbound",pct:s.pct??""}}).sale;
+  const j={id:jid,...(S.jobs.get(jid)||{})}, f=S.fin.get(jid)||{}, s=f.sale||{}, rf=f.referral||{}, F=(S.form&&S.form.sale)||(S.form={sale:{by:s.by||(sellers().some(p=>p.id===S.me.id)?S.me.id:""),type:s.type||"inbound",pct:s.pct??"",ref:rf.by||"",refPct:rf.pct??""}}).sale;
   const pct=F.type==="custom"?(+F.pct||0):commRate(F.type), base=j.source==="tcl"?split(j,f).incoming:(+f.price||0);
   const b=`<form class="form" id="saleForm" data-key="${esc(jid)}"><fieldset><legend>Who sold it</legend>
-    <select id="sl-by">${PL.staff().filter(p=>p.active).map(p=>`<option value="${esc(p.id)}" ${F.by===p.id?"selected":""}>${esc(p.name)}</option>`).join("")}</select></fieldset>
+    <select id="sl-by"><option value="">Nobody</option>${sellers().map(p=>`<option value="${esc(p.id)}" ${F.by===p.id?"selected":""}>${esc(p.name)}</option>`).join("")}</select><small>Only Raul, Jarrod and Brayden sell jobs.</small></fieldset>
     <fieldset><legend>Lead</legend><div class="seg" role="group">${LEADS.map(([k,l])=>`<button type="button" data-act="sale-type" data-v="${k}" aria-pressed="${F.type===k}">${l}${k!=="custom"?` · ${commRate(k)}%`:""}</button>`).join("")}</div>
     ${F.type==="custom"?`<div class="f" style="margin-top:8px"><label for="sl-pct">Commission %</label><input id="sl-pct" inputmode="decimal" value="${esc(F.pct)}" placeholder="e.g. 12"></div>`:""}</fieldset>
-    <div class="calc"><div class="ln"><span>${j.source==="tcl"?"ProLight's share of the job":"Job price"}</span><span class="mono">${money2(base)}</span></div><div class="ln t"><span>Commission ${pct}%</span><span class="mono">${money2(base*pct/100)}</span></div></div>
+    ${S.me.manage?`<fieldset><legend>Referral pay (optional)</legend><div class="two"><div class="f"><label for="sl-ref">Referred by</label><select id="sl-ref"><option value="">No referral</option>${PL.staff().filter(p=>p.active).map(p=>`<option value="${esc(p.id)}" ${F.ref===p.id?"selected":""}>${esc(p.name)}</option>`).join("")}</select></div>
+      <div class="f"><label for="sl-rpct">Referral %</label><input id="sl-rpct" inputmode="decimal" value="${esc(F.refPct)}" placeholder="e.g. 5"></div></div><small>Anyone can get referral pay. Only managers add it.</small></fieldset>`:rf.by?`<p class="count">Referral: ${esc(staffName(rf.by))} · ${+rf.pct||0}%</p>`:""}
+    <div class="calc"><div class="ln"><span>${j.source==="tcl"?"ProLight's share of the job":"Job price"}</span><span class="mono">${money2(base)}</span></div>${F.by?`<div class="ln"><span>Commission ${pct}%</span><span class="mono">${money2(base*pct/100)}</span></div>`:""}${F.ref&&+F.refPct?`<div class="ln"><span>Referral ${+F.refPct}%</span><span class="mono">${money2(base*F.refPct/100)}</span></div>`:""}</div>
     ${!base?`<p class="count" style="color:var(--red)">This job has no price yet, so the commission shows $0 until you add one.</p>`:""}
-    <div class="actions">${s.by?`<button type="button" class="btn danger" data-act="sale-remove" data-v="${esc(jid)}">Remove sale</button>`:"<span></span>"}<button type="submit" class="btn amber">Save</button></div></form>`;
+    <div class="actions">${s.by||rf.by?`<button type="button" class="btn danger" data-act="sale-remove" data-v="${esc(jid)}">Remove sale</button>`:"<span></span>"}<button type="submit" class="btn amber">Save</button></div></form>`;
   return drawerShell("Sale & commission", clientOf(j).name||"Customer", b);
 }
-function readSale(){ if(!S.form||!S.form.sale) return; const by=$("#sl-by"), p=$("#sl-pct"); if(by) S.form.sale.by=by.value; if(p) S.form.sale.pct=p.value; }
+function readSale(){ if(!S.form||!S.form.sale) return; const by=$("#sl-by"), p=$("#sl-pct"), r=$("#sl-ref"), rp=$("#sl-rpct"); if(by) S.form.sale.by=by.value; if(p) S.form.sale.pct=p.value; if(r) S.form.sale.ref=r.value; if(rp) S.form.sale.refPct=rp.value; }
 async function saveSale(form){
   readSale(); const jid=form.dataset.key, F=S.form.sale, f=S.fin.get(jid)||{};
-  if(F.type==="custom"&&!(+F.pct>0)){ toast("Type the commission %"); return; }
-  const old=f.sale||{};
-  try{ await S.db.doc("fin/"+jid).set({...f,sale:{by:F.by,type:F.type,pct:F.type==="custom"?+F.pct:null,at:old.at||new Date().toISOString(),paidAt:old.paidAt||null}}); toast("Sale saved"); S.form=null; closeDrawer(); }
+  if(F.by&&F.type==="custom"&&!(+F.pct>0)){ toast("Type the commission %"); return; }
+  if(S.me.manage&&F.ref&&!(+F.refPct>0)){ toast("Type the referral %"); return; }
+  const old=f.sale||{}, ro=f.referral||{}, nf={...f};
+  if(F.by) nf.sale={by:F.by,type:F.type,pct:F.type==="custom"?+F.pct:null,at:old.at||new Date().toISOString(),paidAt:old.paidAt||null}; else delete nf.sale;
+  if(S.me.manage){ if(F.ref) nf.referral={by:F.ref,pct:+F.refPct,at:ro.at||new Date().toISOString(),paidAt:ro.paidAt||null,addedBy:ro.addedBy||S.me.id}; else delete nf.referral; }
+  try{ await S.db.doc("fin/"+jid).set(nf); toast("Saved"); S.form=null; closeDrawer(); }
   catch(e){ fail(e,"save the sale"); }
 }
 function saleLine(j){
-  const s=saleOf(j);
-  return `<div class="bar" style="margin-top:8px">${s?`<span class="count" style="font-size:14px">Sold by <b>${esc(staffName(s.by))}</b> · ${esc((LEADS.find(l=>l[0]===s.type)||[,""])[1])} · ${s.pct}% = <b>${money2(s.comm)}</b>${s.paidAt?" · paid":""}</span>`:""}
-    <button type="button" class="btn small" data-act="sale-edit" data-v="${esc(j.id)}">${s?"Edit sale":"Record sale & commission"}</button></div>`;
+  const s=saleOf(j), r=refOf(j);
+  return `<div class="bar" style="margin-top:8px">${s?`<span class="count" style="font-size:14px">Sold by <b>${esc(staffName(s.by))}</b> · ${esc(leadLabel(s.type))} · ${s.pct}% = <b>${money2(s.comm)}</b>${s.paidAt?" · paid":""}</span>`:""}
+    ${r?`<span class="count" style="font-size:14px">Referral: <b>${esc(staffName(r.by))}</b> · ${r.pct}% = <b>${money2(r.comm)}</b>${r.paidAt?" · paid":""}</span>`:""}
+    <button type="button" class="btn small" data-act="sale-edit" data-v="${esc(j.id)}">${s||r?"Edit sale":"Record sale & commission"}</button></div>`;
 }
 
 /* ---------- payroll ---------- */
@@ -2420,7 +2433,7 @@ function payCsv(){
     ["Employee","Title","Hourly rate","Job hours","Shop & driving hours","Total hours","Regular hours","Overtime hours","Regular pay","Overtime pay (1.5x)","Commission","Total pay"],
     ...W.people.map(p=>[p.name,p.title,p.rate.toFixed(2),h1(p.job/36e5),h1(p.gen/36e5),h1(p.hrs),h1(p.reg),h1(p.ot),p.regPay.toFixed(2),p.otPay.toFixed(2),p.comm.toFixed(2),p.total.toFixed(2)]),
     [],["Total","","",h1(W.people.reduce((t,p)=>t+p.job/36e5,0)),h1(W.people.reduce((t,p)=>t+p.gen/36e5,0)),h1(W.people.reduce((t,p)=>t+p.hrs,0)),"","","","",W.people.reduce((t,p)=>t+p.comm,0).toFixed(2),W.people.reduce((t,p)=>t+p.total,0).toFixed(2)]];
-  const cs=W.people.flatMap(p=>p.sales.map(s=>[p.name,clientOf(s.job).name||"",(LEADS.find(l=>l[0]===s.type)||[,""])[1],s.base.toFixed(2),s.pct,s.comm.toFixed(2)]));
+  const cs=W.people.flatMap(p=>p.sales.map(s=>[p.name,clientOf(s.job).name||"",leadLabel(s.type),s.base.toFixed(2),s.pct,s.comm.toFixed(2)]));
   if(cs.length) rows.push([],["Commissions included"],["Employee","Customer","Lead","Job amount","%","Commission"],...cs);
   download(`ProLight-payroll-${S.week}.csv`, rows);
 }
@@ -2441,7 +2454,7 @@ function payPrint(){
 }
 async function markCommPaid(){
   const W=payWeek(), now=new Date().toISOString(); let n=0;
-  try{ for(const p of W.people) for(const s of p.sales){ const f=S.fin.get(s.job.id)||{}; await S.db.doc("fin/"+s.job.id).set({...f,sale:{...f.sale,paidAt:now}}); n++; } toast(`${n} commission${n===1?"":"s"} marked paid`); }
+  try{ for(const p of W.people) for(const s of p.sales){ const f=S.fin.get(s.job.id)||{}; await S.db.doc("fin/"+s.job.id).set({...f,[s.key]:{...f[s.key],paidAt:now}}); n++; } toast(`${n} commission${n===1?"":"s"} marked paid`); }
   catch(e){ fail(e,"mark them paid"); }
 }
 
@@ -2558,21 +2571,26 @@ async function decideReq(id, ok){
 /* ---------- who sold this job: right in the job form ---------- */
 function soldUI(F){
   if(!S.me.money) return "";
-  const fin=F.fin||{}, s=fin.sale||{};
-  const D=F.sold||(F.sold={by:s.by||"",type:s.type||"inbound",pct:s.pct??""});
+  const fin=F.fin||{}, s=fin.sale||{}, rf=fin.referral||{};
+  const D=F.sold||(F.sold={by:s.by||"",type:s.type||"inbound",pct:s.pct??"",ref:rf.by||"",refPct:rf.pct??""});
   const price=parseFloat(String(fin.price||"").replace(/[$,]/g,""))||0, base=F.job.source==="tcl"?split(F.job,{...fin,price}).incoming:price;
   const pct=D.type==="custom"?(+D.pct||0):commRate(D.type);
-  return `<div class="f" style="margin-top:6px"><label for="m-soldby">Who sold this job?</label><select id="m-soldby"><option value="">Nobody / no commission</option>${PL.staff().filter(p=>p.active).map(p=>`<option value="${esc(p.id)}" ${D.by===p.id?"selected":""}>${esc(p.name)}</option>`).join("")}</select></div>
+  return `<div class="f" style="margin-top:6px"><label for="m-soldby">Who sold this job?</label><select id="m-soldby"><option value="">Nobody / no commission</option>${sellers().map(p=>`<option value="${esc(p.id)}" ${D.by===p.id?"selected":""}>${esc(p.name)}</option>`).join("")}</select></div>
     ${D.by?`<div class="f"><label>Lead</label><div class="seg" role="group">${LEADS.map(([k,l])=>`<button type="button" data-act="sold-type" data-v="${k}" aria-pressed="${D.type===k}">${l}${k!=="custom"?` · ${commRate(k)}%`:""}</button>`).join("")}</div></div>
       ${D.type==="custom"?`<div class="f"><label for="m-spct">Commission %</label><input id="m-spct" inputmode="decimal" value="${esc(D.pct)}" placeholder="e.g. 12"></div>`:""}
-      <p class="count" style="font-size:13px">${base?`Commission ${pct}% of ${money2(base)} = <b>${money2(base*pct/100)}</b>${F.job.source==="tcl"?" (on ProLight's share)":""}`:"Add the price to see the commission."}${s.paidAt?" · already paid out":""}</p>`:""}`;
+      <p class="count" style="font-size:13px">${base?`Commission ${pct}% of ${money2(base)} = <b>${money2(base*pct/100)}</b>${F.job.source==="tcl"?" (on ProLight's share)":""}`:"Add the price to see the commission."}${s.paidAt?" · already paid out":""}</p>`:""}
+    ${S.me.manage?`<div class="two"><div class="f"><label for="m-ref">Referral pay to</label><select id="m-ref"><option value="">No referral</option>${PL.staff().filter(p=>p.active).map(p=>`<option value="${esc(p.id)}" ${D.ref===p.id?"selected":""}>${esc(p.name)}</option>`).join("")}</select></div>
+      <div class="f"><label for="m-rpct">Referral %</label><input id="m-rpct" inputmode="decimal" value="${esc(D.refPct)}" placeholder="e.g. 5"></div></div>
+      ${D.ref&&+D.refPct&&base?`<p class="count" style="font-size:13px">Referral ${+D.refPct}% = <b>${money2(base*D.refPct/100)}</b></p>`:""}`:rf.by?`<p class="count" style="font-size:13px">Referral: ${esc(staffName(rf.by))} · ${+rf.pct||0}%</p>`:""}`;
 }
-function readSold(){ const F=S.form; if(!F||!F.sold) return; const by=$("#m-soldby"), p=$("#m-spct"); if(by) F.sold.by=by.value; if(p) F.sold.pct=p.value; }
+function readSold(){ const F=S.form; if(!F||!F.sold) return; const by=$("#m-soldby"), p=$("#m-spct"), r=$("#m-ref"), rp=$("#m-rpct"); if(by) F.sold.by=by.value; if(p) F.sold.pct=p.value; if(r) F.sold.ref=r.value; if(rp) F.sold.refPct=rp.value; }
 function soldApply(F, nf, old){
   if(!F.sold) return nf;
   const D=F.sold, o=old.sale||{};
-  if(!D.by){ delete nf.sale; return nf; }
-  nf.sale={by:D.by,type:D.type,pct:D.type==="custom"?(+D.pct||0):null,at:o.at||new Date().toISOString(),paidAt:o.paidAt||null};
+  if(!D.by) delete nf.sale;
+  else nf.sale={by:D.by,type:D.type,pct:D.type==="custom"?(+D.pct||0):null,at:o.at||new Date().toISOString(),paidAt:o.paidAt||null};
+  if(S.me.manage){ const ro=old.referral||{};
+    if(D.ref&&+D.refPct>0) nf.referral={by:D.ref,pct:+D.refPct,at:ro.at||new Date().toISOString(),paidAt:ro.paidAt||null,addedBy:ro.addedBy||S.me.id}; else delete nf.referral; }
   return nf;
 }
 
@@ -2786,7 +2804,7 @@ document.addEventListener("click", async ev=>{
     case "team": S.team=v; ls("team",v); renderMain(); break;
     case "account": openDrawer("account"); break;
     case "sold-type": readJobForm(); if(S.form&&S.form.sold){ S.form.sold.type=v; renderDrawer(); } break;
-    case "new-job-sale": startJobForm(null,""); if(S.form){ S.form.job.source="prolight"; S.form.sold={by:S.me.id,type:"inbound",pct:""}; renderDrawer(); } break;
+    case "new-job-sale": startJobForm(null,""); if(S.form){ S.form.job.source="prolight"; S.form.sold={by:sellers().some(p=>p.id===S.me.id)?S.me.id:"",type:"inbound",pct:"",ref:"",refPct:""}; renderDrawer(); } break;
     case "mt-wk": S.myWk=v==="0"?0:Math.min(0,(S.myWk||0)+Number(v)); renderDrawer(); break;
     case "jbh-open": { const ws=myWeekStart(); S.jbh={from:ws,to:addDays(ws,6)>todayISO()?todayISO():addDays(ws,6),who:S.me.id,entries:null,sel:new Set(),error:""}; openDrawer("jbhours"); break; }
     case "jbh-pull": await jbhPull(); break;
@@ -2800,8 +2818,8 @@ document.addEventListener("click", async ev=>{
     case "sale-pick": S.form={saleq:""}; openDrawer("salepick"); break;
     case "sale-edit": S.form=null; openDrawer("sale",v); break;
     case "sale-type": readSale(); if(S.form&&S.form.sale){ S.form.sale.type=v; renderDrawer(); } break;
-    case "sale-remove": { const f=S.fin.get(v)||{}, {sale,...rest}=f; try{ await S.db.doc("fin/"+v).set(rest); toast("Sale removed"); S.form=null; closeDrawer(); }catch(e){ fail(e,"remove it"); } break; }
-    case "sales-csv": { const L=allSales().filter(s=>v==="all"||s.by===v); download(`ProLight-commission-${todayISO()}.csv`,[["Sold","Sold by","Customer","Address","Lead","Job amount","%","Commission","Installed","Status"],...L.map(s=>[isoOf(s.at||new Date().toISOString()),staffName(s.by),clientOf(s.job).name||"",addrOf(s.job),(LEADS.find(l=>l[0]===s.type)||[,""])[1],s.base.toFixed(2),s.pct,s.comm.toFixed(2),s.installed||"",s.paidAt?"Paid":s.earnedOn?"Earned":"Booked"])]); break; }
+    case "sale-remove": { const f=S.fin.get(v)||{}, {sale,...rest}=f; if(S.me.manage) delete rest.referral; try{ await S.db.doc("fin/"+v).set(rest); toast("Sale removed"); S.form=null; closeDrawer(); }catch(e){ fail(e,"remove it"); } break; }
+    case "sales-csv": { const L=allSales().filter(s=>v==="all"||s.by===v); download(`ProLight-commission-${todayISO()}.csv`,[["Sold","Sold by","Customer","Address","Lead","Job amount","%","Commission","Installed","Status"],...L.map(s=>[isoOf(s.at||new Date().toISOString()),staffName(s.by),clientOf(s.job).name||"",addrOf(s.job),leadLabel(s.type),s.base.toFixed(2),s.pct,s.comm.toFixed(2),s.installed||"",s.paidAt?"Paid":s.earnedOn?"Earned":"Booked"])]); break; }
     case "pay-csv": payCsv(); break;
     case "pay-detail": payDetailCsv(); break;
     case "pay-print": payPrint(); break;
@@ -2930,7 +2948,8 @@ document.addEventListener("change", async ev=>{
   const t=ev.target;
   if(t.id&&t.id.startsWith("pj-")&&S.form&&S.form.pay){ const jid=t.id.slice(3); t.checked?S.form.pay.jobs.add(jid):S.form.pay.jobs.delete(jid);
     if(!S.form.pay.manual){ let tot=0; document.querySelectorAll('#payForm input[id^="pj-"]:checked').forEach(x=>tot+=Number(x.dataset.jamt)); $("#py-amount").value=tot?tot.toFixed(2):""; } return; }
-  if((t.id==="m-soldby"||t.id==="m-spct"||t.id==="m-price")&&S.form&&S.form.sold){ readJobForm(); renderDrawer(); return; }
+  if(["sl-by","sl-ref"].includes(t.id)&&S.form&&S.form.sale){ readSale(); renderDrawer(); return; }
+  if(["m-soldby","m-ref"].includes(t.id)&&S.form&&S.form.sold){ readJobForm(); renderDrawer(); return; }
   if(t.dataset&&t.dataset.jbh&&S.jbh){ t.checked?S.jbh.sel.add(t.dataset.jbh):S.jbh.sel.delete(t.dataset.jbh); const c=document.querySelector("[data-act=jbh-add]"); if(c) c.disabled=!S.jbh.sel.size; const k=c&&c.previousElementSibling; if(k) k.textContent=S.jbh.sel.size+" picked"; return; }
   if(t.dataset&&t.dataset.rateFor){ await saveRate(t.dataset.rateFor,t.value); return; }
   if(t.dataset&&t.dataset.photoFor){ await changePhoto(t.files[0], t.dataset.photoFor); return; }
