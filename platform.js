@@ -77,7 +77,7 @@
     },
     async signOut() {
       await sb.auth.signOut();
-      try { localStorage.removeItem("prolight-last"); if (ME) localStorage.removeItem(ckey(ME.id)); } catch (e) {}
+      try { localStorage.removeItem("prolight-last"); localStorage.removeItem("prolight-day"); if (ME) localStorage.removeItem(ckey(ME.id)); } catch (e) {}
       location.reload();
     },
     geocode: async (q) => {
@@ -265,8 +265,8 @@
   }
   function hideGate() { const g = $("#gate"); if (g) g.hidden = true; }
 
-  function pinPad(title, sub, onDone) {
-    const g = showGate(`<button type="button" class="gate-back" data-g="back">‹ Back</button><h2>${esc(title)}</h2>${sub ? `<p>${sub}</p>` : ""}
+  function pinPad(title, sub, onDone, noBack) {
+    const g = showGate(`${noBack ? "" : '<button type="button" class="gate-back" data-g="back">‹ Back</button>'}<h2>${esc(title)}</h2>${sub ? `<p>${sub}</p>` : ""}
       <div class="gate-dots" aria-live="polite">${"<i></i>".repeat(6)}</div><p class="gate-err" id="gate-err"></p>
       <div class="gate-pad">${[1, 2, 3, 4, 5, 6, 7, 8, 9, "", 0, "⌫"].map((k) => k === "" ? "<span></span>" : `<button type="button" data-k="${k}">${k}</button>`).join("")}</div>`);
     let pin = "";
@@ -285,25 +285,33 @@
     document.onkeydown = (e) => { if ($("#gate") && !$("#gate").hidden) { if (/^[0-9]$/.test(e.key)) press(e.key); else if (e.key === "Backspace") press("⌫"); } };
   }
 
+  const dayKey = () => { const d = new Date(Date.now() - 3 * 3600e3); return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate(); };
+  const dayOk = () => { try { return localStorage.getItem("prolight-day") === dayKey(); } catch (e) { return false; } };
+  async function endDay() {
+    try { const { data } = await sb.auth.getSession(); const uid = data.session && data.session.user.id; if (uid) localStorage.removeItem(ckey(uid)); } catch (e) {}
+    await sb.auth.signOut({ scope: "local" }).catch(() => {});
+  }
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && loaded && !dayOk()) endDay().then(() => location.reload()); });
   async function signInAs(person, pin) {
     const { error } = await sb.auth.signInWithPassword({ email: person.email, password: pin });
     if (error) return /rate|many/i.test(error.message) ? "Too many tries. Wait a few minutes and try again." : "That PIN didn't match. Try again.";
-    try { localStorage.setItem("prolight-last", person.id); } catch (e) {}
+    try { localStorage.setItem("prolight-day", dayKey()); localStorage.removeItem("prolight-last"); } catch (e) {}
     await afterSignIn();
     return null;
   }
 
   async function start() {
     const { data: s } = await sb.auth.getSession();
-    if (s && s.session) return afterSignIn();
+    if (s && s.session) { if (dayOk()) return afterSignIn(); await endDay(); }
     const { data: needs, error } = await sb.rpc("needs_owner");
     if (error) return showGate(`<h2>Can't reach the board</h2><p>Check your connection and reload. (${esc(error.message)})</p>`);
     if (needs) return setupOwner();
-    const { data: people } = await sb.rpc("login_names");
-    let last = null; try { last = localStorage.getItem("prolight-last"); } catch (e) {}
-    const list = (people || []).slice().sort((a, b) => (b.id === last) - (a.id === last));
-    const g = showGate(`<h2>Who's signing in?</h2><div class="gate-names">${list.map((p) => `<button type="button" data-id="${esc(p.id)}">${esc(p.name)}</button>`).join("")}</div>`);
-    g.onclick = (e) => { const b = e.target.closest("button[data-id]"); if (!b) return; const p = list.find((x) => x.id === b.dataset.id); pinPad(p.name, "Enter your 6-digit PIN", (pin) => signInAs(p, pin)); };
+    pinPad("Enter your PIN", "", async (pin) => {
+      const { data: email, error: e2 } = await sb.rpc("pin_login", { p_pin: pin });
+      if (e2) return /many|belongs/i.test(e2.message) ? e2.message : "Couldn't check that PIN. Check your connection.";
+      if (!email) return "That PIN didn't match. Try again.";
+      return signInAs({ email }, pin);
+    }, true);
   }
 
   function setupOwner() {

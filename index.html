@@ -1146,7 +1146,7 @@ async function saveMyPin(){
   const a=$("#np1").value.trim(), b=$("#np2").value.trim();
   if(!/^[0-9]{6}$/.test(a)){ toast("Use exactly 6 digits"); return; }
   if(a!==b){ toast("The two PINs don't match"); return; }
-  try{ await PL.setPin(S.me.id,a); toast("PIN changed"); closeDrawer(); }catch(e){ toast("Couldn't change the PIN. Try again."); }
+  try{ await PL.setPin(S.me.id,a); toast("PIN changed"); closeDrawer(); }catch(e){ toast(/taken/i.test(e.message)?"That PIN is already taken. Pick a different one.":"Couldn't change the PIN. Try again."); }
 }
 function autoGeo(id){
   const j=S.jobs.get(id); if(!j) return; const a=addrOf({...j,id});
