@@ -3,6 +3,7 @@
 //   GET  /api/jobber-callback         (Jobber)   -> saves the connection, back to the board
 //   POST /api/jobber?action=sync     (manager)  -> pulls new ProLight jobs now
 //   GET  /api/jobber?action=status   (manager)  -> connected? last sync?
+//   GET  /api/jobber?action=hours&from=ISO&to=ISO (manager) -> Jobber timesheet entries in that range
 //   GET  /api/jobber?action=cron     (Vercel)   -> nightly sync
 // Only ProLight jobs come over. ProWash jobs and TCL jobs are never touched.
 // Needs these Vercel environment variables: JOBBER_CLIENT_ID, JOBBER_CLIENT_SECRET,
@@ -335,6 +336,34 @@ async function sync(trigger, quick) {
   return out;
 }
 
+/* ---------- timesheets: hours people clocked in Jobber ---------- */
+async function hours(from, to) {
+  const token = await accessToken();
+  const t = await gql(token, `{ e: __type(name:"TimeSheetEntry"){ fields{ name } } f: __type(name:"TimeSheetEntryFilterAttributes"){ inputFields{ name } } q: __type(name:"Query"){ fields{ name } } }`);
+  const qf = ((t.q && t.q.fields) || []).map((x) => x.name);
+  if (!qf.includes("timeSheetEntries")) return { entries: [], error: "This Jobber account doesn't share timesheets with the board." };
+  const have = new Set(((t.e && t.e.fields) || []).map((x) => x.name)), fil = new Set(((t.f && t.f.inputFields) || []).map((x) => x.name));
+  const want = ["id", "startAt", "endAt", "finalDuration", "ticking", "note", "label"].filter((k) => have.has(k)).join(" ");
+  const rel = [have.has("user") && "user { id name { full } }", have.has("job") && "job { id jobNumber title }", have.has("visit") && "visit { id title startAt }"].filter(Boolean).join(" ");
+  const filter = fil.has("startAt") ? "filter:{ startAt:{ after:$a, before:$b } }," : "";
+  const out = [];
+  let after = null;
+  for (let i = 0; i < 10; i++) {
+    let d;
+    try {
+      d = await gql(token, `query($a:ISO8601DateTime!,$b:ISO8601DateTime!,$c:String){ timeSheetEntries(${filter} first:100, after:$c){ nodes{ ${want} ${rel} } pageInfo{ hasNextPage endCursor } } }`, { a: from, b: to, c: after });
+    } catch (e) {
+      if (/permission|scope|access|unauthori[sz]ed|hidden/i.test(e.message)) return { entries: [], error: "Jobber didn't share timesheets. In the Jobber developer app, turn on Timesheets (read), save, then tap Disconnect and Connect Jobber again on the board." };
+      throw e;
+    }
+    const c = d.timeSheetEntries;
+    out.push(...c.nodes.filter((n) => n.startAt >= from && n.startAt < to));
+    if (!c.pageInfo.hasNextPage) break;
+    after = c.pageInfo.endCursor;
+  }
+  return { entries: out.map((n) => ({ id: n.id, start: n.startAt, end: n.endAt || null, ticking: !!n.ticking, note: n.note || n.label || "", user: n.user ? (n.user.name && n.user.name.full) || "" : "", job: n.job ? { number: n.job.jobNumber, title: n.job.title || "" } : null, visit: n.visit ? n.visit.title || "" : "" })) };
+}
+
 /* ---------- routes ---------- */
 module.exports = async (req, res) => {
   const action = String((req.query && req.query.action) || "");
@@ -383,6 +412,11 @@ module.exports = async (req, res) => {
         else sample = d;
       }
       return res.status(200).json({ sample, sources: Array.isArray(q) ? q.map((x) => x.where) : q });
+    }
+    if (action === "hours") {
+      const from = String(req.query.from || ""), to = String(req.query.to || "");
+      if (!/^\d{4}-\d\d-\d\dT/.test(from) || !/^\d{4}-\d\d-\d\dT/.test(to)) return res.status(400).json({ error: "Pick the days to pull." });
+      return res.status(200).json(await hours(from, to));
     }
     if (action === "disconnect") {
       const c = (await getInt("jobber")) || {};

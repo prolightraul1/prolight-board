@@ -972,6 +972,7 @@ function dJobEdit(){
       <div class="f"><label for="m-ss">ShipShape payout (% of job price)</label><input id="m-ss" inputmode="decimal" value="${esc(fin.ssPct??"")}" placeholder="Default: ${j.source==="tcl"&&coOf(j.crew)==="shipshape"?R.ss*100:0}"><small>Leave blank for the default. A 50/50 TCL job is 15 (ProLight keeps 25).</small></div>
       <div class="calc" id="calc">${Number(fin.price)?calcLines(j,Number(fin.price),fin.ssPct):`<span class="count">Enter a price to see the split.</span>`}</div>
       <div class="f"><label for="m-note">Private note</label><textarea id="m-note" placeholder="Deposit, discount, payment terms">${esc(fin.privateNote)}</textarea></div>
+      ${soldUI(F)}
     </fieldset>
     <div class="actions">${F.id?(F.confirmDel?`<span class="bar"><span class="count">Delete this job?</span><button type="button" class="btn danger" data-act="del-job-yes">Delete</button><button type="button" class="btn" data-act="del-job-no">Keep</button></span>`:`<button type="button" class="btn danger" data-act="del-job">Delete job</button>`):"<span></span>"}
       <button type="submit" class="btn amber" ${S.busy?"disabled":""}>${S.busy?"Saving…":F.id?"Save job":"Add job"}</button></div>
@@ -994,7 +995,7 @@ function renderDrawer(){
   if(!D){ root.innerHTML=""; return; }
   const prev=$("#dbody"), top=prev?prev.scrollTop:0;
   const focusId=document.activeElement&&document.activeElement.id;
-  root.innerHTML = D.kind==="job"?dJob(D.id): D.kind==="client"?dClient(D.id): D.kind==="jobEdit"?dJobEdit(): D.kind==="truck"?dTruck(D.id): D.kind==="treq"?dTimeReq(D.id): D.kind==="sale"?dSale(D.id): D.kind==="salepick"?dSalePick(): D.kind==="clockedit"?dClockEdit(D.id): D.kind==="svc"?dService(D.id): D.kind==="issue"?dIssue(D.id): D.kind==="svcpick"?dSvcPick(): D.kind==="crewtruck"?dCrewTruck(D.id): D.kind==="partial"?dPartial(D.id): D.kind==="return"?dReturn(D.id): D.kind==="pay"?dPay(): D.kind==="assign"?dAssign(D.id): D.kind==="food"?dFood(D.id): D.kind==="account"?dAccount(): D.kind==="person"?dPerson(): dClientEdit();
+  root.innerHTML = D.kind==="job"?dJob(D.id): D.kind==="client"?dClient(D.id): D.kind==="jobEdit"?dJobEdit(): D.kind==="truck"?dTruck(D.id): D.kind==="jbhours"?dJbHours(): D.kind==="treq"?dTimeReq(D.id): D.kind==="sale"?dSale(D.id): D.kind==="salepick"?dSalePick(): D.kind==="clockedit"?dClockEdit(D.id): D.kind==="svc"?dService(D.id): D.kind==="issue"?dIssue(D.id): D.kind==="svcpick"?dSvcPick(): D.kind==="crewtruck"?dCrewTruck(D.id): D.kind==="partial"?dPartial(D.id): D.kind==="return"?dReturn(D.id): D.kind==="pay"?dPay(): D.kind==="assign"?dAssign(D.id): D.kind==="food"?dFood(D.id): D.kind==="account"?dAccount(): D.kind==="person"?dPerson(): dClientEdit();
   const nb=$("#dbody"); if(nb && D.keep) nb.scrollTop=top;
   if(focusId){ const el=document.getElementById(focusId); if(el && el.id==="compose-text"){ el.focus(); el.setSelectionRange(el.value.length,el.value.length); } }
   D.keep=true;
@@ -2335,7 +2336,7 @@ function dSalePick(){
   const list=jobsArr().filter(j=>j.stage!=="cancelled"&&!((S.fin.get(j.id)||{}).sale||{}).by).filter(j=>!ql||[clientOf(j).name,addrOf(j)].join(" ").toLowerCase().includes(ql))
     .sort((a,b)=>String(b.createdAt||"").localeCompare(String(a.createdAt||""))).slice(0,40);
   return drawerShell("Record a sale","Which job did you sell?",`<input class="search" id="sale-q" placeholder="Search customer or address" value="${esc((S.form&&S.form.saleq)||"")}" autocomplete="off" style="width:100%">
-    <p class="count" style="font-size:13px">New customer? Add the job first with <b>+ New job</b> on Jobs, then record the sale from its Money section.</p>
+    <div class="bar" style="margin:8px 0"><button type="button" class="btn amber" data-act="new-job-sale">+ New job I sold</button><span class="count" style="font-size:13px">Adds the customer and job with you as the seller.</span></div>
     <div class="rows">${list.map(j=>`<button type="button" class="row" data-act="sale-edit" data-v="${esc(j.id)}"><span class="bulb ${BULB[status(j)]}"></span><span class="m"><span class="n">${esc(clientOf(j).name||"Customer")}</span><span class="s">${esc(addrOf(j))}</span></span><span class="r mono">${money2((S.fin.get(j.id)||{}).price||0)}</span></button>`).join("")||`<p class="count">No match.</p>`}</div>`);
 }
 function dSale(jid){
@@ -2467,39 +2468,42 @@ const isClock = e => e.kind==="clock" && !e.pending;
 function timeReqs(){ return [...S.log.entries()].map(([id,e])=>({id,...e})).filter(e=>e.kind==="timereq").sort((a,b)=>String(b.at).localeCompare(String(a.at))); }
 const pendingReqs = () => timeReqs().filter(r=>r.status==="pending");
 const managers = () => PL.staff().filter(p=>p.active&&p.can_manage);
-const canApprove = r => S.me.manage && (r.by!==S.me.id || managers().length<2);
+const canApprove = r => !!S.me.manage;
 const tfmt = x => x ? new Date(x).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}) : "–";
 const clockLabel = e => e.general ? (e.where==="shop"?"Shop":"Driving") : (clientOf(S.jobs.get(e.jobId)||{}).name||"Job");
 const reqCount = () => S.me.manage ? pendingReqs().filter(canApprove).length : 0;
 
+const myWeekStart = () => addDays(monday(todayISO()), 7*(S.myWk||0));
 function myTime(){
   if(!S.me.canLog || isSS(S.me.id)) return "";
-  const days=new Set([...Array(7)].map((_,i)=>addDays(monday(todayISO()),i)));
+  const ws=myWeekStart(), days=new Set([...Array(7)].map((_,i)=>addDays(ws,i))), own=!!S.me.owner;
   const mine=[...S.log.entries()].map(([id,e])=>({id,...e})).filter(e=>e.kind==="clock"&&e.by===S.me.id&&e.in&&days.has(isoOf(e.in))).sort((a,b)=>b.in.localeCompare(a.in));
   const reqs=timeReqs().filter(r=>r.by===S.me.id).slice(0,6), pend=new Set(reqs.filter(r=>r.status==="pending").map(r=>r.target));
   const tot=mine.filter(e=>!e.pending).reduce((t,e)=>t+clockMs(e),0);
-  return `<fieldset><legend>My time this week · ${fmtDur(tot)}</legend>
+  return `<fieldset><legend>My time · ${(S.myWk||0)===0?"this week":"week of "+esc(fmtDay(ws))} · ${fmtDur(tot)}</legend>
+    <div class="bar" style="margin-bottom:8px"><button type="button" class="btn small" data-act="mt-wk" data-v="-1" aria-label="Previous week">‹ Prev</button>${(S.myWk||0)<0?`<button type="button" class="btn small" data-act="mt-wk" data-v="1" aria-label="Next week">Next ›</button><button type="button" class="btn small" data-act="mt-wk" data-v="0">This week</button>`:""}</div>
     ${mine.length?`<div class="rows">${mine.map(e=>`<div class="row" style="cursor:default"><span class="m"><span class="n">${esc(fmtDay(isoOf(e.in),{weekday:"short",month:"short",day:"numeric"}))} · ${esc(clockLabel(e))}</span>
-      <span class="s mono">${tfmt(e.in)} – ${e.out?tfmt(e.out):"now"} · ${fmtDur(clockMs(e))}${e.pending?" · waiting for approval":""}${e.edited?" · fixed":""}</span></span>
-      <span class="r">${pend.has(e.id)||e.pending?`<span class="st booked">Requested</span>`:`<button type="button" class="btn small" data-act="treq-fix" data-v="${esc(e.id)}">Request fix</button>`}</span></div>`).join("")}</div>`:`<p class="count">No time yet this week.</p>`}
-    <div class="bar" style="margin-top:8px"><button type="button" class="btn small" data-act="treq-add">+ Add missing time</button></div>
+      <span class="s mono">${tfmt(e.in)} – ${e.out?tfmt(e.out):"now"} · ${fmtDur(clockMs(e))}${e.pending?" · waiting for approval":""}${e.source==="jobber"?" · from Jobber":e.edited?" · fixed":""}</span></span>
+      <span class="r">${pend.has(e.id)||e.pending?`<span class="st booked">Requested</span>`:own?`<button type="button" class="btn small" data-act="clock-edit" data-id="${esc(e.id)}">Edit</button>`:`<button type="button" class="btn small" data-act="treq-fix" data-v="${esc(e.id)}">Request fix</button>`}</span></div>`).join("")}</div>`:`<p class="count">No time yet this week.</p>`}
+    <div class="bar" style="margin-top:8px"><button type="button" class="btn small" data-act="treq-add">+ ${own?"Add time":"Add missing time"}</button>${own?`<button type="button" class="btn small" data-act="jbh-open">Pull hours from Jobber</button>`:""}</div>
     ${reqs.length?`<p class="eyebrow" style="margin:10px 0 4px">My requests</p>${reqs.map(r=>`<div class="count" style="font-size:13px">${esc(fmtDay(isoOf(r.at)))}: ${esc(r.summary||"")} · <b>${r.status==="pending"?"Waiting":r.status==="approved"?"Approved":r.status==="denied"?"Denied":"Canceled"}</b>${r.note?` (${esc(r.note)})`:""}${r.status==="pending"?` · <button type="button" class="linkbtn" data-act="treq-cancel" data-v="${esc(r.id)}">Cancel</button>`:""}</div>`).join("")}`:""}
-    <small>Location missed something, or you forgot to clock in or out? Send a fix and a manager approves it.</small></fieldset>`;
+    <small>${own?"You can edit your own time directly. Every change is marked on the payroll detail.":"Location missed something, or you forgot to clock in or out? Send a fix and a manager approves it."}</small></fieldset>`;
 }
 function dTimeReq(key){
   const [mode,cid]=key.split("|"), e=mode==="fix"?S.log.get(cid):null;
   const loc=x=>{ if(!x) return ""; const d=new Date(x); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
-  const day=e?isoOf(e.in):todayISO(), stops=[...new Map([...stopsFor(day,"all"),...stopsFor(addDays(day,-1),"all")].map(s=>[s.j.id+"|"+s.v.id,s])).values()];
+  const ws=myWeekStart(), day=e?isoOf(e.in):((S.myWk||0)===0?todayISO():ws), own=!!S.me.owner&&!e;
+  const stops=[...new Map([...Array(9)].flatMap((_,i)=>stopsFor(addDays(ws,i-1),"all")).map(s=>[s.j.id+"|"+s.v.id,s])).values()].sort((a,b)=>String(a.v.date).localeCompare(String(b.v.date)));
   const b=`<form class="form" id="treqForm" data-key="${esc(key)}">
     ${e?`<div class="note" style="margin:0">Now: ${esc(clockLabel(e))} · ${tfmt(e.in)} – ${e.out?tfmt(e.out):"still clocked in"}</div>`:""}
     <div class="two"><div class="f"><label for="tq-day">Day</label><input id="tq-day" type="date" value="${esc(day)}" ${e?"disabled":""}></div>
       ${e?"":`<div class="f"><label for="tq-type">What</label><select id="tq-type"><option value="job">At a job</option><option value="shop">At the shop</option><option value="travel">Driving</option></select></div>`}</div>
-    ${e?"":`<div class="f" id="tq-jobf"><label for="tq-job">Which job</label><select id="tq-job"><option value="">Pick the job</option>${stops.map(s=>`<option value="${esc(s.j.id+"|"+s.v.id)}">${esc(clientOf(s.j).name||"Customer")} · ${esc(fmtDay(s.v.date))}</option>`).join("")}</select><small>Only that day's stops are listed.</small></div>`}
+    ${e?"":`<div class="f" id="tq-jobf"><label for="tq-job">Which job</label><select id="tq-job"><option value="">Pick the job</option>${stops.map(s=>`<option value="${esc(s.j.id+"|"+s.v.id)}">${esc(clientOf(s.j).name||"Customer")} · ${esc(fmtDay(s.v.date))}</option>`).join("")}</select><small>Stops from that week are listed.</small></div>`}
     <div class="two"><div class="f"><label for="tq-in">Start</label><input id="tq-in" type="time" value="${loc(e&&e.in)}" required></div>
       <div class="f"><label for="tq-out">End</label><input id="tq-out" type="time" value="${loc(e&&e.out)}" required></div></div>
-    <div class="f"><label for="tq-why">What happened</label><textarea id="tq-why" required placeholder="e.g. Phone died at the Klees job, I left at 3:40"></textarea></div>
-    <div class="actions"><span class="count" id="tq-err" style="color:var(--red)"></span><button type="submit" class="btn amber">Send to a manager</button></div></form>`;
-  return drawerShell(e?"Fix my time":"Add missing time", (PL.me()||{}).name||"", b);
+    <div class="f"><label for="tq-why">What happened</label><textarea id="tq-why" ${own?"":"required"} placeholder="e.g. Phone died at the Klees job, I left at 3:40"></textarea></div>
+    <div class="actions"><span class="count" id="tq-err" style="color:var(--red)"></span><button type="submit" class="btn amber">${own?"Add to my time card":"Send to a manager"}</button></div></form>`;
+  return drawerShell(e?"Fix my time":own?"Add time":"Add missing time", (PL.me()||{}).name||"", b);
 }
 async function saveTimeReq(form){
   const [mode,cid]=form.dataset.key.split("|"), e=mode==="fix"?S.log.get(cid):null;
@@ -2507,7 +2511,8 @@ async function saveTimeReq(form){
   const at=(t)=>new Date(day+"T"+t+":00").toISOString();
   if(!day||!i||!o){ $("#tq-err").textContent="Fill in the day, start and end."; return; }
   let pin=at(i), pout=at(o); if(new Date(pout)<=new Date(pin)) pout=new Date(new Date(pout).getTime()+864e5).toISOString();
-  if(!why){ $("#tq-err").textContent="Say what happened."; return; }
+  const own=!!S.me.owner&&!e;
+  if(!why&&!own){ $("#tq-err").textContent="Say what happened."; return; }
   const now=new Date().toISOString();
   try{
     if(e){
@@ -2517,6 +2522,8 @@ async function saveTimeReq(form){
       const type=$("#tq-type").value, jv=$("#tq-job").value;
       if(type==="job"&&!jv){ $("#tq-err").textContent="Pick the job."; return; }
       const [jid,vid]=jv?jv.split("|"):["",""];
+      if(own){ await S.db.collection("log").add({kind:"clock",general:type!=="job",where:type==="job"?"":type,jobId:type==="job"?jid:"",visitId:type==="job"?vid:"",by:S.me.id,in:pin,out:pout,auto:false,at:now,edited:S.me.id,manual:true,...(why?{note:why}:{})});
+        toast("Added to your time card"); closeDrawer(); return; }
       const ref=await S.db.collection("log").add({kind:"clock",pending:true,general:type!=="job",where:type==="job"?undefined:type,jobId:type==="job"?jid:"",visitId:type==="job"?vid:"",by:S.me.id,in:pin,out:pout,auto:false,at:now});
       const label=type==="job"?(clientOf(S.jobs.get(jid)||{}).name||"Job"):type==="shop"?"Shop":"Driving";
       await S.db.collection("log").add({kind:"timereq",status:"pending",target:ref.id,isNew:true,propIn:pin,propOut:pout,reason:why,by:S.me.id,at:now,
@@ -2529,9 +2536,9 @@ function reqBlock(){
   if(!S.me.manage) return "";
   const P=pendingReqs(); if(!P.length) return "";
   return `<h2 class="h-sec" style="margin-top:14px">Time fix requests · ${P.length}</h2><div class="rows">${P.map(r=>{ const t=S.log.get(r.target);
-    return `<div class="row svc" style="cursor:default">${avatar(r.by)}<span class="m"><span class="n">${esc(staffName(r.by))}</span>
+    return `<div class="row svc" style="cursor:default">${avatar(r.by)}<span class="m"><span class="n">${esc(staffName(r.by))}${r.by===S.me.id?" (you)":""}</span>
       <span class="s"><b>${esc(r.summary||"")}</b><br>“${esc(r.reason||"")}” · ${esc(ago(r.at))}${!t?" · the original time was deleted":""}</span></span>
-      <span class="r">${canApprove(r)?`<button type="button" class="btn small amber" data-act="treq-ok" data-v="${esc(r.id)}" ${t?"":"disabled"}>Approve</button><button type="button" class="btn small" data-act="treq-no" data-v="${esc(r.id)}">Deny</button>`:`<span class="count" style="font-size:13px">Another manager has to approve your own time</span>`}</span></div>`; }).join("")}</div>`;
+      <span class="r">${canApprove(r)?`<button type="button" class="btn small amber" data-act="treq-ok" data-v="${esc(r.id)}" ${t?"":"disabled"}>Approve</button><button type="button" class="btn small" data-act="treq-no" data-v="${esc(r.id)}">Deny</button>`:""}</span></div>`; }).join("")}</div>`;
 }
 async function decideReq(id, ok){
   const r=S.log.get(id); if(!r) return; const t=S.log.get(r.target), now=new Date().toISOString();
@@ -2540,12 +2547,91 @@ async function decideReq(id, ok){
   try{
     if(ok){
       if(!t){ toast("The original time is gone"); return; }
-      if(r.isNew) await S.db.doc("log/"+r.target).update({pending:false,approvedBy:S.me.id,edited:S.me.id});
+      if(r.isNew) await S.db.doc("log/"+r.target).update({pending:false,approvedBy:S.me.id,edited:S.me.id,...(r.by===S.me.id?{selfApproved:true}:{})});
       else await S.db.doc("log/"+r.target).update({in:r.propIn,out:r.propOut,edited:S.me.id,fixReq:id});
     } else if(r.isNew && t) await S.db.doc("log/"+r.target).delete();
     await S.db.doc("log/"+id).update({status:ok?"approved":"denied",decidedBy:S.me.id,decidedAt:now,note});
     toast(ok?"Approved. Hours updated.":"Denied");
   }catch(x){ fail(x,ok?"approve it":"deny it"); }
+}
+
+/* ---------- who sold this job: right in the job form ---------- */
+function soldUI(F){
+  if(!S.me.money) return "";
+  const fin=F.fin||{}, s=fin.sale||{};
+  const D=F.sold||(F.sold={by:s.by||"",type:s.type||"inbound",pct:s.pct??""});
+  const price=parseFloat(String(fin.price||"").replace(/[$,]/g,""))||0, base=F.job.source==="tcl"?split(F.job,{...fin,price}).incoming:price;
+  const pct=D.type==="custom"?(+D.pct||0):commRate(D.type);
+  return `<div class="f" style="margin-top:6px"><label for="m-soldby">Who sold this job?</label><select id="m-soldby"><option value="">Nobody / no commission</option>${PL.staff().filter(p=>p.active).map(p=>`<option value="${esc(p.id)}" ${D.by===p.id?"selected":""}>${esc(p.name)}</option>`).join("")}</select></div>
+    ${D.by?`<div class="f"><label>Lead</label><div class="seg" role="group">${LEADS.map(([k,l])=>`<button type="button" data-act="sold-type" data-v="${k}" aria-pressed="${D.type===k}">${l}${k!=="custom"?` · ${commRate(k)}%`:""}</button>`).join("")}</div></div>
+      ${D.type==="custom"?`<div class="f"><label for="m-spct">Commission %</label><input id="m-spct" inputmode="decimal" value="${esc(D.pct)}" placeholder="e.g. 12"></div>`:""}
+      <p class="count" style="font-size:13px">${base?`Commission ${pct}% of ${money2(base)} = <b>${money2(base*pct/100)}</b>${F.job.source==="tcl"?" (on ProLight's share)":""}`:"Add the price to see the commission."}${s.paidAt?" · already paid out":""}</p>`:""}`;
+}
+function readSold(){ const F=S.form; if(!F||!F.sold) return; const by=$("#m-soldby"), p=$("#m-spct"); if(by) F.sold.by=by.value; if(p) F.sold.pct=p.value; }
+function soldApply(F, nf, old){
+  if(!F.sold) return nf;
+  const D=F.sold, o=old.sale||{};
+  if(!D.by){ delete nf.sale; return nf; }
+  nf.sale={by:D.by,type:D.type,pct:D.type==="custom"?(+D.pct||0):null,at:o.at||new Date().toISOString(),paidAt:o.paidAt||null};
+  return nf;
+}
+
+/* ---------- pull hours from Jobber's timesheets (managers) ---------- */
+const jbhKey = e => "jbt-"+String(e.id).replace(/[^A-Za-z0-9]/g,"").slice(-24);
+function jbhMatch(e, day){
+  let j=null;
+  if(e.job){ j=S.jobs.get("jb-"+e.job.number)?{id:"jb-"+e.job.number,...S.jobs.get("jb-"+e.job.number)}:null;
+    if(!j){ const nm=String(e.job.title||e.visit||"").split(/[-–]/).pop().trim().toLowerCase();
+      if(nm.length>2) j=jobsArr().find(x=>{ const c=String(clientOf(x).name||"").toLowerCase(); return c && (c===nm || c.includes(nm) || nm.includes(c)); })||null; } }
+  if(!j) return null;
+  const vs=(j.visits||[]).filter(v=>v.date).sort((a,b)=>Math.abs(parseISO(a.date)-parseISO(day))-Math.abs(parseISO(b.date)-parseISO(day)));
+  return {j, v:vs[0]||null};
+}
+function jbhMine(H){
+  const P=PL.staff().find(p=>p.id===H.who)||{name:""}, nm=String(P.name||"").trim().toLowerCase(), first=nm.split(/\s+/)[0]||"#";
+  return (H.entries||[]).filter(e=>{ const u=String(e.user||"").trim().toLowerCase(); return u===nm || u.split(/\s+/)[0]===first; });
+}
+function dJbHours(){
+  const H=S.jbh, ppl=PL.staff().filter(p=>p.active&&!isSS(p.id)), P=ppl.find(p=>p.id===H.who)||{name:""};
+  const mine=jbhMine(H);
+  const done=new Set([...S.log.values()].filter(e=>e.kind==="clock"&&e.jobberId).map(e=>e.jobberId));
+  const rows=mine.map(e=>{ const day=isoOf(e.start), m=jbhMatch(e,day), have=done.has(e.id), open=!e.end;
+    return `<label class="row" style="cursor:${have||open?"default":"pointer"}"><input type="checkbox" data-jbh="${esc(e.id)}" ${have||open?"disabled":H.sel.has(e.id)?"checked":""} style="width:20px;height:20px;margin-right:6px">
+      <span class="m"><span class="n">${esc(fmtDay(day,{weekday:"short",month:"short",day:"numeric"}))} · ${tfmt(e.start)} – ${e.end?tfmt(e.end):"still running"}</span>
+      <span class="s">${m?"Job: "+esc(clientOf(m.j).name||"Customer"):e.job?"Jobber job #"+esc(e.job.number)+" "+esc(e.job.title)+" (not on the board · counts as shop time)":"General time (shop)"}${e.note?" · "+esc(e.note):""}</span></span>
+      <span class="r">${have?`<span class="st down">Added</span>`:open?`<span class="st booked">Running</span>`:`<span class="mono">${fmtDur(new Date(e.end)-new Date(e.start))}</span>`}</span></label>`; }).join("");
+  const b=`<div class="form"><div class="two"><div class="f"><label for="jbh-from">From</label><input id="jbh-from" type="date" value="${esc(H.from)}"></div><div class="f"><label for="jbh-to">To</label><input id="jbh-to" type="date" value="${esc(H.to)}"></div></div>
+    <div class="f"><label for="jbh-who">Whose hours</label><select id="jbh-who">${ppl.map(p=>`<option value="${esc(p.id)}" ${p.id===H.who?"selected":""}>${esc(p.name)}</option>`).join("")}</select></div>
+    <div class="actions"><span></span><button type="button" class="btn" data-act="jbh-pull" ${H.loading?"disabled":""}>${H.loading?"Pulling…":"Pull from Jobber"}</button></div></div>
+    ${H.error?`<div class="note" style="color:var(--red)">${esc(H.error)}</div>`:""}
+    ${H.entries?(mine.length?`<div class="rows" style="margin-top:10px">${rows}</div>
+      <div class="actions" style="margin-top:10px"><span class="count">${H.sel.size} picked</span><button type="button" class="btn amber" data-act="jbh-add" ${H.sel.size?"":"disabled"}>Add to ${esc(P.name)}'s time card</button></div>`
+      :`<p class="count" style="margin-top:10px">Jobber has no timesheet entries for ${esc(P.name)} in those days${(H.entries||[]).length?` (it has ${(H.entries||[]).length} for other people)`:""}. You can still type the hours in with <b>+ Add time</b>.</p>`):""}`;
+  return drawerShell("Hours from Jobber","Timesheets", b);
+}
+async function jbhPull(){
+  const H=S.jbh; H.from=$("#jbh-from").value; H.to=$("#jbh-to").value; H.who=$("#jbh-who").value;
+  if(!H.from||!H.to||H.to<H.from){ H.error="Pick the days."; renderDrawer(); return; }
+  H.loading=true; H.error=""; renderDrawer();
+  try{
+    const a=new Date(H.from+"T00:00:00").toISOString(), z=new Date(addDays(H.to,1)+"T00:00:00").toISOString();
+    const r=await PL.jobber(`hours&from=${encodeURIComponent(a)}&to=${encodeURIComponent(z)}`);
+    H.entries=r.entries||[]; H.error=r.error||"";
+    const done=new Set([...S.log.values()].filter(e=>e.kind==="clock"&&e.jobberId).map(e=>e.jobberId));
+    H.sel=new Set(jbhMine(H).filter(e=>e.end&&!done.has(e.id)).map(e=>e.id));
+  }catch(e){ H.error=e.message; H.entries=null; }
+  H.loading=false; renderDrawer();
+}
+async function jbhAdd(){
+  const H=S.jbh, now=new Date().toISOString(); let n=0;
+  try{
+    for(const e of jbhMine(H).filter(e=>H.sel.has(e.id)&&e.end)){
+      const m=jbhMatch(e,isoOf(e.start));
+      await S.db.doc("log/"+jbhKey(e)+"-"+H.who.slice(0,6)).set({kind:"clock",general:!m,where:m?"":"shop",jobId:m?m.j.id:"",visitId:m&&m.v?m.v.id:"",by:H.who,in:new Date(e.start).toISOString(),out:new Date(e.end).toISOString(),auto:false,at:now,edited:S.me.id,source:"jobber",jobberId:e.id,...(e.note?{note:e.note}:{})});
+      n++;
+    }
+    toast(`${n} time entr${n===1?"y":"ies"} added from Jobber`); H.sel=new Set(); renderDrawer();
+  }catch(x){ fail(x,"add the hours"); }
 }
 
 /* ---------- render ---------- */
@@ -2643,6 +2729,7 @@ function readJobForm(){
   for(const k of ["address","tclRef","stage","rooflineFt","scope","notes"]){ const v=g("f-"+k); if(v!==undefined) F.job[k]=v; }
   (F.job.visits||[]).forEach((v,i)=>{ for(const k of ["date","time","crew","note"]){ const x=g(`v${i}-${k}`); if(x!==undefined) v[k]=x; } });
   const p=g("m-price"); if(p!==undefined) F.fin.price=p; const iv=g("m-invoice"); if(iv!==undefined) F.fin.invoiceNo=iv; const pn=g("m-note"); if(pn!==undefined) F.fin.privateNote=pn; const sp=g("m-ss"); if(sp!==undefined) F.fin.ssPct=sp.trim();
+  readSold();
 }
 async function saveJob(){
   readJobForm(); const F=S.form, j=F.job, now=new Date().toISOString();
@@ -2659,7 +2746,7 @@ async function saveJob(){
     const ref=F.id?S.db.doc("jobs/"+F.id):S.db.collection("jobs").doc();
     await ref.set({...(F.id?S.jobs.get(F.id):{}),clientId,address:F.clientMode==="new"?"":(j.address||""),source:j.source||"prolight",tclRef:j.source==="tcl"?(j.tclRef||""):"",crew:j.crew||"",stage:j.stage||"booked",season,scope:j.scope||"",rooflineFt:j.rooflineFt||"",notes:j.notes||"",visits,mockups:j.mockups||[],createdAt:j.createdAt||now,updatedAt:now});
     if(S.me.money){ const price=parseFloat(String(F.fin.price||"").replace(/[$,]/g,""))||0, old=S.fin.get(ref.id)||{};
-    await S.db.doc("fin/"+ref.id).set({price,invoiceNo:F.fin.invoiceNo||"",privateNote:F.fin.privateNote||"",collected:!!old.collected,ssPaid:!!old.ssPaid,ssPct:hasPct(F.fin.ssPct)?Number(F.fin.ssPct):null}); }
+    await S.db.doc("fin/"+ref.id).set(soldApply(F,{...old,price,invoiceNo:F.fin.invoiceNo||"",privateNote:F.fin.privateNote||"",collected:!!old.collected,ssPaid:!!old.ssPaid,ssPct:hasPct(F.fin.ssPct)?Number(F.fin.ssPct):null},old)); }
     autoGeo(ref.id);
     S.busy=false; S.form=null; toast(F.id?"Job saved":"Job added"); openDrawer("job",ref.id);
   }catch(e){ S.busy=false; fail(e,"save this job"); renderDrawer(); }
@@ -2698,6 +2785,12 @@ document.addEventListener("click", async ev=>{
     case "view": S.view=v; closeDrawer(); renderMain(); window.scrollTo(0,0); break;
     case "team": S.team=v; ls("team",v); renderMain(); break;
     case "account": openDrawer("account"); break;
+    case "sold-type": readJobForm(); if(S.form&&S.form.sold){ S.form.sold.type=v; renderDrawer(); } break;
+    case "new-job-sale": startJobForm(null,""); if(S.form){ S.form.job.source="prolight"; S.form.sold={by:S.me.id,type:"inbound",pct:""}; renderDrawer(); } break;
+    case "mt-wk": S.myWk=v==="0"?0:Math.min(0,(S.myWk||0)+Number(v)); renderDrawer(); break;
+    case "jbh-open": { const ws=myWeekStart(); S.jbh={from:ws,to:addDays(ws,6)>todayISO()?todayISO():addDays(ws,6),who:S.me.id,entries:null,sel:new Set(),error:""}; openDrawer("jbhours"); break; }
+    case "jbh-pull": await jbhPull(); break;
+    case "jbh-add": await jbhAdd(); break;
     case "treq-fix": openDrawer("treq","fix|"+v); break;
     case "treq-add": openDrawer("treq","add|"); break;
     case "treq-cancel": try{ await S.db.doc("log/"+v).update({status:"canceled"}); const r=S.log.get(v); if(r&&r.isNew&&r.target) await S.db.doc("log/"+r.target).delete().catch(()=>{}); toast("Request canceled"); renderDrawer(); }catch(e){ fail(e,"cancel it"); } break;
@@ -2837,6 +2930,8 @@ document.addEventListener("change", async ev=>{
   const t=ev.target;
   if(t.id&&t.id.startsWith("pj-")&&S.form&&S.form.pay){ const jid=t.id.slice(3); t.checked?S.form.pay.jobs.add(jid):S.form.pay.jobs.delete(jid);
     if(!S.form.pay.manual){ let tot=0; document.querySelectorAll('#payForm input[id^="pj-"]:checked').forEach(x=>tot+=Number(x.dataset.jamt)); $("#py-amount").value=tot?tot.toFixed(2):""; } return; }
+  if((t.id==="m-soldby"||t.id==="m-spct"||t.id==="m-price")&&S.form&&S.form.sold){ readJobForm(); renderDrawer(); return; }
+  if(t.dataset&&t.dataset.jbh&&S.jbh){ t.checked?S.jbh.sel.add(t.dataset.jbh):S.jbh.sel.delete(t.dataset.jbh); const c=document.querySelector("[data-act=jbh-add]"); if(c) c.disabled=!S.jbh.sel.size; const k=c&&c.previousElementSibling; if(k) k.textContent=S.jbh.sel.size+" picked"; return; }
   if(t.dataset&&t.dataset.rateFor){ await saveRate(t.dataset.rateFor,t.value); return; }
   if(t.dataset&&t.dataset.photoFor){ await changePhoto(t.files[0], t.dataset.photoFor); return; }
   if(t.id==="compose-files"){ S.compose.files.push(...t.files); renderDrawer(); }
