@@ -328,6 +328,28 @@ canvas.snow{position:absolute;inset:0;width:100%;height:100%;pointer-events:none
 .look .seg{display:flex;flex-wrap:wrap} .look .seg button{flex:1 1 auto}
 .night-map .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.82) contrast(.92) saturate(.6)}
 .night-map .leaflet-container{background:#0b100e}
+.ava{display:inline-grid;place-items:center;flex:none;width:34px;height:34px;border-radius:50%;overflow:hidden;background:var(--night-2);color:var(--night-ink);font-family:var(--f-sign);font-weight:800;font-size:16px;box-shadow:0 0 0 2px var(--amber)}
+.ava img{width:100%;height:100%;object-fit:cover}
+.ava.sm{width:24px;height:24px;font-size:12px;margin-right:6px;vertical-align:middle;box-shadow:0 0 0 1.5px var(--amber)}
+.ava.xs{width:18px;height:18px;font-size:10px;margin-right:5px;vertical-align:-4px;box-shadow:none}
+.ava.lg{width:56px;height:56px;font-size:24px}
+.who-btn{display:inline-flex;align-items:center}
+#welcome{position:fixed;inset:0;z-index:310;display:grid;place-items:center;align-content:center;gap:14px;background:radial-gradient(ellipse at 50% 42%,#1a2b22 0,#080c0a 72%);color:#eaf0eb;transition:opacity .45s;cursor:pointer;text-align:center;padding:24px}
+#welcome.out{opacity:0;pointer-events:none}
+.w-ring{position:relative;width:min(62vw,250px);aspect-ratio:1;margin-bottom:10px}
+.w-ring svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.w-ring svg circle{stroke-dasharray:320;stroke-dashoffset:320;animation:cord .55s ease-out forwards}
+.w-face{position:absolute;inset:13%;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#16241d;font-family:var(--f-sign);font-weight:900;font-size:64px;color:var(--amber);box-shadow:0 0 0 3px #0b100e,0 0 40px 6px color-mix(in srgb,var(--amber) 25%,transparent);opacity:0;animation:fadein .5s ease-out .3s forwards}
+.w-face img{width:100%;height:100%;object-fit:cover}
+.wb{position:absolute;width:20px;height:28px;margin:-6px 0 0 -10px;transform:rotate(var(--r));transform-origin:50% 6px}
+.wb::before{content:"";position:absolute;left:5px;top:0;width:10px;height:8px;border-radius:2px 2px 0 0;background:#2a6e4e}
+.wb::after{content:"";position:absolute;left:0;top:7px;width:20px;height:21px;border-radius:50% 50% 50% 50%/38% 38% 62% 62%;background:#34413b;animation:on .35s ease-out forwards;animation-delay:calc(.45s + var(--d)*.07s)}
+.w-hi{font-family:var(--f-sign);font-weight:900;font-size:clamp(40px,11vw,72px);line-height:1;text-transform:uppercase;letter-spacing:.02em;color:#fff;text-shadow:0 0 22px color-mix(in srgb,var(--amber) 50%,transparent);opacity:0;animation:fadein .45s ease-out 1.25s forwards}
+.w-title{font-family:var(--f-mono);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#a9b8b0;opacity:0;animation:fadein .4s ease-out 1.45s forwards}
+@media (prefers-reduced-motion: reduce){ .wb::after,.w-face,.w-hi,.w-title,.w-ring svg circle{animation-duration:.01s!important;animation-delay:0s!important} }
+.head-prev{width:150px;height:150px;border-radius:50%;overflow:hidden;display:grid;place-items:center;margin:6px auto;background:var(--night-2);font-family:var(--f-sign);font-weight:900;font-size:60px;color:var(--amber);box-shadow:0 0 0 3px var(--amber)}
+.head-prev img{width:100%;height:100%;object-fit:cover}
+.head-pick{display:grid;place-items:center;text-align:center;cursor:pointer;min-height:48px}
 .who-btn{background:none;border:1px solid #2a3832;border-radius:999px;color:var(--night-ink);font-size:12px;font-weight:700;padding:5px 10px;max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .checks{display:grid;gap:8px}
 .checks label{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;font-size:15px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
@@ -626,7 +648,7 @@ function renderNav(){
   $("#railStrand").innerHTML = today.length ? today.map((s,i)=>`<span class="bulb ${i<lit?"on":""}"></span>`).join("") : "";
   const wt = S.team==="all" ? "All crews" : teamName(S.team);
   $("#whoRail").textContent = today.length ? `Today · ${wt} · ${lit}/${today.length} done` : `Today · ${wt} · no stops`;
-  $("#whoTop").innerHTML = `<button type="button" class="who-btn" data-act="account">${esc(S.me.name||"Me")}</button>`;
+  $("#whoTop").innerHTML = `<button type="button" class="who-btn" data-act="account">${avatar(S.me.id,"sm")}${esc((S.me.name||"Me").split(" ")[0])}</button>`;
   const wb=$("#whoRailBtn"); if(wb) wb.textContent=(S.me.name||"Me")+" · Account";
 }
 
@@ -1094,9 +1116,9 @@ const PERMS=[["can_log","Check off stops and post notes, photos and video",""],[
 function permSummary(p){ return [p.can_manage&&"Manager",!p.can_manage&&p.can_edit&&"Office",p.can_money&&"Money",p.partner&&"ShipShape statement",p.can_log&&"Checks off",!p.all_crews&&"Own crew only"].filter(Boolean).join(" · ")||"Can only view"; }
 function vTeam(){
   const P=PL.staff();
-  return `<div class="bar"><p class="lede grow">Everyone who can sign in. Each person picks their name and types their own 6-digit PIN.</p>${S.me.manage?`<button type="button" class="btn amber" data-act="person-new">+ Add person</button>`:""}</div>
-  <div class="rows">${P.map(p=>`<button type="button" class="row" data-act="person" data-id="${esc(p.id)}"><span class="bulb ${p.active?"on":"red"}"></span>
-    <span class="m"><span class="n">${esc(p.name)}${p.id===S.me.id?" (you)":""}</span><span class="s">${esc(permSummary(p))}</span></span>
+  return `<div class="bar"><p class="lede grow">Everyone who can sign in. Each person signs in with their own 6-digit PIN. No two people can have the same one.</p>${S.me.manage?`<button type="button" class="btn amber" data-act="person-new">+ Add person</button>`:""}</div>
+  <div class="rows">${P.map(p=>`<button type="button" class="row" data-act="person" data-id="${esc(p.id)}">${avatar(p.id)}
+    <span class="m"><span class="n">${esc(p.name)}${p.id===S.me.id?" (you)":""}</span><span class="s">${esc([p.title,permSummary(p)].filter(Boolean).join(" · "))}</span></span>
     <span class="r"><span class="count" style="font-size:13px">${esc(p.crew?teamName(p.crew):"No crew")}</span>${p.active?"":`<span class="st cancelled">Turned off</span>`}</span></button>`).join("")}</div>
   <div class="note">Quick presets when adding someone: <b>ShipShape owner</b> sees ShipShape's jobs and only ShipShape's payouts. <b>Crew member</b> checks off their crew's stops. <b>Crew lead</b> also sees every crew. <b>Office</b> edits jobs and the schedule. <b>Manager</b> does everything, including money and people.</div>`;
 }
@@ -1105,7 +1127,9 @@ function dPerson(){
   const crewOpts=`<option value="">No crew</option>${crews().map(c=>`<option value="${esc(c.id)}" ${p.crew===c.id?"selected":""}>${esc(c.name)}</option>`).join("")}`;
   const b=`<form class="form" id="personForm" autocomplete="off">
     <fieldset><legend>Person</legend>
-      <div class="f"><label for="pp-name">Name on the sign-in screen</label><input id="pp-name" value="${esc(p.name)}" required placeholder="e.g. Mike R."></div>
+      <div class="f"><label for="pp-name">Name</label><input id="pp-name" value="${esc(p.name)}" required placeholder="e.g. Mike R."><small>Their first name shows on the welcome screen.</small></div>
+      <div class="f"><label for="pp-title">Title</label><input id="pp-title" value="${esc(p.title||"")}" placeholder="e.g. Crew Lead"></div>
+      ${p.id?`<div class="f"><label>Headshot</label><div class="bar">${avatar(p.id,"lg")}<label class="btn small file-btn">${p.photo?"Change photo":"Add photo"}<input type="file" accept="image/*" data-photo-for="${esc(p.id)}" hidden></label></div></div>`:""}
       <div class="f"><label for="pp-crew">Crew</label><select id="pp-crew">${crewOpts}</select></div>
       <div class="f"><label for="pp-pin">${isNew?"6-digit PIN":"New PIN (leave blank to keep theirs)"}</label><input id="pp-pin" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" ${isNew?"required":""} placeholder="${isNew?"":"••••••"}"><small>Give them this PIN in person or by text. They can change it from Account.</small></div>
     </fieldset>
@@ -1129,12 +1153,14 @@ async function savePerson(){
   S.busy=true;
   try{
     if(!p.id) await PL.add({...out,pin}); else { await PL.update(out); if(pin) await PL.setPin(p.id,pin); }
+    { const t=g("pp-title").value.trim(), who2=p.id||(PL.staff().find(x=>x.name===out.name)||{}).id; if(who2 && t!==((PL.staff().find(x=>x.id===who2)||{}).title||"")) await PL.setTitle(who2,t); }
     S.busy=false; toast(p.id?"Saved":"Added "+out.name); closeDrawer();
   }catch(e){ S.busy=false; g("pp-err").textContent=e.message.replace(/^.*?: /,""); }
 }
 function dAccount(){
   const me=PL.me()||{};
   return drawerShell("Signed in", me.name||"You", `<p class="lede">${esc(permSummary(me))}${me.crew?" · "+esc(teamName(me.crew)):""}</p>
+  <div class="f"><label>My headshot</label><div class="bar">${avatar(S.me.id,"lg")}<label class="btn small file-btn">${(staffOf(S.me.id)||{}).photo?"Change photo":"Add photo"}<input type="file" accept="image/*" data-photo-for="${esc(S.me.id)}" hidden></label></div>${(PL.me()||{}).title?`<small>${esc(PL.me().title)}</small>`:""}</div>
   ${lookPanel()}
   <div class="f"><label>Directions open in</label><div class="seg" role="group">${[["apple","Apple Maps"],["google","Google Maps"]].map(([k,l])=>`<button type="button" data-act="maps-app" data-v="${k}" aria-pressed="${MAPS_APP()===k}">${l}</button>`).join("")}</div></div>
   <form class="form" id="pinForm" autocomplete="off"><fieldset><legend>Change my PIN</legend><div class="two">
@@ -1824,7 +1850,7 @@ function vChat(){
     const c=chans.find(x=>x.id===cur), M=chanMsgs(cur); let day="";
     thread=`<div class="chat-thread"><div class="chat-head"><button type="button" class="btn small chat-back" data-act="chat-open" data-v="">‹</button><b>${esc(c.name)}</b>${c.kind==="ann"?`<span class="count">Only the office posts here</span>`:c.kind==="crew"?`<span class="count">${esc(membersOf(cur.slice(5)).join(", ")||"Crew + office")}</span>`:`<span class="count">Private</span>`}</div>
       <div class="chat-msgs" id="chat-msgs">${M.map(m=>{ const d=isoOf(m.at), sep=d!==day?`<div class="chat-day">${esc(rel(d)||fmtDay(d,{weekday:"short",month:"short",day:"numeric"}))}</div>`:""; day=d; const mine=m.by===S.me.id;
-        return `${sep}<div class="bub ${mine?"me":""}">${mine?"":`<b>${esc(who(m.by))}</b>`}<div class="txt">${esc(m.body)}</div><small>${new Date(m.at).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}${(mine||S.me.manage)?` · <button type="button" class="linkbtn" data-act="chat-del" data-id="${esc(m.id)}">Delete</button>`:""}</small></div>`; }).join("")||`<p class="count" style="text-align:center;margin:24px 0">No messages yet.</p>`}</div>
+        return `${sep}<div class="bub ${mine?"me":""}">${mine?"":`<b>${avatar(m.by,"xs")}${esc(who(m.by))}</b>`}<div class="txt">${esc(m.body)}</div><small>${new Date(m.at).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}${(mine||S.me.manage)?` · <button type="button" class="linkbtn" data-act="chat-del" data-id="${esc(m.id)}">Delete</button>`:""}</small></div>`; }).join("")||`<p class="count" style="text-align:center;margin:24px 0">No messages yet.</p>`}</div>
       ${canPost(cur)?`<form class="chat-compose" id="chatForm"><textarea id="chat-text" rows="1" placeholder="${c.kind==="ann"?"Post an announcement to everyone":"Message "+esc(c.name)}">${esc(S.chat.draft[cur]||"")}</textarea><button type="submit" class="btn amber">Send</button></form>`:`<div class="note" style="margin:0">Only the office can post announcements.</div>`}</div>`;
     const M2=chanMsgs(cur); if(M2.length) ls("read:"+S.me.id+":"+cur, M2[M2.length-1].at);
   }
@@ -2006,6 +2032,8 @@ function strandSVG(n, w, h, cls){
 }
 function playIntro(force){
   const L=look();
+  // on a fresh sign-in the welcome screen does the lights instead
+  if(!force){ const d=new Date(Date.now()-3*3600e3); if(ls("prolight-day")!==d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate()) return; }
   if(!force){ if(L.intro==="off") return; if(L.intro==="daily" && ls("introDay")===todayISO()) return; }
   ls("introDay",todayISO());
   const old=$("#intro"); if(old) old.remove();
@@ -2073,6 +2101,15 @@ applyLook();
 playIntro();
 function gateSnow(){ const g=$("#gate"); if(g && !g.hidden && snowSeason()) snowIn(g, christmasWeek()?110:55); }
 new MutationObserver(()=>{ if(gateSnow.q) return; gateSnow.q=requestAnimationFrame(()=>{ gateSnow.q=0; gateSnow(); }); }).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:["hidden"]});
+
+/* headshots */
+const staffOf = id => (window.PL&&PL.staff().find(p=>p.id===id)) || null;
+function avatar(id, cls){ const p=staffOf(id), url=p&&PL.photoUrl(p), n=(p&&p.name)||"?";
+  return `<span class="ava ${cls||""}">${url?`<img src="${esc(url)}" alt="" loading="lazy">`:esc(n[0].toUpperCase())}</span>`; }
+async function changePhoto(file, id){
+  if(!file) return; toast("Saving photo…");
+  try{ await PL.setPhoto(id||S.me.id, await PL.squarePhoto(file)); toast("Photo saved"); renderDrawer(); renderNav(); }catch(e){ toast("Couldn't save the photo. Try again."); }
+}
 
 /* ---------- render ---------- */
 function renderMain(){
@@ -2331,6 +2368,7 @@ document.addEventListener("change", async ev=>{
   const t=ev.target;
   if(t.id&&t.id.startsWith("pj-")&&S.form&&S.form.pay){ const jid=t.id.slice(3); t.checked?S.form.pay.jobs.add(jid):S.form.pay.jobs.delete(jid);
     if(!S.form.pay.manual){ let tot=0; document.querySelectorAll('#payForm input[id^="pj-"]:checked').forEach(x=>tot+=Number(x.dataset.jamt)); $("#py-amount").value=tot?tot.toFixed(2):""; } return; }
+  if(t.dataset&&t.dataset.photoFor){ await changePhoto(t.files[0], t.dataset.photoFor); return; }
   if(t.id==="compose-files"){ S.compose.files.push(...t.files); renderDrawer(); }
   else if(t.id==="mockup-file"){ await addMockups([...t.files]); }
   else if(t.id==="f-client"){ readJobForm(); renderDrawer(); }

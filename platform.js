@@ -75,6 +75,22 @@
       if (!r.ok) throw new Error(j.error || "Request failed");
       return j;
     },
+    async setTitle(id, title) {
+      const { error } = await sb.rpc("staff_set_title", { p_id: id, p_title: title || "" });
+      if (error) throw new Error(error.message);
+      await PL.reloadStaff();
+    },
+    async setPhoto(id, blob) {
+      const path = `staff/${id}-${Date.now()}.jpg`;
+      const up = await sb.storage.from("media").upload(path, blob, { contentType: "image/jpeg", upsert: true });
+      if (up.error) throw new Error(up.error.message);
+      const { error } = await sb.rpc("staff_set_photo", { p_id: id, p_photo: path });
+      if (error) throw new Error(error.message);
+      await PL.reloadStaff();
+      return path;
+    },
+    photoUrl: (p) => (p && p.photo ? sb.storage.from("media").getPublicUrl(p.photo).data.publicUrl : ""),
+    squarePhoto,
     async signOut() {
       await sb.auth.signOut();
       try { localStorage.removeItem("prolight-last"); localStorage.removeItem("prolight-day"); if (ME) localStorage.removeItem(ckey(ME.id)); } catch (e) {}
@@ -292,10 +308,60 @@
     await sb.auth.signOut({ scope: "local" }).catch(() => {});
   }
   document.addEventListener("visibilitychange", () => { if (!document.hidden && loaded && !dayOk()) endDay().then(() => location.reload()); });
+  let freshSignIn = false;
+  /* square, centered, 480px JPEG from any photo */
+  async function squarePhoto(file) {
+    const img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = URL.createObjectURL(file); });
+    const s = Math.min(img.naturalWidth, img.naturalHeight), cv = document.createElement("canvas"); cv.width = cv.height = 480;
+    cv.getContext("2d").drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 3, s, s, 0, 0, 480, 480);
+    return new Promise((ok) => cv.toBlob(ok, "image/jpeg", 0.86));
+  }
+  function photoStep() {
+    return new Promise((resolve) => {
+      const first = (ME.name || "").split(" ")[0];
+      const g = showGate(`<h2>Hey ${esc(first)}! Add your headshot</h2><p>It shows when you sign in and next to your messages. A clear photo of your face works best.</p>
+        <div class="head-prev" id="hs-prev"><span>${esc((first[0] || "?").toUpperCase())}</span></div>
+        <label class="gate-go head-pick">Take or choose a photo<input type="file" id="hs-file" accept="image/*" hidden></label>
+        <button type="button" class="gate-go" id="hs-save" hidden>Use this photo</button>
+        <p class="gate-err" id="gate-err"></p>
+        <button type="button" class="gate-back" id="hs-skip" style="justify-self:center">Skip for now</button>`);
+      let blob = null;
+      g.querySelector("#hs-file").onchange = async (e) => {
+        const f = e.target.files[0]; if (!f) return;
+        try { blob = await squarePhoto(f); } catch (x) { $("#gate-err").textContent = "Couldn't read that photo. Try another."; return; }
+        $("#hs-prev").innerHTML = `<img src="${URL.createObjectURL(blob)}" alt="">`;
+        $("#hs-save").hidden = false; g.querySelector(".head-pick").firstChild.textContent = "Pick a different one";
+      };
+      g.querySelector("#hs-save").onclick = async (e) => {
+        e.target.disabled = true; e.target.textContent = "Saving…";
+        try { await PL.setPhoto(ME.id, blob); resolve(); }
+        catch (x) { e.target.disabled = false; e.target.textContent = "Use this photo"; $("#gate-err").textContent = "Couldn't save it. Check your signal and try again."; }
+      };
+      g.querySelector("#hs-skip").onclick = () => resolve();
+    });
+  }
+  const WCOL = { warm: "#FFB23E", white: "#EEF3FF", red: "#E8352B", green: "#22B04F", blue: "#2F6BFF", purple: "#8E4DFF", orange: "#FF7A1A", yellow: "#FFD21F", teal: "#14B8A6" };
+  function welcome() {
+    let cols = ["warm"]; try { cols = (JSON.parse(localStorage.getItem("look") || "{}").colors || cols).filter((k) => WCOL[k]); } catch (e) {}
+    if (!cols.length) cols = ["warm"];
+    const first = (ME.name || "").split(" ")[0] || "there", url = PL.photoUrl(ME), n = 14;
+    const ring = [...Array(n)].map((_, i) => { const a = (i / n) * Math.PI * 2 - Math.PI / 2; return `<span class="wb" style="left:${(50 + Math.cos(a) * 50).toFixed(2)}%;top:${(50 + Math.sin(a) * 50).toFixed(2)}%;--bc:${WCOL[cols[i % cols.length]]};--d:${i};--r:${(a * 180 / Math.PI + 90).toFixed(1)}deg"></span>`; }).join("");
+    const el = document.createElement("div"); el.id = "welcome";
+    el.innerHTML = `<div class="w-ring"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="50" fill="none" stroke="#2a6e4e" stroke-width="1.2"/></svg>${ring}
+      <div class="w-face">${url ? `<img src="${esc(url)}" alt="">` : `<span>${esc(first[0].toUpperCase())}</span>`}</div></div>
+      <div class="w-hi">Welcome, ${esc(first)}!</div>${ME.title ? `<div class="w-title">${esc(ME.title)}</div>` : ""}`;
+    document.body.appendChild(el);
+    return new Promise((resolve) => {
+      const done = () => { if (!el.isConnected) return; el.classList.add("out"); setTimeout(() => el.remove(), 450); resolve(); };
+      el.addEventListener("click", done); setTimeout(done, 2900);
+      setTimeout(resolve, 300); // let the board load underneath right away
+    });
+  }
   async function signInAs(person, pin) {
     const { error } = await sb.auth.signInWithPassword({ email: person.email, password: pin });
     if (error) return /rate|many/i.test(error.message) ? "Too many tries. Wait a few minutes and try again." : "That PIN didn't match. Try again.";
     try { localStorage.setItem("prolight-day", dayKey()); localStorage.removeItem("prolight-last"); } catch (e) {}
+    freshSignIn = true;
     await afterSignIn();
     return null;
   }
@@ -352,6 +418,12 @@
     }
     try { await loadAll(); } catch (e) { return showGate(`<h2>Can't load the board</h2><p>${esc(e.message)}</p>`); }
     subscribe();
+    if (freshSignIn) {
+      freshSignIn = false; document.onkeydown = null;
+      if (!ME.photo) await photoStep();
+      hideGate(); resolveReady(); welcome();
+      return;
+    }
     hideGate();
     document.onkeydown = null;
     resolveReady();
