@@ -115,6 +115,21 @@
     flushOutbox: () => flush(),
     photoUrl: (p) => (p && p.photo ? sb.storage.from("media").getPublicUrl(p.photo).data.publicUrl : ""),
     squarePhoto,
+    async logEvents(events) {
+      if (!events || !events.length) return;
+      const { error } = await sb.rpc("log_events", { p_events: events });
+      if (error) throw new Error(error.message);
+    },
+    async auditList(o) {
+      const { data, error } = await sb.rpc("audit_list", { p_before: o.before || null, p_filter: o.filter || "all", p_who: o.who || null, p_limit: o.limit || 150 });
+      if (error) throw new Error(error.message);
+      return data || [];
+    },
+    async auditHealth() {
+      const { data, error } = await sb.rpc("audit_health");
+      if (error) throw new Error(error.message);
+      return data || {};
+    },
     async signedInAt() {
       const { data } = await sb.auth.getSession();
       const u = data && data.session && data.session.user;
@@ -551,6 +566,8 @@
         if (ME.look && ME.look.lang && ME.look.lang !== cur) { try { localStorage.setItem("lang", ME.look.lang); } catch (e) {} location.reload(); return; }
         if (cur === "es" && !(ME.look && ME.look.lang)) PL.setLang("es").catch(() => {}); }
       hideGate(); resolveReady(); welcome();
+      { const ua = navigator.userAgent, dev = /iPad|Macintosh.*Mobile/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? "iPad" : /iPhone/.test(ua) ? "iPhone" : /Android/.test(ua) ? "Android" : /Mac/.test(ua) ? "Mac" : /Windows/.test(ua) ? "Windows" : "Other";
+        PL.logEvents([{ type: "signin", device: dev }]).catch(() => {}); }
       return;
     }
     hideGate();

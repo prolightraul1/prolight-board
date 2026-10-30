@@ -720,6 +720,22 @@ html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
   .dgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .drawer{width:min(520px,100%)}
 }
+/* activity log */
+.act-health{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (min-width:960px){ .act-health{grid-template-columns:repeat(6,minmax(0,1fr))} }
+.dmoney-t{display:grid;gap:2px;background:var(--sunk);border-radius:var(--r-sm);padding:10px 12px;min-width:0}
+.dmoney-t small{color:var(--ink-2);font-size:12.5px;font-weight:700}
+.dmoney-t b{font-family:var(--f-sign);font-weight:800;font-size:26px;font-variant-numeric:tabular-nums}
+.dmoney-t.bad b{color:var(--red)} .dmoney-t.warn b{color:var(--amber-text)}
+.act-day{padding:8px 14px;background:var(--sunk);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);border-bottom:1px solid var(--line)}
+.act-row{display:grid;grid-template-columns:64px auto minmax(0,1fr);gap:10px;align-items:start;padding:10px 14px;border-bottom:1px solid var(--line);font-size:14.5px}
+.act-row:last-child{border-bottom:0}
+.act-row .ava{margin:0}
+.act-row .m{display:grid;gap:2px;min-width:0}
+.act-row .s{color:var(--ink-2);font-size:13px;overflow-wrap:anywhere}
+.act-t{color:var(--ink-2);font-size:12px;padding-top:4px}
+.act-row.bad{box-shadow:inset 3px 0 0 var(--red)} .act-row.warn{box-shadow:inset 3px 0 0 var(--amber)} .act-row.ok{box-shadow:inset 3px 0 0 var(--cord)}
+.act-more{margin:6px 0 0;padding:8px 10px;background:var(--sunk);border-radius:var(--r-sm);font:12px/1.5 var(--f-mono);white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto}
 .gate-lang{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:max(14px,env(safe-area-inset-right,0px));z-index:2;background:var(--night-2);color:var(--night-ink);border:1px solid #2a3832;border-radius:999px;padding:6px 14px;font-weight:700;font-size:14px}
 </style>
 
@@ -2950,7 +2966,7 @@ function officeGroups(){
   const G=[];
   if(S.me.money) G.push(["money","Money",[["money:overview","Overview"],["money:tcl","TCL"],["money:ss","ShipShape"],["money:own","ProLight jobs"],["money:pays","Payments"],["sales","Commission"],["statement","ShipShape view"]]]);
   const ppl=[S.me.owner&&["hours","Hours"],S.me.money&&["payroll","Payroll"],S.me.manage&&["team","Team"]].filter(Boolean); if(ppl.length) G.push(["people","People",ppl]);
-  const set=[S.me.owner&&["settings","Settings"],S.me.owner&&["texts","Night texts"]].filter(Boolean); if(set.length) G.push(["setup","Setup",set]);
+  const set=[S.me.owner&&["settings","Settings"],S.me.owner&&["texts","Night texts"],S.me.manage&&["activity","Activity log"]].filter(Boolean); if(set.length) G.push(["setup","Setup",set]);
   if(!S.me.money&&S.me.partner) G.push(["payouts","My payouts",[["statement","My payouts"]]]);
   return G;
 }
@@ -2965,7 +2981,7 @@ function vOffice(){
   let h=`<h1 class="h-view">Office</h1>${G.length>1?`<div class="seg ogroups" role="group" aria-label="Office">${G.map(([k,l])=>`<button type="button" data-act="ogroup" data-v="${k}" aria-pressed="${cur[0]===k}">${l}${k==="people"&&rc?` <i class="cnt">${rc}</i>`:""}</button>`).join("")}</div>`:""}
     ${cur[2].length>1?`<div class="chips" role="group" aria-label="${esc(cur[1])}">${cur[2].map(([k,l])=>`<button type="button" class="chip" data-act="office" data-v="${k}" aria-pressed="${okey()===k}">${l}</button>`).join("")}</div>`:""}`;
   const o=S.office;
-  h+=`<div class="obody">`+(o==="money"?vMoney(): o==="texts"?vTexts(): o==="team"?vTeam(): o==="hours"?vHours(): o==="statement"?vStatement(): o==="sales"?vSales(): o==="payroll"?vPayroll(): vSettings())+`</div>`;
+  h+=`<div class="obody">`+(o==="money"?vMoney(): o==="texts"?vTexts(): o==="team"?vTeam(): o==="hours"?vHours(): o==="statement"?vStatement(): o==="sales"?vSales(): o==="payroll"?vPayroll(): o==="activity"?vActivity(): vSettings())+`</div>`;
   return h;
 }
 
@@ -3158,8 +3174,98 @@ function trTree(root){ if(!LANG_ES||!root) return; if(root.nodeType===3) return 
 if(LANG_ES){ document.documentElement.lang="es"; const run=()=>{ trTree(document.body); new MutationObserver(ms=>{ for(const m of ms){ if(m.type==="characterData") trText(m.target); else m.addedNodes.forEach(trTree); } }).observe(document.body,{childList:true,subtree:true,characterData:true}); }; document.body?run():document.addEventListener("DOMContentLoaded",run); }
 function setLang(l){ try{ localStorage.setItem("lang",l); }catch(e){} if(window.PL&&PL.setLang) PL.setLang(l).catch(()=>{}).finally(()=>location.reload()); else location.reload(); }
 
+/* ---------- activity log: the app reports crashes, slow screens, load time and failed saves ---------- */
+const DEVICE = (()=>{ const ua=navigator.userAgent; const d=/iPad/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1)?"iPad":/iPhone/.test(ua)?"iPhone":/Android/.test(ua)?"Android":/Mac/.test(ua)?"Mac":/Windows/.test(ua)?"Windows":"Other";
+  const b=/Edg\//.test(ua)?"Edge":/CriOS|Chrome\//.test(ua)?"Chrome":/FxiOS|Firefox\//.test(ua)?"Firefox":/Safari\//.test(ua)?"Safari":""; return d+(b?" · "+b:"")+(matchMedia("(display-mode: standalone)").matches||navigator.standalone?" · app":""); })();
+const EVQ=[], EVSEEN=new Map();
+function track(type, info){
+  try{ const key=type+"|"+(info&&(info.msg||info.where||info.what)||""), now=Date.now(); if(EVSEEN.has(key)&&now-EVSEEN.get(key)<60000) return; EVSEEN.set(key,now);
+    EVQ.push({type, device:DEVICE, view:(window.S&&S.view)||"", ...(info||{})}); if(EVQ.length>60) EVQ.splice(0,EVQ.length-60); }catch(e){}
+}
+async function flushEvents(){ if(!EVQ.length||!window.PL||!PL.me()||!navigator.onLine) return; const batch=EVQ.splice(0,25); try{ await PL.logEvents(batch); }catch(e){ if(!/function|exist/i.test(e.message||"")) EVQ.unshift(...batch); } }
+setInterval(flushEvents, 15000);
+document.addEventListener("visibilitychange",()=>{ if(document.hidden) flushEvents(); });
+window.addEventListener("error",e=>{ if(!e.message||/ResizeObserver|Script error/i.test(e.message)) return; track("crash",{msg:String(e.message).slice(0,300),src:`${String(e.filename||"").split("/").pop()}:${e.lineno||""}`,stack:String((e.error&&e.error.stack)||"").slice(0,700)}); });
+window.addEventListener("unhandledrejection",e=>{ const r=e.reason, m=String((r&&r.message)||r||""); if(!m||/Failed to fetch|NetworkError|Load failed|AbortError/i.test(m)) return; track("crash",{msg:m.slice(0,300),stack:String((r&&r.stack)||"").slice(0,700),async:true}); });
+const LAGT=new Map();
+function lagCheck(where, ms){ if(ms<300) return; const now=Date.now(); if(LAGT.has(where)&&now-LAGT.get(where)<120000) return; LAGT.set(where,now); track("lag",{where,ms:Math.round(ms)}); }
+try{ new PerformanceObserver(l=>{ for(const e of l.getEntries()) if(e.duration>700) lagCheck("busy page",e.duration); }).observe({type:"longtask",buffered:false}); }catch(e){}
+let LOADED_AT=0;
+function noteLoad(){ if(LOADED_AT||!S.ready) return; LOADED_AT=performance.now(); const ms=Math.round(LOADED_AT); track(ms>6000?"slow-load":"load",{ms,online:navigator.onLine}); }
+
+/* ---------- activity log screen (managers) ---------- */
+const ACT = { filter:"all", who:"", rows:null, health:null, more:true, loading:false, err:"", open:new Set() };
+async function loadActivity(reset){
+  if(ACT.loading) return; ACT.loading=true; ACT.err="";
+  try{ const before=reset?null:(ACT.rows&&ACT.rows.length?ACT.rows[ACT.rows.length-1].at:null);
+    const r=await PL.auditList({before,filter:ACT.filter,who:ACT.who||null});
+    ACT.rows=reset?r:[...(ACT.rows||[]),...r]; ACT.more=r.length>=150;
+    if(reset) ACT.health=await PL.auditHealth().catch(()=>null);
+  }catch(e){ ACT.err=e.message; if(!ACT.rows) ACT.rows=[]; }
+  ACT.loading=false; if(S.view==="office"&&S.office==="activity") renderMain();
+}
+const actWho = id => id ? (id===S.me.id?"You":staffName(id)) : "System";
+function actShort(v){ if(v==null) return "–"; if(typeof v==="string") return v.length>60?v.slice(0,57)+"…":v; if(typeof v==="boolean") return v?"on":"off"; const t=JSON.stringify(v); return t.length>60?t.slice(0,57)+"…":t; }
+function actDesc(r){
+  const i=r.info||{}, ref=i.ref||{}, a=i.after||{}, b=i.before||{}, f=i.fields||[];
+  const jobName=id=>{ const j=id&&S.jobs.get(id); return j?(clientOf(j).name||"a job"):"a job that's gone"; };
+  const verb={insert:"Added",update:"Changed",delete:"Deleted"}[r.kind]||r.kind;
+  const nice=k=>({visits:"visits",crew:"crew",stage:"stage",scope:"lights",notes:"crew notes",price:"price",ssPct:"ShipShape %",collected:"collected",ssPaid:"ShipShape paid",sale:"sale",referral:"referral",in:"clock in",out:"clock out",can_manage:"manager",can_money:"money access",can_edit:"office access",can_log:"check-offs",active:"can sign in",pin_ok:"own PIN",look:"colors",photo:"headshot",title:"title",name:"name",mockups:"mockups",address:"address",lat:"map pin",lng:"map pin",status:"status"})[k]||k;
+  const changed=[...new Set(f.map(nice))].join(", ");
+  if(r.kind==="event"){ const t=r.doc_id, dev=i.device||"";
+    if(t==="crash") return ["bad",`Crash: ${i.msg||"unknown error"}`,[i.view&&"on "+i.view,i.src,dev].filter(Boolean).join(" · "),i.stack];
+    if(t==="lag") return ["warn",`Slow: ${i.where||i.view||"screen"} took ${(i.ms/1000).toFixed(1)} s`,dev];
+    if(t==="slow-load") return ["warn",`Slow to open: ${(i.ms/1000).toFixed(1)} s`,dev];
+    if(t==="load") return ["",`Opened the board in ${(i.ms/1000).toFixed(1)} s`,dev];
+    if(t==="save-failed") return ["bad",`Couldn't ${i.what||"save a change"}`,[i.msg,i.offline?"no signal":"",dev].filter(Boolean).join(" · ")];
+    if(t==="signin") return ["ok","Signed in",dev];
+    return ["",t,dev]; }
+  if(r.coll==="log"){ const k=ref.kind||a.kind||b.kind, jn=ref.jobId?jobName(ref.jobId):"";
+    if(k==="done") return r.kind==="delete"?["warn",`Undid a check-off · ${jn}`,""]:["ok",`Marked done · ${jn}`,""];
+    if(k==="clock"){ const where=ref.jobId?jn:(a.where||b.where)==="travel"?"driving":"shop";
+      if(r.kind==="insert") return ["",`${a.pending?"Asked to add time":"Clocked in"} · ${where}`, a.in?`${tfmt(a.in)}${a.out?" – "+tfmt(a.out):""}`:""];
+      if(r.kind==="delete") return ["warn",`Deleted time · ${where}`,""];
+      if(f.length===1&&f[0]==="out"&&!b.out) return ["",`Clocked out · ${where}`,a.out?tfmt(a.out):""];
+      return ["warn",`Changed a time card · ${where}`,f.filter(k=>k==="in"||k==="out").map(k=>`${nice(k)} ${b[k]?tfmt(b[k]):"–"} → ${a[k]?tfmt(a[k]):"–"}`).join(", ")||changed]; }
+    if(k==="timereq") return r.kind==="insert"?["",`Asked for a time fix`,a.summary||""]:["",`Time fix ${a.status||"changed"}`,""];
+    if(k==="note") return ["",`${verb==="Added"?"Posted":verb} a note · ${jn}`,""];
+    if(k==="partial") return ["warn",`Marked partly done · ${jn}`,a.why||""];
+    if(k==="issue") return ["warn",`Reported a problem · ${jn}`,""];
+    return ["",`${verb} ${k||"an entry"}${jn?" · "+jn:""}`,changed]; }
+  if(r.coll==="jobs") return ["",`${verb} job · ${jobName(r.doc_id)}`,r.kind==="update"?"Changed "+changed:""];
+  if(r.coll==="clients") return ["",`${verb} client · ${(S.clients.get(r.doc_id)||{}).name||ref.name||a.name||b.name||""}`,r.kind==="update"?"Changed "+changed:""];
+  if(r.coll==="fin"){ const p=f.includes("price")?`price ${actShort(b.price)} → ${actShort(a.price)}`:""; return ["",`${verb} money · ${jobName(r.doc_id)}`,p||(r.kind==="update"?"Changed "+changed:"")]; }
+  if(r.coll==="settings") return ["",`${verb} settings`,r.doc_id+(changed?" · "+changed:"")];
+  if(r.coll==="staff") return ["",`${verb} person · ${ref.name||""}`,r.kind==="update"?"Changed "+changed:""];
+  if(r.coll==="messages") return ["",r.kind==="delete"?"Deleted a chat message":"Sent a chat message",""];
+  return ["",`${verb} ${r.coll||""}`,changed];
+}
+function vActivity(){
+  if(!ACT.rows&&!ACT.loading) loadActivity(true);
+  const H=ACT.health, ppl=PL.staff();
+  const tile=(l,v,cls)=>`<div class="dmoney-t ${cls||""}"><small>${l}</small><b>${v}</b></div>`;
+  let h=`<div class="dcard"><header><span class="eyebrow">Last 7 days</span><button type="button" class="linkbtn" data-act="act-refresh">Refresh</button></header><div class="dmoney act-health">
+    ${H?tile("Crashes",H.crashes||0,H.crashes?"bad":"")+tile("Slow screens",H.lag||0,H.lag?"warn":"")+tile("Failed saves",H.failed||0,H.failed?"bad":"")+tile("Avg open time",H.loadMs?(H.loadMs/1000).toFixed(1)+" s":"–",H.loadMs>5000?"warn":"")+tile("Changes",H.changes||0)+tile("Wrong PINs (24 h)",H.wrongPins||0,H.wrongPins>10?"warn":""):`<p class="count">Loading…</p>`}</div></div>
+  <div class="bar"><div class="chips">${[["all","Everything"],["changes","Changes"],["problems","Problems"],["signins","Sign-ins"]].map(([k,l])=>`<button type="button" class="chip" data-act="act-filter" data-v="${k}" aria-pressed="${ACT.filter===k}">${l}</button>`).join("")}</div>
+    <span class="grow"></span><select class="search" id="act-who" aria-label="Person" style="width:auto;min-width:160px"><option value="">Everyone</option>${ppl.map(p=>`<option value="${esc(p.id)}" ${ACT.who===p.id?"selected":""}>${esc(p.name)}</option>`).join("")}</select></div>`;
+  if(ACT.err) h+=`<div class="note">${esc(ACT.err)}${/function|exist|schema/i.test(ACT.err)?"<br>Run update 13 in Supabase to turn on the activity log.":""}</div>`;
+  if(!ACT.rows) return h+skel(6);
+  if(!ACT.rows.length) return h+`<p class="count">Nothing here yet. Everything people do on the board from now on shows up here.</p>`;
+  let day="";
+  h+=`<div class="rows act-rows">`;
+  for(const r of ACT.rows){ const d=isoOf(r.at), [cls,txt,det,more]=actDesc(r);
+    if(d!==day){ day=d; h+=`<div class="act-day">${esc(fmtDay(d,{weekday:"long",month:"short",day:"numeric"}))}</div>`; }
+    const open=ACT.open.has(r.id), i=r.info||{}, hasMore=more||(r.kind==="update"&&(i.fields||[]).length);
+    h+=`<div class="act-row ${cls}" ${hasMore?`data-act="act-open" data-v="${r.id}" style="cursor:pointer"`:""}><span class="act-t mono">${tfmt(r.at)}</span>${avatar(r.who,"sm")}<span class="m"><span class="n"><b>${esc(actWho(r.who))}</b> ${esc(txt)}</span>${det?`<span class="s">${esc(det)}</span>`:""}
+      ${open?`<pre class="act-more">${esc(more||(i.fields||[]).filter(k=>k!=="photo").map(k=>`${k}: ${actShort((i.before||{})[k])} → ${actShort((i.after||{})[k])}`).join("\n"))}</pre>`:""}</span></div>`; }
+  h+=`</div>${ACT.more?`<div class="bar"><button type="button" class="btn" data-act="act-more" ${ACT.loading?"disabled":""}>${ACT.loading?"Loading…":"Show older"}</button></div>`:""}
+  <p class="count" style="font-size:12.5px">Every change on the board is recorded by the server, so it can't be skipped or edited. Chat shows that a message was sent, never what it said. Money changes only show to people with money access. Kept for a year.</p>`;
+  return h;
+}
+
 /* ---------- render ---------- */
 function renderMain(){
+  const __t0=performance.now();
   homeView();
   renderNav();
   const a=document.activeElement, fid=a&&a.id&&a.id.startsWith("q-")?a.id:null, pos=fid?a.selectionStart:0;
@@ -3169,12 +3275,14 @@ function renderMain(){
   if(S.view==="map") mountMap();
   if(S.view==="route") mountRouteMap();
   if(fid){ const el=document.getElementById(fid); if(el){ el.focus(); try{el.setSelectionRange(pos,pos);}catch(e){} } }
+  lagCheck("screen: "+S.view, performance.now()-__t0); noteLoad();
 }
 window.addEventListener("resize",()=>{ if(S.view==="map"&&LMAP) LMAP.invalidateSize(); });
 function refresh(){ if(refresh.q) return; refresh.q=requestAnimationFrame(()=>{ refresh.q=0; renderMain(); if(S.drawer && (S.drawer.kind==="job"||S.drawer.kind==="client")) renderDrawer(); }); }
 
 /* ---------- writes ---------- */
 function fail(e,what){
+  track("save-failed",{what,code:(e&&e.code)||"",msg:String((e&&e.message)||"").slice(0,200),offline:!navigator.onLine});
   const c=e&&e.code;
   if(c==="invalid_argument") toast(`You don't have permission to ${what}.`);
   else if(c==="quota_exceeded") toast("The board is full. Delete old entries to make room.");
@@ -3319,6 +3427,10 @@ document.addEventListener("click", async ev=>{
     case "account": openDrawer("account"); break;
     case "lang": if((v==="es")!==LANG_ES) setLang(v); break;
     case "pins": await openPins(); break;
+    case "act-filter": ACT.filter=v; ACT.rows=null; ACT.open.clear(); renderMain(); break;
+    case "act-refresh": ACT.rows=null; ACT.health=null; renderMain(); break;
+    case "act-more": loadActivity(false); renderMain(); break;
+    case "act-open": { const n=Number(v); ACT.open.has(n)?ACT.open.delete(n):ACT.open.add(n); renderMain(); break; }
     case "new-pins": S.newPinsAsk=true; renderMain(); window.scrollTo(0,0); break;
     case "new-pins-no": S.newPinsAsk=false; renderMain(); break;
     case "new-pins-yes": t.disabled=true; await requireNewPins(); break;
@@ -3475,6 +3587,7 @@ document.addEventListener("change", async ev=>{
   if(["sl-by","sl-ref"].includes(t.id)&&S.form&&S.form.sale){ readSale(); renderDrawer(); return; }
   if(["m-soldby","m-ref"].includes(t.id)&&S.form&&S.form.sold){ readJobForm(); renderDrawer(); return; }
   if(t.dataset&&t.dataset.jbh&&S.jbh){ t.checked?S.jbh.sel.add(t.dataset.jbh):S.jbh.sel.delete(t.dataset.jbh); const c=document.querySelector("[data-act=jbh-add]"); if(c) c.disabled=!S.jbh.sel.size; const k=c&&c.previousElementSibling; if(k) k.textContent=S.jbh.sel.size+" picked"; return; }
+  if(t.id==="act-who"){ ACT.who=t.value; ACT.rows=null; renderMain(); return; }
   if(t.dataset&&t.dataset.otFor){ await saveOt(t.dataset.otFor,t.value==="1"); return; }
   if(t.dataset&&t.dataset.rateFor){ await saveRate(t.dataset.rateFor,t.value); return; }
   if(t.dataset&&t.dataset.photoFor){ await changePhoto(t.files[0], t.dataset.photoFor); return; }
