@@ -1,8 +1,0 @@
-name: Check lunch search
-on: workflow_dispatch
-jobs:
-  check:
-    runs-on: ubuntu-latest
-    steps:
-      - run: |
-          for p in "30.52&lng=-84.24" "30.52&lng=-84.24" "30.45&lng=-84.30"; do r=$(curl -sS -m 60 -o b.txt -w "%{http_code} %{time_total}s" "https://prolight-boardv1.vercel.app/api/places?lat=$p" || echo fail); echo "::notice::$p: HTTP $r, places $(grep -o '"tags"' b.txt | wc -l), $(grep -o '"from":"[^"]*"' b.txt) $(grep -o '"cached":true' b.txt)"; done
