@@ -740,6 +740,16 @@ html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
 .ss-view .c-crew,.ss-view .jhead span:nth-child(2),.ss-view .jhead span:nth-child(3){visibility:hidden}
 .wday h4{flex-wrap:wrap;gap:0 6px}
 .lbl:empty{display:none}
+#callRoot{position:fixed;inset:0;z-index:2500;background:#080c0a;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
+#callRoot[hidden]{display:none}
+.call-bar{display:flex;align-items:center;gap:10px;padding:10px max(14px,env(safe-area-inset-right,0px)) 10px max(14px,env(safe-area-inset-left,0px));color:#eaf0eb;background:#111916}
+.call-bar .grow{flex:1}
+.call-dot{width:10px;height:10px;border-radius:50%;background:#e8352b;box-shadow:0 0 10px #e8352b}
+.call-body{flex:1;display:grid;place-items:center;padding-bottom:env(safe-area-inset-bottom,0px)}
+.call-body iframe{width:100%;height:100%;border:0;background:#000}
+.call-btn{margin-left:auto}
+.call-msg{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+body.in-call{overflow:hidden}
 .map-box,.rmap-box{position:relative;isolation:isolate;z-index:0}
 .scrim{z-index:1500!important}.drawer{z-index:1501!important}.toast{z-index:1600!important}.lightbox{z-index:1700!important}
 #gate{z-index:3000!important}#intro,#routelit{z-index:3100!important}#welcome{z-index:3200!important}
@@ -2137,9 +2147,9 @@ function vChat(){
   let thread="";
   if(cur){
     const c=chans.find(x=>x.id===cur), M=chanMsgs(cur); let day="";
-    thread=`<div class="chat-thread"><div class="chat-head"><button type="button" class="btn small chat-back" data-act="chat-open" data-v="">‹</button><b>${esc(c.name)}</b>${c.kind==="ann"?`<span class="count">Only the office posts here</span>`:c.kind==="crew"?`<span class="count">${esc(membersOf(cur.slice(5)).join(", ")||"Crew + office")}</span>`:`<span class="count">Private</span>`}</div>
+    thread=`<div class="chat-thread"><div class="chat-head"><button type="button" class="btn small chat-back" data-act="chat-open" data-v="">‹</button><b>${esc(c.name)}</b>${c.kind!=="ann"?`<button type="button" class="btn small call-btn" data-act="call-start" data-v="${esc(cur)}">📹 ${LANG_ES?"Videollamada":"Video call"}</button>`:(S.me.manage||S.me.owner)?`<button type="button" class="btn small amber call-btn" data-act="call-start" data-v="ann">📹 ${LANG_ES?"Iniciar reunión con todos":"Start crew meeting"}</button>`:""}${c.kind==="ann"?`<span class="count">Only the office posts here</span>`:c.kind==="crew"?`<span class="count">${esc(membersOf(cur.slice(5)).join(", ")||"Crew + office")}</span>`:`<span class="count">Private</span>`}</div>
       <div class="chat-msgs" id="chat-msgs">${M.map(m=>{ const d=isoOf(m.at), sep=d!==day?`<div class="chat-day">${esc(rel(d)||fmtDay(d,{weekday:"short",month:"short",day:"numeric"}))}</div>`:""; day=d; const mine=m.by===S.me.id;
-        return `${sep}<div class="bub ${mine?"me":""}">${mine?"":`<b>${avatar(m.by,"xs")}${esc(who(m.by))}</b>`}<div class="txt">${esc(m.body)}</div><small>${new Date(m.at).toLocaleTimeString(LOC(),{hour:"numeric",minute:"2-digit"})}${(mine||S.me.manage)?` · <button type="button" class="linkbtn" data-act="chat-del" data-id="${esc(m.id)}">Delete</button>`:""}</small></div>`; }).join("")||`<p class="count" style="text-align:center;margin:24px 0">No messages yet.</p>`}</div>
+        return `${sep}<div class="bub ${mine?"me":""}">${mine?"":`<b>${avatar(m.by,"xs")}${esc(who(m.by))}</b>`}${m.body===CALL_MSG?callBubble(m):`<div class="txt">${esc(m.body)}</div>`}<small>${new Date(m.at).toLocaleTimeString(LOC(),{hour:"numeric",minute:"2-digit"})}${(mine||S.me.manage)?` · <button type="button" class="linkbtn" data-act="chat-del" data-id="${esc(m.id)}">Delete</button>`:""}</small></div>`; }).join("")||`<p class="count" style="text-align:center;margin:24px 0">No messages yet.</p>`}</div>
       ${canPost(cur)?`<form class="chat-compose" id="chatForm"><textarea id="chat-text" rows="1" placeholder="${c.kind==="ann"?"Post an announcement to everyone":"Message "+esc(c.name)}">${esc(S.chat.draft[cur]||"")}</textarea><button type="submit" class="btn amber">Send</button></form>`:`<div class="note" style="margin:0">Only the office can post announcements.</div>`}</div>`;
     const M2=chanMsgs(cur); if(M2.length) ls("read:"+S.me.id+":"+cur, M2[M2.length-1].at);
   }
@@ -2147,6 +2157,7 @@ function vChat(){
   return `<div class="bar"><h1 class="h-view grow">Chat</h1></div><div class="chat ${cur?"open":""}">${listHTML}${thread||`<div class="chat-thread empty-t"><p class="lede">Pick a channel or a person.</p></div>`}</div>`;
 }
 function annBanner(){
+  { const live=meetingLive(); if(live) return live; }
   const M=chanMsgs("ann"), m=M[M.length-1]; if(!m||m.by===S.me.id||m.at<=lastRead("ann")) return "";
   return `<div class="ann"><div><span class="eyebrow">Announcement · ${esc(who(m.by))}</span><div>${esc(m.body)}</div></div><button type="button" class="btn small" data-act="ann-seen">Got it</button></div>`;
 }
@@ -3322,6 +3333,32 @@ function applyCrewView(){
     if(!["day","sched"].includes(MAP.mode)){ MAP.mode="day"; MAP.day=todayISO(); } }
 }
 
+/* ---------- video calls in chat (Daily.co) ---------- */
+const CALL_MSG = "📹 Video call";
+function callBubble(m){ const mine=m.by===S.me.id, meet=m.channel==="ann";
+  return `<div class="txt call-msg">📹 <b>${meet?(LANG_ES?"Reunión con todos los equipos":"Crew meeting"):mine?(LANG_ES?"Iniciaste una videollamada":"You started a video call"):(LANG_ES?"Videollamada":"Video call")}</b> <button type="button" class="btn small amber" data-act="call-join" data-v="${esc(m.channel)}">${LANG_ES?"Unirme":"Join"}</button></div>`; }
+async function startCall(ch, announce){
+  const c=ch==="ann"?(LANG_ES?"Reunión con todos los equipos":"Crew meeting"):(myChannels().find(x=>x.id===ch)||{}).name||"Chat";
+  let root=$("#callRoot"); if(!root){ root=document.createElement("div"); root.id="callRoot"; document.body.appendChild(root); }
+  root.innerHTML=`<div class="call-bar"><span class="call-dot"></span><b>${esc(c)}</b><span class="grow"></span><button type="button" class="btn small danger" data-act="call-leave">${LANG_ES?"Salir":"Leave call"}</button></div><div class="call-body"><p class="lede" style="color:#cfd8d3">${LANG_ES?"Conectando…":"Connecting…"}</p></div>`;
+  root.hidden=false; document.body.classList.add("in-call");
+  try{
+    const t=await PL.callTicket(ch);
+    if(announce){ const last=chanMsgs(ch).filter(m=>m.body===CALL_MSG).pop(); if(!last||Date.now()-Date.parse(last.at)>15*60e3) PL.chatSend(ch,CALL_MSG).catch(()=>{}); }
+    root.querySelector(".call-body").innerHTML=`<iframe title="Video call" src="${esc(t.url)}?t=${encodeURIComponent(t.token)}" allow="camera; microphone; fullscreen; display-capture; autoplay; clipboard-write; speaker-selection"></iframe>`;
+    track("call",{where:ch==="ann"?"crew meeting":ch.startsWith("dm:")?"direct":"crew"});
+  }catch(e){
+    root.querySelector(".call-body").innerHTML=`<div class="note" style="max-width:520px">${esc(e.message)}${/DAILY_API_KEY/.test(e.message)?"<br>Add the Daily key in Vercel to turn on video calls.":""}</div>`;
+  }
+}
+function leaveCall(){ const r=$("#callRoot"); if(r){ r.innerHTML=""; r.hidden=true; } document.body.classList.remove("in-call"); renderMain(); }
+
+/* the all-crew meeting shows as a banner on every screen for 90 minutes after it starts */
+function meetingLive(){
+  const m=chanMsgs("ann").filter(x=>x.body===CALL_MSG).pop(); if(!m||Date.now()-Date.parse(m.at)>90*60e3||$("#callRoot:not([hidden]) iframe")) return "";
+  return `<div class="ann meet"><div><span class="eyebrow">📹 ${LANG_ES?"Reunión en vivo":"Crew meeting is live"} · ${esc(who(m.by))}</span><div>${LANG_ES?"Empezó a las":"Started at"} ${new Date(m.at).toLocaleTimeString(LOC(),{hour:"numeric",minute:"2-digit"})}</div></div><button type="button" class="btn" data-act="call-join" data-v="ann">${LANG_ES?"Unirme":"Join"}</button></div>`;
+}
+
 /* ---------- render ---------- */
 function renderMain(){
   const __t0=performance.now();
@@ -3486,6 +3523,9 @@ document.addEventListener("click", async ev=>{
     case "team": S.team=v; ls("team",v); renderMain(); break;
     case "account": openDrawer("account"); break;
     case "lang": if((v==="es")!==LANG_ES) setLang(v); break;
+    case "call-start": await startCall(v,true); break;
+    case "call-join": await startCall(v,false); break;
+    case "call-leave": leaveCall(); break;
     case "pins": await openPins(); break;
     case "act-filter": ACT.filter=v; ACT.rows=null; ACT.open.clear(); renderMain(); break;
     case "act-refresh": ACT.rows=null; ACT.health=null; renderMain(); break;

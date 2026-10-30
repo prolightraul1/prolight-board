@@ -85,6 +85,13 @@
       window.dispatchEvent(new CustomEvent("prolight:msg", { detail: { eventType: "INSERT", new: data } }));
       return data;
     },
+    async callTicket(channel) {
+      const { data } = await sb.auth.getSession();
+      const r = await fetch("/api/call?channel=" + encodeURIComponent(channel), { method: "POST", headers: { Authorization: "Bearer " + (data.session ? data.session.access_token : "") } });
+      const j = await r.json().catch(() => ({ error: "No response" }));
+      if (!r.ok) throw new Error(j.error || "Couldn't start the call");
+      return j;
+    },
     async chatDelete(id) {
       const { error } = await sb.from("messages").delete().eq("id", id);
       if (error) throw new Error(error.message);
