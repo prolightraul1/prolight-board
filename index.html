@@ -740,6 +740,67 @@ html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
 .ss-view .c-crew,.ss-view .jhead span:nth-child(2),.ss-view .jhead span:nth-child(3){visibility:hidden}
 .wday h4{flex-wrap:wrap;gap:0 6px}
 .lbl:empty{display:none}
+#mockRoot{position:fixed;inset:0;z-index:2400;background:#0b0f0d;color:#eaf0eb;display:flex;flex-direction:column;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);font-size:14px}
+#mockRoot[hidden]{display:none}
+body.in-mock .toast{z-index:2600!important;top:calc(64px + env(safe-area-inset-top,0px));bottom:auto}
+#mockRoot .seg{background:transparent;border:0;box-shadow:none;padding:0;gap:0}
+body.in-mock{overflow:hidden}
+#mockRoot .btn{background:#1d2622;color:#eaf0eb;border-color:#33403a}
+#mockRoot .btn.amber{background:var(--amber,#f5b83d);color:#1a1405;border-color:transparent}
+#mockRoot .btn.danger{color:#ff8a80}
+#mockRoot .btn[aria-pressed=true]{background:#eaf0eb;color:#111916}
+#mockRoot .btn:disabled{opacity:.45}
+#mockRoot input:not([type]),#mockRoot input[type=number],#mockRoot select{background:#141b18;color:#eaf0eb;border:1px solid #33403a;border-radius:10px;padding:8px 10px;font:inherit;width:100%;box-sizing:border-box}
+.mk-top{display:flex;align-items:center;gap:6px;padding:8px 10px;background:#111916;border-bottom:1px solid #222c28;flex:none}
+.mk-top .grow{flex:1;min-width:0}
+.mk-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mk-body{flex:1;min-height:0;display:flex;flex-direction:column}
+.mk-stage{position:relative;flex:1;min-height:0;touch-action:none;overflow:hidden}
+.mk-stage canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
+.mk-zoom{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;gap:6px}
+.mk-zoom button{width:38px;height:38px;border-radius:10px;border:1px solid #33403a;background:rgba(17,25,22,.85);color:#fff;font-size:18px;font-weight:700}
+.mk-panel{flex:none;max-height:44vh;overflow:auto;padding:12px 14px 16px;background:#111916;border-top:1px solid #222c28;-webkit-overflow-scrolling:touch}
+@media (min-width:900px){.mk-body{flex-direction:row}.mk-panel{width:340px;max-height:none;border-top:0;border-left:1px solid #222c28}}
+@media (max-width:520px){.mk-hide-sm{display:none}}
+.mk-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;font-size:15px}
+.mk-f{display:block;margin:0 0 14px}
+.mk-lbl{display:block;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#9fb0a7;margin:0 0 6px}
+.mk-lbl b{color:#eaf0eb;text-transform:none;letter-spacing:0;float:right}
+.mk-f input[type=range]{width:100%;accent-color:#f5b83d}
+.mk-note{color:#b7c4bd;font-size:13px;margin:0 0 8px}
+.mk-kinds{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:6px}
+.mk-kind{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:10px;border:1px solid #2b3632;background:#18211d;color:#eaf0eb;font:inherit;font-size:13px;font-weight:600;text-align:left;cursor:pointer}
+.mk-kind:hover{border-color:#f5b83d}
+.mk-kind i{font-style:normal;width:20px;text-align:center;color:#f5b83d}
+.mk-sets{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px;margin-bottom:10px}
+.mk-set{display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:9px;border:1px solid #2b3632;background:#18211d;color:#eaf0eb;font:inherit;font-size:12px;cursor:pointer;text-align:left}
+.mk-set[aria-pressed=true]{border-color:#f5b83d;box-shadow:0 0 0 1px #f5b83d inset}
+.mk-set i,.mk-li i{display:inline-flex;gap:2px;flex:none}
+.mk-set b,.mk-li b{width:9px;height:9px;border-radius:50%;box-shadow:0 0 6px currentColor}
+.mk-seq{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;min-height:30px}
+.mk-dot{width:30px;height:30px;border-radius:50%;border:2px solid #0b0f0d;outline:1px solid #445049;color:transparent;font-weight:900;cursor:pointer}
+.mk-dot:hover{color:#111}
+.mk-pal{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px}
+.mk-sw{width:28px;height:28px;border-radius:8px;border:1px solid #445049;cursor:pointer;position:relative;display:inline-grid;place-items:center}
+.mk-cust{background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red);color:#fff;font-weight:900;text-shadow:0 0 3px #000}
+.mk-cust input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.mk-chk{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:13px}
+.mk-seg{display:flex;flex-wrap:wrap}
+#mockRoot .seg button{background:#18211d;color:#eaf0eb;border:1px solid #2b3632;padding:7px 10px;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+#mockRoot .seg button:first-child{border-radius:9px 0 0 9px}#mockRoot .seg button:last-child{border-radius:0 9px 9px 0}
+#mockRoot .seg button[aria-pressed=true]{background:#f5b83d;color:#1a1405;border-color:#f5b83d}
+.mk-list{display:flex;flex-direction:column;gap:4px}
+.mk-li{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;border:1px solid #2b3632;background:#18211d;color:#eaf0eb;font:inherit;font-size:13px;text-align:left;cursor:pointer}
+.mk-tab{width:100%;border-collapse:collapse;font-size:13px}.mk-tab td{padding:5px 0;border-bottom:1px solid #222c28}.mk-tab td:last-child{text-align:right}
+.mk-acts{flex-wrap:wrap;gap:6px}
+.mk-start{flex:1;display:grid;place-items:center;padding:20px;overflow:auto}
+.mk-start-in{max-width:520px}.mk-start h2{margin:0 0 8px;font-size:22px}.mk-start .lede{color:#b7c4bd}
+.mk-pics{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.mk-pics button{padding:0;border:1px solid #33403a;border-radius:10px;overflow:hidden;background:none;cursor:pointer;aspect-ratio:4/3}
+.mk-pics img{width:100%;height:100%;object-fit:cover;display:block}
+.mk-cta{align-items:center;gap:10px;margin:8px 0}.mk-cta small{color:var(--ink-2)}
+.gal-item{position:relative}
+.mk-edit{position:absolute;left:6px;bottom:6px;border:0;border-radius:8px;padding:5px 9px;background:rgba(17,25,22,.85);color:#fff;font-weight:700;font-size:12px;cursor:pointer}
 .tog-l{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700}
 .team-call small{color:var(--ink-2)}
 .ann.push-ask{border-left-color:#7aa8ff}
@@ -990,7 +1051,7 @@ function vJobs(){
   if(f.startsWith("co-")) list=list.filter(j=>coOf(j.crew)===f.slice(3));
   if(f==="unassigned") list=list.filter(j=>!j.crew && j.stage!=="cancelled");
   list.sort((a,b)=>{ const x=nextVisit(a), y=nextVisit(b); if(x&&y) return x.date.localeCompare(y.date); if(x) return -1; if(y) return 1; return String(clientOf(a).name).localeCompare(String(clientOf(b).name)); });
-  let h=`<div class="bar"><h1 class="h-view grow">Jobs</h1><button type="button" class="btn phone-only" data-act="view" data-v="clients">Clients</button>${S.me.owner?`<button type="button" class="btn amber" data-act="new-job">+ New job</button>`:""}</div>
+  let h=`<div class="bar"><h1 class="h-view grow">Jobs</h1><button type="button" class="btn phone-only" data-act="view" data-v="clients">Clients</button>${S.me.owner?`<button type="button" class="btn amber" data-act="new-job">+ New job</button>`:""}${canMock()?`<button type="button" class="btn" data-act="mockup">✨ Mockup</button>`:""}</div>
     <input class="search" id="q-jobs" type="search" placeholder="Search name, address, TCL #, lights" value="${esc(S.q.jobs)}" aria-label="Search jobs">
     <div class="chips" role="group" aria-label="Filter jobs">${F.map(([k,l])=>`<button type="button" class="chip" data-act="jf" data-v="${k}" aria-pressed="${S.jf===k}">${l}</button>`).join("")}</div>`;
   if(!S.ready) return h+skel(5);
@@ -1151,8 +1212,8 @@ function dJob(id){
     ${j.scope?`<dt>Lights</dt><dd>${esc(j.scope)}</dd>`:""}${j.rooflineFt?`<dt>Roofline</dt><dd class="mono">${esc(j.rooflineFt)} ft</dd>`:""}${j.season?`<dt>Season</dt><dd class="mono">${esc(j.season)}</dd>`:""}${j.tclWhen&&!crewView()?`<dt>TCL target</dt><dd>${esc(j.tclWhen)}</dd>`:""}${j.priority?`<dt>Priority</dt><dd>${esc(j.priority)}</dd>`:""}${j.ready&&!crewView()?`<dt>Ready</dt><dd class="mono">${esc(j.ready)} on TCL's checklist</dd>`:""}</dl>
   ${j.notes?`<div class="t-notes">${esc(j.notes)}</div>`:""}
   <section class="blk blk-visits"><h3 class="h-sec">Visits</h3>${visits.length?visits.map(v=>visitRow(j,v)).join(""):`<p class="lede">No visits scheduled.${S.me.owner?" Edit the job to add install and takedown dates.":""}</p>`}</section>
-  <section class="blk blk-mock"><h3 class="h-sec">Mockups</h3>${(j.links||[]).length?`<div class="bar">${j.links.map((u,i)=>`<a class="btn small" href="${esc(u)}" target="_blank" rel="noopener">Mockup ${j.links.length>1?i+1+" ":""}↗</a>`).join("")}</div>`:""}${(j.mockups||[]).length?`<div class="gallery">${j.mockups.map(m=>`<div class="gal-item">${mediaTag(m)}${S.me.owner?`<button type="button" class="x" data-act="rm-mockup" data-id="${esc(m.id)}" aria-label="Remove mockup">×</button>`:""}</div>`).join("")}</div>`:((j.links||[]).length?"":`<p class="lede">No mockups yet.</p>`)}
-    ${S.me.owner&&S.assets?`<div><label class="btn file-btn">+ Add mockup<input type="file" id="mockup-file" accept="image/*,application/pdf" multiple></label></div>`:""}</section>`;
+  <section class="blk blk-mock"><h3 class="h-sec">Mockups</h3>${(j.links||[]).length?`<div class="bar">${j.links.map((u,i)=>`<a class="btn small" href="${esc(u)}" target="_blank" rel="noopener">Mockup ${j.links.length>1?i+1+" ":""}↗</a>`).join("")}</div>`:""}${(j.mockups||[]).length?`<div class="gallery">${j.mockups.map(m=>`<div class="gal-item">${mediaTag(m)}${m.studio&&canMock()?`<button type="button" class="mk-edit" data-act="mockup" data-id="${esc(id)}" data-v="${esc(m.id)}">✎ Edit</button>`:""}${S.me.owner?`<button type="button" class="x" data-act="rm-mockup" data-id="${esc(m.id)}" aria-label="Remove mockup">×</button>`:""}</div>`).join("")}</div>`:((j.links||[]).length?"":`<p class="lede">No mockups yet.</p>`)}
+    ${canMock()?`<div class="bar mk-cta"><button type="button" class="btn amber" data-act="mockup" data-id="${esc(id)}">✨ Light mockup</button><small>Draw lights on a photo of the house</small></div>`:""}${S.me.owner&&S.assets?`<div><label class="btn file-btn">+ Add mockup<input type="file" id="mockup-file" accept="image/*,application/pdf" multiple></label></div>`:""}</section>`;
   if(S.me.money){ const s=split(j,f);
     b+=`<section class="blk blk-money"><h3 class="h-sec">Money</h3>${s.price?`<div class="calc">${calcLines(j,s.price,f.ssPct)}</div>
       <div class="bar"><button type="button" class="tog" data-act="fin-tog" data-k="collected" data-id="${esc(id)}" aria-pressed="${!!f.collected}">${f.collected?"Collected":"Not collected"}</button>${s.ss?`<button type="button" class="tog" data-act="fin-tog" data-k="ssPaid" data-id="${esc(id)}" aria-pressed="${!!f.ssPaid}">${f.ssPaid?"ShipShape paid":"ShipShape owed"}</button>`:""}${f.invoiceNo?`<span class="mono count">Invoice ${esc(f.invoiceNo)}</span>`:""}</div>`:`<p class="lede">No price yet. Edit the job to add one.</p>`}
@@ -2967,7 +3028,7 @@ function openClocksNow(){ const out=[], t=todayISO(); for(const [id,e] of S.log)
 function vToday(){
   const d=todayISO();
   let h=annBanner()+(S.ready?seasonBar():"")+`<div class="bar"><div class="grow"><span class="eyebrow">${esc(fmtDay(d,{weekday:"long",month:"long",day:"numeric"}))}</span><h1 class="h-view">Today</h1></div>
-    ${S.me.owner?`<button type="button" class="btn" data-act="view" data-v="week">Schedule the week</button><button type="button" class="btn amber" data-act="new-job">+ New job</button>`:""}</div>`;
+    ${S.me.owner?`<button type="button" class="btn" data-act="view" data-v="week">Schedule the week</button><button type="button" class="btn amber" data-act="new-job">+ New job</button>`:""}${canMock()?`<button type="button" class="btn" data-act="mockup">✨ Mockup</button>`:""}</div>`;
   if(!S.ready) return h+skel(6);
   const cs=crews().map(c=>{ const st=stopsFor(d,c.id), dn=st.filter(s=>isDone(s.j.id,s.v.id)).length, nx=st.find(s=>!isDone(s.j.id,s.v.id)); return {c,st,dn,nx}; });
   const on=openClocksNow(), all=jobsArr().filter(j=>j.stage!=="cancelled");
@@ -3445,6 +3506,497 @@ function clearBadges(){ try{ if(navigator.clearAppBadge) navigator.clearAppBadge
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden) clearBadges(); });
 window.addEventListener("focus",clearBadges);
 setTimeout(clearBadges,1500);
+/* ---------- light mockup studio (people who sell jobs) ---------- */
+const canMock = () => !!(S.me && S.assets && sellers().some(p => p.id === S.me.id));
+
+const MK_COLORS = { ww: ["Warm white", "#ffc469"], cw: ["Pure white", "#eef4ff"], red: ["Red", "#ff2a1f"], green: ["Green", "#1fe35a"], blue: ["Blue", "#2f6bff"], gold: ["Gold", "#ffb21a"], orange: ["Orange", "#ff7a12"], purple: ["Purple", "#a64dff"], pink: ["Pink", "#ff4fb0"], teal: ["Teal", "#17e0cf"] };
+const MK_SETS = [
+  ["Warm white", ["ww"]], ["Pure white", ["cw"]], ["Multicolor", ["red", "green", "blue", "gold", "orange"]], ["Red / green / white", ["red", "green", "cw"]],
+  ["Candy cane", ["cw", "cw", "red", "red"]], ["Red & white", ["red", "cw"]], ["Warm white & red", ["ww", "red"]], ["Red & green", ["red", "green"]],
+  ["Blue & white", ["blue", "cw"]], ["Red", ["red"]], ["Green", ["green"]], ["Blue", ["blue"]], ["Purple & orange", ["purple", "orange"]], ["Gold", ["gold"]]
+];
+const MK_BULBS = { c9: ["C9", 0.095, 6.5], c7: ["C7", 0.075, 6], g40: ["Globe", 0.13, 5.5], mini: ["Mini", 0.04, 8], fairy: ["Fairy", 0.025, 9] };
+// shape: line (tap points), area (outline), wrap/cone/beam (top→bottom or base→aim), circle (center→edge)
+const MK_KINDS = [
+  { k: "roof", n: "Roofline / gutter", i: "⌂", s: "line", b: "c9", sp: 12, g: "Roofline" },
+  { k: "peak", n: "Peak / gable", i: "▲", s: "line", b: "c9", sp: 12, g: "Roofline" },
+  { k: "ridge", n: "Ridge line", i: "⎺", s: "line", b: "c9", sp: 12, g: "Roofline" },
+  { k: "outline", n: "Window / door outline", i: "▢", s: "line", b: "mini", sp: 3, closed: true, g: "Roofline" },
+  { k: "icicle", n: "Icicle lights", i: "⋮", s: "line", b: "mini", sp: 3, g: "Roofline" },
+  { k: "garland", n: "Lit garland", i: "〰", s: "line", b: "mini", sp: 3, g: "Roofline" },
+  { k: "column", n: "Column wrap", i: "∥", s: "wrap", b: "mini", sp: 2, w: 1.1, gap: 3, g: "Wraps" },
+  { k: "trunk", n: "Tree trunk wrap", i: "⌇", s: "wrap", b: "mini", sp: 2, w: 0.9, gap: 3, taper: 0.25, g: "Wraps" },
+  { k: "palm", n: "Palm wrap", i: "🌴", s: "wrap", b: "mini", sp: 2, w: 1.1, gap: 2, taper: 0.15, g: "Wraps" },
+  { k: "branch", n: "Branch / limb wrap", i: "⟋", s: "line", b: "mini", sp: 2, zig: true, g: "Wraps" },
+  { k: "canopy", n: "Tree canopy", i: "♣", s: "area", b: "mini", sp: 5, fill: "random", g: "Trees & bushes" },
+  { k: "bush", n: "Bush / hedge (nets)", i: "☁", s: "area", b: "mini", sp: 4, fill: "net", g: "Trees & bushes" },
+  { k: "spritzer", n: "Spritzer / cone tree", i: "△", s: "cone", b: "mini", sp: 3, w: 0.55, g: "Trees & bushes" },
+  { k: "wreath", n: "Lit wreath", i: "◯", s: "circle", b: "mini", r: 2, bow: true, g: "Decor" },
+  { k: "star", n: "Star", i: "★", s: "circle", b: "mini", sp: 2, r: 1.5, g: "Decor" },
+  { k: "stakes", n: "Pathway / ground stakes", i: "⋯", s: "line", b: "c9", sp: 24, ground: true, g: "Ground" },
+  { k: "bed", n: "Landscape bed edge", i: "⌒", s: "line", b: "c9", sp: 12, ground: true, g: "Ground" },
+  { k: "flood", n: "Spotlight / uplight", i: "◢", s: "beam", spread: 26, g: "Ground" },
+  { k: "line", n: "Custom line", i: "／", s: "line", b: "mini", sp: 4, g: "Other" },
+  { k: "area", n: "Custom area", i: "⬠", s: "area", b: "mini", sp: 4, fill: "net", g: "Other" }
+];
+const mkKind = (k) => MK_KINDS.find((x) => x.k === k) || MK_KINDS[0];
+const MK = { open: false };
+
+/* small helpers */
+function mkRng(seed) { let a = 0; for (const ch of String(seed)) a = (a * 31 + ch.charCodeAt(0)) | 0; return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const mkHex = (c) => (MK_COLORS[c] || [0, c])[1];
+const mkRgb = (h) => { h = h.replace("#", ""); return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; };
+const mkDist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+function mkPolyLen(p, closed) { let L = 0; for (let i = 1; i < p.length; i++) L += mkDist(p[i - 1], p[i]); if (closed && p.length > 2) L += mkDist(p[p.length - 1], p[0]); return L; }
+function mkWalk(p, closed, step, cb) {
+  const P = closed && p.length > 2 ? [...p, p[0]] : p; if (P.length < 2 || step <= 0) { if (P[0]) cb(P[0][0], P[0][1], 0, 0); return; }
+  let carry = 0, n = 0;
+  for (let i = 1; i < P.length; i++) {
+    const [x0, y0] = P[i - 1], [x1, y1] = P[i], L = Math.hypot(x1 - x0, y1 - y0), a = Math.atan2(y1 - y0, x1 - x0);
+    let d = carry; while (d <= L) { cb(x0 + (x1 - x0) * d / L, y0 + (y1 - y0) * d / L, a, n++); d += step; } carry = d - L;
+  }
+  if (!closed) { const e = P[P.length - 1]; cb(e[0], e[1], 0, n++); }
+}
+function mkInPoly(x, y, p) { let c = false; for (let i = 0, j = p.length - 1; i < p.length; j = i++) { const [xi, yi] = p[i], [xj, yj] = p[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; }
+function mkPolyArea(p) { let a = 0; for (let i = 0, j = p.length - 1; i < p.length; j = i++) a += (p[j][0] + p[i][0]) * (p[j][1] - p[i][1]); return Math.abs(a / 2); }
+function mkSegDist(q, a, b) { const dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy || 1; let t = ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L; t = Math.max(0, Math.min(1, t)); return Math.hypot(q[0] - a[0] - t * dx, q[1] - a[1] - t * dy); }
+
+/* glow sprites, one per color */
+const mkSprites = new Map();
+function mkSprite(hex, core) {
+  const key = hex + (core ? "c" : "g"); if (mkSprites.has(key)) return mkSprites.get(key);
+  const c = document.createElement("canvas"); c.width = c.height = 64; const x = c.getContext("2d"), [r, g, b] = mkRgb(hex);
+  const gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  if (core) { gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.35, `rgba(${Math.min(255, r + 90)},${Math.min(255, g + 90)},${Math.min(255, b + 90)},1)`); gr.addColorStop(0.75, `rgba(${r},${g},${b},.9)`); gr.addColorStop(1, `rgba(${r},${g},${b},0)`); }
+  else { gr.addColorStop(0, `rgba(${r},${g},${b},.75)`); gr.addColorStop(0.18, `rgba(${r},${g},${b},.42)`); gr.addColorStop(0.5, `rgba(${r},${g},${b},.11)`); gr.addColorStop(1, `rgba(${r},${g},${b},0)`); }
+  x.fillStyle = gr; x.fillRect(0, 0, 64, 64); mkSprites.set(key, c); return c;
+}
+
+/* ---------- turning each piece into bulbs ---------- */
+function mkNew(k, pts) {
+  const K = mkKind(k), el = { id: uid(), k, pts, b: K.b || "c9", colors: k === "wreath" || k === "garland" ? ["ww"] : ["ww"], mix: false, sp: K.sp || 12, size: 1, glow: 1, label: "" };
+  if (K.w) el.w = K.w; if (K.gap) el.gap = K.gap; if (K.taper != null) el.taper = K.taper; if (K.fill) el.fill = K.fill; if (K.closed) el.closed = true;
+  if (K.bow) el.bow = true; if (K.spread) el.spread = K.spread; if (k === "icicle") el.drop = 1.5; if (k === "spritzer") el.strands = 12;
+  return el;
+}
+function mkBulbs(el) {
+  const ft = MK.pxft, K = mkKind(el.k), B = MK_BULBS[el.b] || MK_BULBS.mini, out = [], rnd = mkRng(el.id), cols = (el.colors && el.colors.length ? el.colors : ["ww"]).map(mkHex);
+  const r = Math.max(0.9, B[1] * ft * (el.size || 1)), sp = Math.max(r * 1.6, (el.sp || 12) / 12 * ft);
+  let n = 0; const col = () => el.mix ? cols[Math.floor(rnd() * cols.length)] : cols[n++ % cols.length];
+  const add = (x, y, dim = 1, rr = r) => out.push([x, y, col(), rr, dim]);
+  const p = el.pts;
+  if (K.s === "line" && p.length) {
+    if (el.k === "icicle") { const drop = (el.drop || 1.5) * ft; mkWalk(p, false, 3 / 12 * ft * 2, (x, y) => { add(x, y); const L = drop * (0.35 + rnd() * 0.65); for (let d = sp; d <= L; d += sp) add(x, y + d, 1); }); }
+    else if (el.k === "garland") mkWalk(p, el.closed, sp, (x, y) => add(x + (rnd() - 0.5) * ft * 0.35, y + (rnd() - 0.5) * ft * 0.35));
+    else if (K.zig) mkWalk(p, false, sp, (x, y, a, i) => { const o = Math.sin(i * 1.3) * ft * 0.18; add(x - Math.sin(a) * o, y + Math.cos(a) * o, Math.cos(i * 1.3) > -0.2 ? 1 : 0.35); });
+    else mkWalk(p, el.closed, sp, (x, y) => add(x, y));
+  } else if ((K.s === "wrap" || K.s === "cone") && p.length > 1) {
+    const [t, b] = p, L = mkDist(t, b), ux = (b[0] - t[0]) / L, uy = (b[1] - t[1]) / L, nx = -uy, ny = ux;
+    if (K.s === "cone") {
+      const W = (el.w || 0.55) * L, S = el.strands || 12;
+      for (let s = 0; s < S; s++) { const th = (s / S) * Math.PI * 2, z = Math.cos(th), xo = Math.sin(th); if (z < -0.35) continue;
+        for (let d = sp * 0.6; d <= L; d += sp) { const f = d / L; add(t[0] + ux * d + nx * xo * W / 2 * f, t[1] + uy * d + ny * xo * W / 2 * f, z > 0 ? 1 : 0.3); } }
+      add(t[0], t[1], 1, r * 1.6);
+    } else {
+      const W = (el.w || 1) * ft, gap = Math.max(0.6, el.gap || 3) / 12 * ft, turns = L / gap, tp = el.taper || 0;
+      const steps = Math.ceil(turns * Math.hypot(Math.PI * W, gap) / sp);
+      for (let i = 0; i <= steps; i++) { const f = i / steps, th = f * turns * Math.PI * 2, z = Math.cos(th), w = W * (1 - tp * (1 - f)) / 2;
+        if (z < -0.2) continue; add(t[0] + ux * f * L + nx * Math.sin(th) * w, t[1] + uy * f * L + ny * Math.sin(th) * w, z > 0.15 ? 1 : 0.32); }
+    }
+  } else if (K.s === "area" && p.length > 2) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; p.forEach(([x, y]) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); });
+    if (el.fill === "random") { const N = Math.min(6000, Math.round(mkPolyArea(p) / (sp * sp))); let k = 0, tries = 0; while (k < N && tries++ < N * 6) { const x = x0 + rnd() * (x1 - x0), y = y0 + rnd() * (y1 - y0); if (mkInPoly(x, y, p)) { add(x, y, 0.55 + rnd() * 0.45); k++; } } }
+    else { for (let y = y0 + sp / 2, row = 0; y < y1; y += sp * 0.87, row++) for (let x = x0 + (row % 2 ? sp / 2 : 0); x < x1; x += sp) { const jx = x + (rnd() - 0.5) * sp * 0.25, jy = y + (rnd() - 0.5) * sp * 0.25; if (mkInPoly(jx, jy, p)) add(jx, jy, 0.75 + rnd() * 0.25); } }
+  } else if (K.s === "circle" && p.length > 1) {
+    const [c, e] = p, R = mkDist(c, e);
+    if (el.k === "star") { const S = []; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? R * 0.42 : R; S.push([c[0] + Math.cos(a) * rr, c[1] + Math.sin(a) * rr]); } mkWalk(S, true, sp, (x, y) => add(x, y)); }
+    else { const band = R * 0.3, N = Math.round((2 * Math.PI * R) / (r * 2.6)); for (let i = 0; i < N * 2; i++) { const a = rnd() * Math.PI * 2, rr = R - band / 2 + (rnd() - 0.5) * band; add(c[0] + Math.cos(a) * rr, c[1] + Math.sin(a) * rr, 0.6 + rnd() * 0.4); } }
+  }
+  return out;
+}
+const mkCache = new Map();
+function mkGet(el) { const key = JSON.stringify(el) + "|" + MK.pxft; const c = mkCache.get(el.id); if (c && c.key === key) return c.b; const b = mkBulbs(el); mkCache.set(el.id, { key, b }); return b; }
+
+/* ---------- drawing ---------- */
+function mkScene(ctx, o = {}) {
+  const W = MK.W, H = MK.H, night = o.before ? 0 : MK.night;
+  ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1; ctx.drawImage(MK.img, 0, 0, W, H);
+  if (o.before) return;
+  if (night > 0) {
+    const m = (a, b) => Math.round(a + (b - a) * night);
+    ctx.globalCompositeOperation = "multiply"; ctx.fillStyle = `rgb(${m(255, 34)},${m(255, 44)},${m(255, 86)})`; ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = "source-over"; ctx.fillStyle = `rgba(4,8,22,${0.28 * night})`; ctx.fillRect(0, 0, W, H);
+  }
+  const ft = MK.pxft, gl = MK.glow;
+  for (const el of MK.els) {
+    const K = mkKind(el.k), p = el.pts;
+    if (K.s === "beam" && p.length > 1) { mkBeam(ctx, el); continue; }
+    // decoration bodies (wreath ring, garland rope, bow)
+    if (el.k === "wreath" && p.length > 1) { const R = mkDist(p[0], p[1]); ctx.globalCompositeOperation = "source-over"; ctx.strokeStyle = `rgba(14,46,24,${0.55 + 0.4 * (1 - night)})`; ctx.lineWidth = R * 0.34; ctx.beginPath(); ctx.arc(p[0][0], p[0][1], R, 0, Math.PI * 2); ctx.stroke();
+      if (el.bow) { const x = p[0][0], y = p[0][1] + R, s = R * 0.32; ctx.fillStyle = "#b3121b"; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - s * 1.4, y - s * 0.8); ctx.lineTo(x - s * 1.4, y + s * 0.8); ctx.closePath(); ctx.moveTo(x, y); ctx.lineTo(x + s * 1.4, y - s * 0.8); ctx.lineTo(x + s * 1.4, y + s * 0.8); ctx.closePath(); ctx.fill(); ctx.fillRect(x - s * 0.3, y - s * 0.3, s * 0.6, s * 0.6); ctx.beginPath(); ctx.moveTo(x - s * 0.2, y); ctx.lineTo(x - s * 0.7, y + s * 2); ctx.lineTo(x - s * 0.2, y + s * 1.8); ctx.moveTo(x + s * 0.2, y); ctx.lineTo(x + s * 0.7, y + s * 2); ctx.lineTo(x + s * 0.2, y + s * 1.8); ctx.fill(); } }
+    if (el.k === "garland" && p.length > 1) { ctx.globalCompositeOperation = "source-over"; ctx.strokeStyle = `rgba(14,46,24,${0.6 + 0.35 * (1 - night)})`; ctx.lineWidth = ft * 0.55; ctx.lineCap = ctx.lineJoin = "round"; ctx.beginPath(); p.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); if (el.closed) ctx.closePath(); ctx.stroke(); }
+    const bulbs = mkGet(el); if (!bulbs.length) continue;
+    const B = MK_BULBS[el.b] || MK_BULBS.mini, g = gl * (el.glow ?? 1) * (0.35 + 0.65 * night);
+    // soft wash on the wall/roof behind line lights
+    if (K.s === "line" && p.length > 1 && !K.ground && el.k !== "icicle") {
+      const [cr, cg, cb] = mkRgb((el.colors || ["ww"]).length > 1 ? "#ffd9a8" : mkHex(el.colors[0]));
+      ctx.globalCompositeOperation = "lighter"; ctx.lineCap = ctx.lineJoin = "round";
+      for (const [w, a] of [[ft * 2.4, 0.035], [ft * 1.2, 0.05], [ft * 0.5, 0.07]]) { ctx.strokeStyle = `rgba(${cr},${cg},${cb},${a * g})`; ctx.lineWidth = w; ctx.beginPath(); p.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); if (el.closed) ctx.closePath(); ctx.stroke(); }
+    }
+    ctx.globalCompositeOperation = "lighter";
+    for (const [x, y, c, r, dim] of bulbs) {
+      const G = r * B[2] * Math.sqrt(g) * 1.2; ctx.globalAlpha = Math.min(1, dim * g);
+      ctx.drawImage(mkSprite(c), x - G, y - G, G * 2, G * 2);
+      if (K.ground) { ctx.globalAlpha = Math.min(1, 0.5 * dim * g); ctx.drawImage(mkSprite(c), x - G * 1.8, y + r, G * 3.6, G * 1.2); }
+    }
+    ctx.globalCompositeOperation = "source-over";
+    for (const [x, y, c, r, dim] of bulbs) { ctx.globalAlpha = Math.min(1, 0.35 + dim * 0.65); ctx.drawImage(mkSprite(c, true), x - r * 1.3, y - r * 1.3, r * 2.6, r * 2.6); }
+    ctx.globalAlpha = 1;
+  }
+  ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
+}
+function mkBeam(ctx, el) {
+  const [a, b] = el.pts, L = mkDist(a, b), ang = Math.atan2(b[1] - a[1], b[0] - a[0]), sp = (el.spread || 26) * Math.PI / 180, hex = mkHex((el.colors || ["ww"])[0]), [r, g, bl] = mkRgb(hex), k = MK.glow * (el.glow ?? 1) * (0.3 + 0.7 * MK.night);
+  ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.translate(a[0], a[1]); ctx.rotate(ang);
+  const gr = ctx.createLinearGradient(0, 0, L * 1.15, 0); gr.addColorStop(0, `rgba(${r},${g},${bl},${0.55 * k})`); gr.addColorStop(0.6, `rgba(${r},${g},${bl},${0.22 * k})`); gr.addColorStop(1, `rgba(${r},${g},${bl},0)`);
+  ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(L * 1.15, -Math.tan(sp / 2) * L * 1.15); ctx.lineTo(L * 1.15, Math.tan(sp / 2) * L * 1.15); ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = Math.min(1, 0.9 * k); const S = Math.tan(sp / 2) * L * 1.1; ctx.drawImage(mkSprite(hex), L - S, -S, S * 2, S * 2);
+  ctx.restore(); ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = "source-over"; ctx.drawImage(mkSprite(hex, true), a[0] - MK.pxft * 0.25, a[1] - MK.pxft * 0.25, MK.pxft * 0.5, MK.pxft * 0.5);
+}
+function mkHandles(ctx, s) {
+  const el = MK.els.find((e) => e.id === MK.sel) || MK.adding; const hr = 9 / s;
+  if (MK.scaleLine) { ctx.strokeStyle = "#ffd23f"; ctx.lineWidth = 3 / s; ctx.setLineDash([8 / s, 6 / s]); ctx.beginPath(); MK.scaleLine.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke(); ctx.setLineDash([]); MK.scaleLine.forEach(([x, y]) => { ctx.fillStyle = "#ffd23f"; ctx.beginPath(); ctx.arc(x, y, hr, 0, 7); ctx.fill(); }); }
+  if (!el) return; const K = mkKind(el.k), p = el.pts;
+  ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.lineWidth = 2 / s; ctx.setLineDash([7 / s, 5 / s]); ctx.beginPath();
+  if (K.s === "circle" && p.length > 1) ctx.arc(p[0][0], p[0][1], mkDist(p[0], p[1]), 0, 7);
+  else { p.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); if ((K.s === "area" || el.closed) && p.length > 2) ctx.closePath(); }
+  ctx.stroke(); ctx.setLineDash([]);
+  p.forEach(([x, y], i) => { ctx.fillStyle = i === p.length - 1 && MK.adding ? "#ffd23f" : "#fff"; ctx.strokeStyle = "#111916"; ctx.lineWidth = 2 / s; ctx.beginPath(); ctx.arc(x, y, hr, 0, 7); ctx.fill(); ctx.stroke(); });
+}
+function mkDraw() {
+  if (!MK.open || !MK.cv) return; cancelAnimationFrame(MK.raf);
+  MK.raf = requestAnimationFrame(() => {
+    const cv = MK.cv, box = cv.parentElement, dpr = Math.min(2, window.devicePixelRatio || 1), cw = box.clientWidth, ch = box.clientHeight;
+    if (cv.width !== Math.round(cw * dpr) || cv.height !== Math.round(ch * dpr)) { cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr); }
+    const ctx = cv.getContext("2d"); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = "#0b0f0d"; ctx.fillRect(0, 0, cv.width, cv.height);
+    if (!MK.img) return;
+    const v = mkView(); ctx.setTransform(dpr * v.s, 0, 0, dpr * v.s, dpr * v.x, dpr * v.y);
+    mkScene(ctx, { before: MK.before }); if (!MK.before) mkHandles(ctx, v.s);
+  });
+}
+function mkView() { const cv = MK.cv, cw = cv.parentElement.clientWidth, ch = cv.parentElement.clientHeight, f = Math.min(cw / MK.W, ch / MK.H) * 0.96, s = f * MK.z; return { s, x: (cw - MK.W * s) / 2 + MK.px, y: (ch - MK.H * s) / 2 + MK.py }; }
+function mkToImg(ev) { const r = MK.cv.getBoundingClientRect(), v = mkView(); return [(ev.clientX - r.left - v.x) / v.s, (ev.clientY - r.top - v.y) / v.s]; }
+
+/* ---------- footage ---------- */
+function mkFootage() {
+  const rows = {}, ft = MK.pxft;
+  for (const el of MK.els) {
+    const K = mkKind(el.k), p = el.pts, key = el.label || K.n; let q = 0, u = "ft";
+    if (K.s === "line") q = mkPolyLen(p, el.closed) / ft;
+    else if (K.s === "wrap") { const L = mkDist(p[0], p[1]) / ft, W = el.w || 1; q = L / ((el.gap || 3) / 12) * Math.hypot(Math.PI * W, (el.gap || 3) / 12); u = "ft of strand"; }
+    else if (K.s === "area") { q = mkPolyArea(p) / (ft * ft); u = "sq ft"; }
+    else if (K.s === "cone") { q = mkDist(p[0], p[1]) / ft; u = "ft tall"; }
+    else if (K.s === "circle") { q = mkDist(p[0], p[1]) * 2 / ft * 12; u = "in across"; }
+    else { q = 1; u = "light"; }
+    const k = key + "|" + u; rows[k] = rows[k] || { name: key, u, q: 0, n: 0, g: K.g }; rows[k].q += q; rows[k].n++;
+  }
+  return Object.values(rows);
+}
+const mkRoofFt = () => Math.round(MK.els.filter((e) => mkKind(e.k).g === "Roofline" && mkKind(e.k).s === "line" && !["outline", "icicle", "garland"].includes(e.k)).reduce((a, e) => a + mkPolyLen(e.pts, e.closed), 0) / MK.pxft);
+
+/* ---------- open / close ---------- */
+async function openMockup(jobId, editId) {
+  if (!canMock()) { toast("Only people who sell jobs can make mockups."); return; }
+  Object.assign(MK, { open: true, jobId: jobId || "", editId: editId || "", img: null, W: 0, H: 0, els: [], sel: "", adding: null, night: 0.72, glow: 1, pxft: 0, scaled: false, z: 1, px: 0, py: 0, undo: [], redo: [], dirty: false, photoId: "", before: false, panel: "add", scaleLine: null, confirmClose: false, saving: false });
+  let root = $("#mockRoot"); if (!root) { root = document.createElement("div"); root.id = "mockRoot"; document.body.appendChild(root); mkBind(root); }
+  root.hidden = false; document.body.classList.add("in-mock");
+  const j = jobId && S.jobs.get(jobId), m = editId && j && (j.mockups || []).find((x) => x.id === editId);
+  mkRender();
+  if (m && m.studio) {
+    const st = m.studio; Object.assign(MK, { els: JSON.parse(JSON.stringify(st.els || [])), night: st.night ?? 0.72, glow: st.glow ?? 1, photoId: st.photo, scaled: !!st.scaled });
+    try { await mkLoadSrc(mediaUrl(st.photo)); MK.pxft = st.pxft || MK.W / 55; MK.panel = "add"; } catch (e) { toast("Couldn't load the original photo for that mockup."); }
+    mkRender();
+  }
+}
+function closeMockup(force) {
+  if (!force && MK.dirty && MK.els.length) { MK.confirmClose = true; mkRender(); return; }
+  MK.open = false; const r = $("#mockRoot"); if (r) { r.hidden = true; r.innerHTML = ""; } document.body.classList.remove("in-mock"); mkCache.clear();
+}
+function mkLoadSrc(src) {
+  return new Promise((res, rej) => { const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => { mkSetImg(im); res(); }; im.onerror = rej; im.src = src; });
+}
+function mkSetImg(src) {
+  const w = src.naturalWidth || src.width, h = src.naturalHeight || src.height, sc = Math.min(1, 2400 / Math.max(w, h));
+  const c = document.createElement("canvas"); c.width = Math.round(w * sc); c.height = Math.round(h * sc); c.getContext("2d").drawImage(src, 0, 0, c.width, c.height);
+  Object.assign(MK, { img: c, W: c.width, H: c.height, z: 1, px: 0, py: 0 }); if (!MK.pxft) MK.pxft = c.width / 55;
+}
+async function mkPickFile(f) {
+  if (!f) return; try { const bmp = await createImageBitmap(f); mkSetImg(bmp); MK.photoId = ""; MK.photoFile = f; MK.pxft = MK.W / 55; MK.scaled = false; MK.els = []; MK.dirty = true; mkRender(); }
+  catch (e) { toast("Couldn't read that photo. Try a JPG or PNG."); }
+}
+
+/* ---------- edits ---------- */
+const mkSel = () => MK.els.find((e) => e.id === MK.sel);
+function mkSnap() { MK.undo.push(JSON.stringify(MK.els)); if (MK.undo.length > 80) MK.undo.shift(); MK.redo = []; MK.dirty = true; MK.snapKey = ""; }
+function mkSnapOnce(key) { if (MK.snapKey === key) return; mkSnap(); MK.snapKey = key; }
+function mkUndo() { if (MK.adding) { MK.adding.pts.pop(); if (!MK.adding.pts.length) MK.adding = null; mkRender(); return; } if (!MK.undo.length) return; MK.redo.push(JSON.stringify(MK.els)); MK.els = JSON.parse(MK.undo.pop()); if (!mkSel()) MK.sel = ""; MK.snapKey = ""; mkRender(); }
+function mkRedo() { if (!MK.redo.length) return; MK.undo.push(JSON.stringify(MK.els)); MK.els = JSON.parse(MK.redo.pop()); MK.snapKey = ""; mkRender(); }
+function mkStartAdd(k) { MK.sel = ""; MK.adding = mkNew(k, []); const cur = MK.lastColors; if (cur && k !== "flood") MK.adding.colors = [...cur]; MK.panel = "adding"; mkRender(); }
+function mkFinish() {
+  const a = MK.adding; if (!a) return; const tol = 6 / mkView().s;
+  a.pts = a.pts.filter((p, i) => !i || mkDist(p, a.pts[i - 1]) > tol); delete a._just;
+  const K = mkKind(a.k), need = K.s === "area" ? 3 : 2;
+  if (a.pts.length < need) { toast(K.s === "area" ? "Tap at least 3 points around it." : "Tap at least 2 points."); return; }
+  mkSnap(); MK.els.push(a); MK.adding = null; MK.sel = a.id; MK.panel = "edit"; mkRender();
+}
+function mkDefaultEnd(k, p) {
+  const ft = MK.pxft, K = mkKind(k);
+  if (K.s === "wrap") return [p[0], p[1] + ft * (k === "column" ? 9 : 8)];
+  if (K.s === "cone") return [p[0], p[1] + ft * 5];
+  if (K.s === "circle") return [p[0] + ft * (K.r || 2), p[1]];
+  if (K.s === "beam") return [p[0] + ft * 1.5, p[1] - ft * 10];
+  return null;
+}
+function mkHit(q) {
+  const s = mkView().s, tol = 14 / s;
+  for (let i = MK.els.length - 1; i >= 0; i--) {
+    const el = MK.els[i], K = mkKind(el.k), p = el.pts;
+    if (K.s === "area" && p.length > 2 && mkInPoly(q[0], q[1], p)) return el;
+    if (K.s === "circle" && p.length > 1 && mkDist(q, p[0]) < mkDist(p[0], p[1]) * 1.2 + tol) return el;
+    if (["wrap", "cone", "beam"].includes(K.s) && p.length > 1 && mkSegDist(q, p[0], p[1]) < Math.max(tol, (el.w || 0.5) * MK.pxft / 2 + tol / 2)) return el;
+    if (K.s === "line") { const P = el.closed && p.length > 2 ? [...p, p[0]] : p; for (let j = 1; j < P.length; j++) if (mkSegDist(q, P[j - 1], P[j]) < tol) return el; if (p.length === 1 && mkDist(q, p[0]) < tol) return el; }
+  }
+  return null;
+}
+
+/* ---------- pointer: draw, drag, pan, pinch ---------- */
+function mkPointer(cv) {
+  const P = new Map(); let drag = null;
+  cv.addEventListener("pointerdown", (ev) => {
+    if (!MK.img) return; cv.setPointerCapture(ev.pointerId); P.set(ev.pointerId, [ev.clientX, ev.clientY]);
+    if (P.size === 2) { const [a, b] = [...P.values()]; drag = { pinch: true, d: Math.hypot(a[0] - b[0], a[1] - b[1]), z: MK.z, px: MK.px, py: MK.py, cx: (a[0] + b[0]) / 2, cy: (a[1] + b[1]) / 2 }; if (MK.adding && MK.adding._just) { MK.adding.pts.pop(); MK.adding._just = false; } return; }
+    const q = mkToImg(ev), s = mkView().s, tol = 16 / s;
+    if (MK.scaleMode) { MK.scaleLine = MK.scaleLine && MK.scaleLine.length === 1 ? [MK.scaleLine[0], q] : [q]; drag = { scale: true }; if (MK.scaleLine.length === 2) MK.panel = "scale2"; mkRender(); return; }
+    if (MK.adding) {
+      const a = MK.adding, K = mkKind(a.k);
+      if (["wrap", "cone", "circle", "beam"].includes(K.s)) { a.pts = [q, q]; drag = { two: true, start: q, moved: false }; }
+      else { const h = a.pts.findIndex((p) => mkDist(p, q) < tol); if (h >= 0) drag = { pt: h, el: a }; else { a.pts.push(q); a._just = true; drag = { pt: a.pts.length - 1, el: a, add: true }; } }
+      mkDraw(); return;
+    }
+    const sel = mkSel();
+    if (sel) { const h = sel.pts.findIndex((p) => mkDist(p, q) < tol); if (h >= 0) { mkSnap(); drag = { pt: h, el: sel }; return; } }
+    const hit = mkHit(q);
+    if (hit) { const was = MK.sel === hit.id; MK.sel = hit.id; MK.panel = "edit"; drag = { move: true, el: hit, last: q, snapped: false }; if (!was) mkRender(); else mkDraw(); return; }
+    if (MK.sel) { MK.sel = ""; MK.panel = "add"; mkRender(); }
+    drag = { pan: true, x: ev.clientX, y: ev.clientY, px: MK.px, py: MK.py };
+  });
+  cv.addEventListener("pointermove", (ev) => {
+    if (!P.has(ev.pointerId)) return; P.set(ev.pointerId, [ev.clientX, ev.clientY]); if (!drag) return;
+    if (drag.pinch && P.size >= 2) { const [a, b] = [...P.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); MK.z = Math.max(0.5, Math.min(8, drag.z * d / drag.d)); MK.px = drag.px + ((a[0] + b[0]) / 2 - drag.cx); MK.py = drag.py + ((a[1] + b[1]) / 2 - drag.cy); mkDraw(); return; }
+    const q = mkToImg(ev);
+    if (drag.scale) { MK.scaleLine[MK.scaleLine.length - 1] = q; mkDraw(); return; }
+    if (drag.two) { MK.adding.pts[1] = q; drag.moved = drag.moved || mkDist(q, drag.start) > 8 / mkView().s; mkDraw(); return; }
+    if (drag.pt != null) { drag.el.pts[drag.pt] = q; if (drag.el !== MK.adding) MK.dirty = true; mkDraw(); return; }
+    if (drag.move) { const dx = q[0] - drag.last[0], dy = q[1] - drag.last[1]; if (!drag.snapped) { if (Math.hypot(dx, dy) < 4 / mkView().s) return; mkSnap(); drag.snapped = true; } drag.el.pts = drag.el.pts.map(([x, y]) => [x + dx, y + dy]); drag.last = q; mkDraw(); return; }
+    if (drag.pan) { MK.px = drag.px + ev.clientX - drag.x; MK.py = drag.py + ev.clientY - drag.y; mkDraw(); }
+  });
+  const up = (ev) => {
+    P.delete(ev.pointerId); if (!drag) return; const d = drag; if (P.size) { if (d.pinch) drag = null; return; } drag = null;
+    if (d.two) { const a = MK.adding; if (!d.moved) a.pts[1] = mkDefaultEnd(a.k, a.pts[0]); mkFinish(); return; }
+    if (d.add && MK.adding) MK.adding._just = false;
+    if (d.pt != null || d.move) mkRender(); else if (d.scale) mkRender();
+  };
+  cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
+  cv.addEventListener("dblclick", (ev) => { if (MK.adding && mkKind(MK.adding.k).s !== "beam") { ev.preventDefault(); mkFinish(); } });
+  cv.addEventListener("wheel", (ev) => { if (!MK.img) return; ev.preventDefault(); const r = cv.getBoundingClientRect(), mx = ev.clientX - r.left, my = ev.clientY - r.top, v = mkView(), ix = (mx - v.x) / v.s, iy = (my - v.y) / v.s;
+    MK.z = Math.max(0.5, Math.min(8, MK.z * Math.exp(-ev.deltaY * 0.0015))); const v2 = mkView(); MK.px += mx - (ix * v2.s + v2.x); MK.py += my - (iy * v2.s + v2.y); mkDraw(); }, { passive: false });
+}
+
+/* ---------- panel UI ---------- */
+function mkColorsUI(el) {
+  const cur = (el.colors || []).join(",");
+  return `<div class="mk-f"><span class="mk-lbl">Colors</span><div class="mk-sets">${MK_SETS.map(([n, c]) => `<button type="button" class="mk-set" data-mk="set" data-v="${c.join(",")}" aria-pressed="${cur === c.join(",")}" title="${esc(n)}"><i>${c.map((x) => `<b style="background:${mkHex(x)}"></b>`).join("")}</i>${esc(n)}</button>`).join("")}</div>
+    <span class="mk-lbl">Or build the order on the strand</span>
+    <div class="mk-seq">${(el.colors || []).map((c, i) => `<button type="button" class="mk-dot" style="background:${mkHex(c)}" data-mk="col-rm" data-v="${i}" title="Remove ${esc((MK_COLORS[c] || [c])[0])}">×</button>`).join("")}</div>
+    <div class="mk-pal">${Object.entries(MK_COLORS).map(([k, [n, h]]) => `<button type="button" class="mk-sw" style="background:${h}" data-mk="col-add" data-v="${k}" title="Add ${esc(n)}" aria-label="Add ${esc(n)}"></button>`).join("")}<label class="mk-sw mk-cust" title="Any color">+<input type="color" id="mk-cc" value="#ffc469"></label></div>
+    ${(el.colors || []).length > 1 ? `<label class="mk-chk"><input type="checkbox" id="mk-mix" ${el.mix ? "checked" : ""}> Random mix (not in order)</label>` : ""}</div>`;
+}
+const mkRange = (id, label, v, min, max, step, unit) => `<label class="mk-f"><span class="mk-lbl">${label} <b id="${id}-v">${v}${unit || ""}</b></span><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${v}"></label>`;
+function mkEditUI(el) {
+  const K = mkKind(el.k);
+  let h = `<div class="mk-head"><b>${K.i} ${esc(el.label || K.n)}</b><button type="button" class="btn small" data-mk="desel">Done</button></div>
+    <label class="mk-f"><span class="mk-lbl">Name on the list (optional)</span><input id="mk-label" value="${esc(el.label || "")}" placeholder="${esc(K.n)}"></label>
+    <label class="mk-f"><span class="mk-lbl">Type</span><select id="mk-kind">${MK_KINDS.filter((x) => x.s === K.s || (["line"].includes(x.s) && K.s === "line")).map((x) => `<option value="${x.k}" ${x.k === el.k ? "selected" : ""}>${esc(x.n)}</option>`).join("")}</select></label>`;
+  if (K.s !== "beam") h += `<div class="mk-f"><span class="mk-lbl">Bulb</span><div class="seg mk-seg">${Object.entries(MK_BULBS).map(([k, [n]]) => `<button type="button" data-mk="bulb" data-v="${k}" aria-pressed="${el.b === k}">${n}</button>`).join("")}</div></div>`;
+  h += mkColorsUI(el);
+  if (["line", "area", "wrap", "cone", "circle"].includes(K.s) && el.k !== "wreath") h += mkRange("mk-sp", K.s === "area" ? "Spacing in the net" : "Bulb spacing", el.sp, 1, 36, 1, '"');
+  if (K.s === "wrap") h += mkRange("mk-gap", "Wrap spacing (tighter = more lights)", el.gap, 1, 12, 0.5, '"') + mkRange("mk-w", "How wide it is", el.w, 0.3, 4, 0.1, " ft") + mkRange("mk-taper", "Thinner at the bottom", Math.round((el.taper || 0) * 100), 0, 60, 5, "%");
+  if (K.s === "cone") h += mkRange("mk-w", "Base width", Math.round((el.w || 0.55) * 100), 20, 120, 5, "%") + mkRange("mk-str", "Light strands", el.strands || 12, 6, 30, 1, "");
+  if (el.k === "icicle") h += mkRange("mk-drop", "Longest icicle", el.drop || 1.5, 0.5, 4, 0.25, " ft");
+  if (K.s === "area") h += `<div class="mk-f"><span class="mk-lbl">Fill</span><div class="seg mk-seg"><button type="button" data-mk="fill" data-v="net" aria-pressed="${el.fill !== "random"}">Net (even)</button><button type="button" data-mk="fill" data-v="random" aria-pressed="${el.fill === "random"}">Scattered</button></div></div>`;
+  if (K.s === "beam") h += mkRange("mk-spread", "Beam width", el.spread || 26, 8, 70, 1, "°");
+  if (el.k === "wreath") h += `<label class="mk-chk"><input type="checkbox" id="mk-bow" ${el.bow ? "checked" : ""}> Red bow</label>`;
+  if (K.s === "line" && !K.ground && el.k !== "icicle") h += `<label class="mk-chk"><input type="checkbox" id="mk-closed" ${el.closed ? "checked" : ""}> Close the loop (connect the ends)</label>`;
+  if (K.s !== "beam") h += mkRange("mk-size", "Bulb size", el.size || 1, 0.5, 3, 0.1, "×");
+  h += mkRange("mk-glow", "Brightness", el.glow ?? 1, 0.2, 2.5, 0.1, "×");
+  h += `<div class="bar mk-acts"><button type="button" class="btn small" data-mk="dup">Duplicate</button><button type="button" class="btn small" data-mk="front">Bring to front</button><button type="button" class="btn small danger" data-mk="del">Delete</button></div>`;
+  return h;
+}
+function mkSceneUI() {
+  const F = mkFootage(), est = !MK.scaled;
+  return `<div class="mk-f">${mkRange("mk-night", "Nighttime", Math.round(MK.night * 100), 0, 100, 1, "%")}${mkRange("mk-gl", "Glow (all lights)", MK.glow, 0.3, 2.5, 0.1, "×")}</div>
+    <div class="mk-f"><span class="mk-lbl">Measurements</span>${MK.scaled ? `<p class="mk-note">Scale set: ${(MK.pxft).toFixed(1)} px per ft.</p>` : `<p class="mk-note">Draw a line on something you know (a garage door is 16 ft, a single door 3 ft) to get real spacing and footage.</p>`}<button type="button" class="btn small" data-mk="scale">${MK.scaled ? "Reset scale" : "Set scale"}</button></div>
+    ${F.length ? `<div class="mk-f"><span class="mk-lbl">What's on it${est ? " (rough until you set scale)" : ""}</span><table class="mk-tab">${F.map((r) => `<tr><td>${esc(r.name)}${r.n > 1 ? ` <small>×${r.n}</small>` : ""}</td><td class="mono">${est ? "≈" : ""}${r.u === "light" ? r.n : Math.round(r.q)} ${r.u === "light" ? (r.n > 1 ? "lights" : "light") : r.u}</td></tr>`).join("")}</table>${mkRoofFt() ? `<p class="mk-note"><b>${est ? "≈" : ""}${mkRoofFt()} ft</b> of roofline C9 runs.</p>` : ""}</div>` : ""}`;
+}
+function mkPanel() {
+  if (MK.confirmClose) return `<div class="mk-head"><b>Close without saving?</b></div><p class="mk-note">Your mockup hasn't been saved.</p><div class="bar"><button type="button" class="btn" data-mk="close-no">Keep working</button><button type="button" class="btn danger" data-mk="close-yes">Close it</button></div>`;
+  if (!MK.img) return "";
+  if (MK.panel === "save") return mkSaveUI();
+  if (MK.scaleMode) return `<div class="mk-head"><b>Set scale</b><button type="button" class="btn small" data-mk="scale-x">Cancel</button></div>${MK.scaleLine && MK.scaleLine.length === 2 ? `<label class="mk-f"><span class="mk-lbl">How long is that line?</span><div class="bar"><input id="mk-ft" type="number" inputmode="decimal" min="0.5" step="0.5" placeholder="16" style="max-width:110px"> <span>ft</span><button type="button" class="btn small amber" data-mk="scale-ok">Use it</button></div></label>` : `<p class="mk-note">Tap one end of something you know the size of (like a garage door), then the other end.</p>`}`;
+  if (MK.adding) { const K = mkKind(MK.adding.k), two = ["wrap", "cone", "circle", "beam"].includes(K.s);
+    const tip = { wrap: "Press at the top and drag down to the bottom.", cone: "Press at the tip and drag down to the base.", circle: "Press in the middle and drag out to the edge.", beam: "Press where the light sits and drag toward what it lights up.", area: "Tap around the outside of it. Double-tap or hit Done to finish.", line: "Tap along where the lights go. Drag a dot to fix it. Double-tap or hit Done." }[K.s];
+    return `<div class="mk-head"><b>${K.i} ${esc(K.n)}</b></div><p class="mk-note">${tip}</p><div class="bar">${two ? "" : `<button type="button" class="btn amber" data-mk="finish">Done</button><button type="button" class="btn small" data-mk="undo-pt">Undo point</button>`}<button type="button" class="btn small" data-mk="cancel-add">Cancel</button></div>${two ? "" : mkColorsUI(MK.adding)}`; }
+  const el = mkSel(); if (el) return mkEditUI(el);
+  const groups = [...new Set(MK_KINDS.map((x) => x.g))];
+  return `${groups.map((g) => `<div class="mk-f"><span class="mk-lbl">${esc(g)}</span><div class="mk-kinds">${MK_KINDS.filter((x) => x.g === g).map((x) => `<button type="button" class="mk-kind" data-mk="add" data-v="${x.k}"><i>${x.i}</i>${esc(x.n)}</button>`).join("")}</div></div>`).join("")}
+    ${MK.els.length ? `<div class="mk-f"><span class="mk-lbl">On this mockup · tap to edit</span><div class="mk-list">${MK.els.map((e) => `<button type="button" class="mk-li" data-mk="pick" data-v="${esc(e.id)}"><i>${(e.colors || []).slice(0, 5).map((c) => `<b style="background:${mkHex(c)}"></b>`).join("")}</i>${esc(e.label || mkKind(e.k).n)}</button>`).join("")}</div></div>` : ""}
+    ${mkSceneUI()}`;
+}
+function mkSaveUI() {
+  const jobs = jobsArr().slice().sort((a, b) => String(clientOf(a).name).localeCompare(String(clientOf(b).name)));
+  const ft = mkRoofFt(), j = MK.jobId && S.jobs.get(MK.jobId);
+  return `<div class="mk-head"><b>Save mockup</b><button type="button" class="btn small" data-mk="back">Back</button></div>
+    <label class="mk-f"><span class="mk-lbl">Save it to this job</span><select id="mk-job"><option value="">Don't save to a job</option>${jobs.map((x) => `<option value="${esc(x.id)}" ${x.id === MK.jobId ? "selected" : ""}>${esc(clientOf(x).name || "No name")}${x.stage === "quoted" ? " · quote" : x.stage === "lead" ? " · lead" : ""}</option>`).join("")}</select></label>
+    ${MK.scaled && ft ? `<label class="mk-chk"><input type="checkbox" id="mk-setft" ${j && !j.rooflineFt ? "checked" : ""}> Put ${ft} ft roofline on the job</label>` : ""}
+    <div class="bar mk-acts"><button type="button" class="btn amber" data-mk="save-go" ${MK.saving ? "disabled" : ""}>${MK.saving ? "Saving…" : "Save"}</button><button type="button" class="btn" data-mk="share">Send to customer</button><button type="button" class="btn small" data-mk="download">Download</button></div>
+    <p class="mk-note">Saved mockups show on the job for the crew, and you can open them again to make changes.</p>`;
+}
+function mkRender() {
+  const root = $("#mockRoot"); if (!root || !MK.open) return;
+  const j = MK.jobId && S.jobs.get(MK.jobId), who = j ? clientOf(j).name : "";
+  const focus = document.activeElement && document.activeElement.id, scroll = root.querySelector(".mk-panel") ? root.querySelector(".mk-panel").scrollTop : 0;
+  if (!MK.img) {
+    MK.cv = null;
+    const pics = j ? [...(j.mockups || []).filter((m) => m.type === "image" && !m.studio), ...jobsLog(j.id).flatMap((l) => (l.media || []).filter((m) => m.type === "image"))].slice(0, 12) : [];
+    root.innerHTML = `<div class="mk-top"><button type="button" class="btn small" data-mk="close">✕ Close</button><b class="grow">Light mockup${who ? " · " + esc(who) : ""}</b></div>
+      <div class="mk-start"><div class="mk-start-in"><h2>Start with a photo of the house</h2><p class="lede">Stand at the street and get the whole front in. Daytime photos work best. The app turns it to night for you.</p>
+      <div class="bar"><label class="btn amber file-btn">📷 Take photo<input type="file" id="mk-cam" accept="image/*" capture="environment"></label><label class="btn file-btn">Choose photo<input type="file" id="mk-file" accept="image/*"></label></div>
+      ${pics.length ? `<span class="mk-lbl">Or use a photo from this job</span><div class="mk-pics">${pics.map((m) => `<button type="button" data-mk="usepic" data-v="${esc(m.id)}"><img src="${esc(mediaUrl(m.id))}" alt="" loading="lazy" crossorigin="anonymous"></button>`).join("")}</div>` : ""}</div></div>`;
+    return;
+  }
+  if (!root.querySelector("#mk-cv")) {
+    root.innerHTML = `<div class="mk-top"></div><div class="mk-body"><div class="mk-stage"><canvas id="mk-cv"></canvas><div class="mk-zoom"><button type="button" data-mk="zin" aria-label="Zoom in">+</button><button type="button" data-mk="zout" aria-label="Zoom out">−</button><button type="button" data-mk="zfit" aria-label="Fit">⤢</button></div></div>
+    <aside class="mk-panel"></aside></div><input type="file" id="mk-file2" accept="image/*" hidden>`;
+    MK.cv = $("#mk-cv"); mkPointer(MK.cv);
+  }
+  root.querySelector(".mk-top").innerHTML = `<button type="button" class="btn small" data-mk="close" aria-label="Close">✕</button><b class="grow mk-title">Light mockup${who ? " · " + esc(who) : ""}</b>
+      <button type="button" class="btn small" data-mk="undo" ${MK.undo.length || MK.adding ? "" : "disabled"} title="Undo (Ctrl+Z)" aria-label="Undo">↶</button><button type="button" class="btn small" data-mk="redo" ${MK.redo.length ? "" : "disabled"} title="Redo" aria-label="Redo">↷</button>
+      <button type="button" class="btn small" data-mk="before" aria-pressed="${MK.before}" title="See the house without lights">Before</button>
+      <button type="button" class="btn small mk-hide-sm" data-mk="photo" title="Use a different photo">Photo</button>
+      <button type="button" class="btn small amber" data-mk="save" ${MK.els.length ? "" : "disabled"}>Save</button>`;
+  const p = root.querySelector(".mk-panel"); p.innerHTML = mkPanel(); p.scrollTop = scroll;
+  if (focus && /^mk-/.test(focus)) { const f = document.getElementById(focus); if (f && !/range|checkbox|file/.test(f.type)) f.focus(); }
+  mkDraw();
+}
+function jobsLog(jobId) { try { return (S.log ? [...S.log.values()] : []).filter((l) => l.jobId === jobId); } catch (e) { return []; } }
+
+/* ---------- save / share ---------- */
+async function mkBlob() {
+  const c = document.createElement("canvas"); c.width = MK.W; c.height = MK.H; const ctx = c.getContext("2d"); mkScene(ctx);
+  // small credit mark, bottom right
+  const s = Math.max(14, MK.W / 70); ctx.font = `700 ${s}px system-ui,sans-serif`; ctx.textAlign = "right"; ctx.fillStyle = "rgba(255,255,255,.75)"; ctx.fillText("ProLight Tallahassee · sample mockup", MK.W - s, MK.H - s);
+  return await new Promise((res, rej) => c.toBlob((b) => b ? res(b) : rej(new Error("encode")), "image/jpeg", 0.9));
+}
+async function mkSave() {
+  const jid = ($("#mk-job") || {}).value || ""; if (!jid) { toast("Pick a job, or use Send / Download."); return; }
+  const j = S.jobs.get(jid); if (!j) return; MK.saving = true; mkRender();
+  try {
+    if (!MK.photoId) { const pc = document.createElement("canvas"); pc.width = MK.W; pc.height = MK.H; pc.getContext("2d").drawImage(MK.img, 0, 0); const pb = await new Promise((r) => pc.toBlob(r, "image/jpeg", 0.88)); MK.photoId = (await S.assets.upload(pb, { type: "image/jpeg" })).id; }
+    const out = await S.assets.upload(await mkBlob(), { type: "image/jpeg" });
+    const studio = { photo: MK.photoId, els: MK.els, night: MK.night, glow: MK.glow, pxft: MK.pxft, scaled: MK.scaled, by: S.me.id, at: new Date().toISOString() };
+    const item = { id: out.id, type: "image", name: "Light mockup", studio };
+    let list = [...(j.mockups || [])], old = "";
+    if (MK.editId && jid === MK.jobId) { const i = list.findIndex((m) => m.id === MK.editId); if (i >= 0) { old = list[i].id; list[i] = item; } else list.push(item); } else list.push(item);
+    const patch = { mockups: list, updatedAt: new Date().toISOString() }; if (($("#mk-setft") || {}).checked) patch.rooflineFt = String(mkRoofFt());
+    await S.db.doc("jobs/" + jid).update(patch);
+    if (old && S.assets) { try { await S.assets.delete(old); } catch (e) {} }
+    try { track && track("mockup", { job: jid, pieces: MK.els.length }); } catch (e) {}
+    MK.jobId = jid; MK.editId = out.id; MK.dirty = false; MK.saving = false; MK.panel = "add"; toast("Mockup saved to " + (clientOf(j).name || "the job")); mkRender();
+  } catch (e) { MK.saving = false; mkRender(); e && e.code ? upFail(e) : fail(e, "save the mockup"); }
+}
+async function mkShare(download) {
+  try {
+    const b = await mkBlob(), j = MK.jobId && S.jobs.get(MK.jobId), nm = ((j && clientOf(j).name) || "house").replace(/[^\w]+/g, "-") + "-lights.jpg", f = new File([b], nm, { type: "image/jpeg" });
+    if (!download && navigator.canShare && navigator.canShare({ files: [f] })) { try { await navigator.share({ files: [f], title: "Your Christmas lights", text: "Here's a mockup of your house with lights from ProLight Tallahassee." }); return; } catch (e) { if (e && e.name === "AbortError") return; } }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = nm; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+    if (!download) toast("Saved the picture. Text it to the customer from your photos.");
+  } catch (e) { fail(e, "make the picture"); }
+}
+
+/* ---------- events ---------- */
+function mkBind(root) {
+  root.addEventListener("click", async (ev) => {
+    ev.stopPropagation(); const t = ev.target.closest("[data-mk]"); if (!t || t.disabled) return; const a = t.dataset.mk, v = t.dataset.v, el = mkSel();
+    const edit = (fn) => { if (!el) return; mkSnap(); fn(el); mkRender(); };
+    switch (a) {
+      case "close": closeMockup(); break; case "close-no": MK.confirmClose = false; mkRender(); break; case "close-yes": closeMockup(true); break;
+      case "photo": $("#mk-file2").click(); break;
+      case "usepic": try { await mkLoadSrc(mediaUrl(v)); MK.photoId = v; MK.dirty = true; mkRender(); } catch (e) { toast("Couldn't open that photo."); } break;
+      case "add": mkStartAdd(v); break; case "finish": mkFinish(); break; case "cancel-add": MK.adding = null; MK.panel = "add"; mkRender(); break;
+      case "undo-pt": if (MK.adding) { MK.adding.pts.pop(); mkRender(); } break;
+      case "undo": mkUndo(); break; case "redo": mkRedo(); break;
+      case "before": MK.before = !MK.before; mkRender(); break;
+      case "pick": MK.sel = v; MK.panel = "edit"; mkRender(); break; case "desel": MK.sel = ""; MK.panel = "add"; mkRender(); break;
+      case "bulb": edit((e) => { e.b = v; }); break; case "fill": edit((e) => { e.fill = v; }); break;
+      case "set": { const c = v.split(","); MK.lastColors = c; if (MK.adding) { MK.adding.colors = c; mkRender(); } else edit((e) => { e.colors = c; }); break; }
+      case "col-add": { const tgt = MK.adding || el; if (!tgt) break; if (!MK.adding) mkSnap(); tgt.colors = [...(tgt.colors || []), v]; MK.lastColors = tgt.colors; mkRender(); break; }
+      case "col-rm": { const tgt = MK.adding || el; if (!tgt || (tgt.colors || []).length < 2) break; if (!MK.adding) mkSnap(); tgt.colors = tgt.colors.filter((_, i) => i !== +v); MK.lastColors = tgt.colors; mkRender(); break; }
+      case "dup": if (el) { mkSnap(); const c = JSON.parse(JSON.stringify(el)); c.id = uid(); c.pts = c.pts.map(([x, y]) => [x + MK.pxft * 2, y]); MK.els.push(c); MK.sel = c.id; mkRender(); } break;
+      case "front": edit((e) => { MK.els = [...MK.els.filter((x) => x !== e), e]; }); break;
+      case "del": if (el) { mkSnap(); MK.els = MK.els.filter((x) => x !== el); MK.sel = ""; MK.panel = "add"; mkRender(); } break;
+      case "zin": MK.z = Math.min(8, MK.z * 1.4); mkDraw(); break; case "zout": MK.z = Math.max(0.5, MK.z / 1.4); mkDraw(); break; case "zfit": MK.z = 1; MK.px = MK.py = 0; mkDraw(); break;
+      case "scale": MK.scaleMode = true; MK.scaleLine = null; MK.sel = ""; mkRender(); break;
+      case "scale-x": MK.scaleMode = false; MK.scaleLine = null; mkRender(); break;
+      case "scale-ok": { const f = parseFloat(($("#mk-ft") || {}).value); if (!(f > 0)) { toast("Type how many feet long it is."); break; } const L = mkDist(MK.scaleLine[0], MK.scaleLine[1]); if (L < 10) { toast("Draw a longer line."); break; } MK.pxft = L / f; MK.scaled = true; MK.scaleMode = false; MK.scaleLine = null; MK.dirty = true; mkRender(); toast("Scale set"); break; }
+      case "save": MK.panel = "save"; MK.sel = ""; MK.adding = null; mkRender(); break; case "back": MK.panel = "add"; mkRender(); break;
+      case "save-go": await mkSave(); break; case "share": await mkShare(false); break; case "download": await mkShare(true); break;
+    }
+  });
+  const num = (id, fn) => { const x = document.getElementById(id); if (!x) return; const o = document.getElementById(id + "-v"); if (o) o.textContent = x.value + (o.textContent.replace(/^[\d.\-]+/, "")); fn(parseFloat(x.value)); };
+  root.addEventListener("input", (ev) => {
+    ev.stopPropagation(); const t = ev.target, el = mkSel(), id = t.id;
+    if (id === "mk-night") return num(id, (v) => { MK.night = v / 100; MK.dirty = true; mkDraw(); });
+    if (id === "mk-gl") return num(id, (v) => { MK.glow = v; MK.dirty = true; mkDraw(); });
+    if (!el) return;
+    const map = { "mk-sp": "sp", "mk-gap": "gap", "mk-size": "size", "mk-glow": "glow", "mk-drop": "drop", "mk-spread": "spread", "mk-str": "strands" };
+    if (map[id]) return num(id, (v) => { mkSnapOnce(id + el.id); el[map[id]] = v; mkDraw(); });
+    if (id === "mk-w") return num(id, (v) => { mkSnapOnce(id + el.id); el.w = mkKind(el.k).s === "cone" ? v / 100 : v; mkDraw(); });
+    if (id === "mk-taper") return num(id, (v) => { mkSnapOnce(id + el.id); el.taper = v / 100; mkDraw(); });
+    if (id === "mk-label") { mkSnapOnce(id + el.id); el.label = t.value.slice(0, 40); }
+  });
+  root.addEventListener("change", async (ev) => {
+    ev.stopPropagation(); const t = ev.target, el = mkSel();
+    if (t.id === "mk-cam" || t.id === "mk-file" || t.id === "mk-file2") { await mkPickFile(t.files && t.files[0]); t.value = ""; return; }
+    if (t.id === "mk-cc") { const tgt = MK.adding || el; if (!tgt) return; if (!MK.adding) mkSnap(); tgt.colors = [...(tgt.colors || []), t.value]; mkRender(); return; }
+    if (!el) return;
+    if (t.id === "mk-mix") { mkSnap(); el.mix = t.checked; mkDraw(); }
+    if (t.id === "mk-bow") { mkSnap(); el.bow = t.checked; mkDraw(); }
+    if (t.id === "mk-closed") { mkSnap(); el.closed = t.checked; mkDraw(); }
+    if (t.id === "mk-kind") { mkSnap(); const K = mkKind(t.value); el.k = t.value; if (K.b) el.b = K.b; if (K.sp) el.sp = K.sp; mkRender(); }
+    if (t.id === "mk-label") mkRender();
+  });
+}
+window.addEventListener("keydown", (ev) => {
+  if (!MK.open) return; const t = ev.target, typing = t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) && t.type !== "range" && t.type !== "checkbox";
+  ev.stopPropagation();
+  if (ev.key === "Escape") { ev.preventDefault(); if (MK.adding) { MK.adding = null; MK.panel = "add"; mkRender(); } else if (MK.scaleMode) { MK.scaleMode = false; mkRender(); } else if (MK.sel) { MK.sel = ""; MK.panel = "add"; mkRender(); } else closeMockup(); return; }
+  if (typing) return;
+  if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "z") { ev.preventDefault(); ev.shiftKey ? mkRedo() : mkUndo(); return; }
+  if (ev.key === "Enter" && MK.adding) { ev.preventDefault(); mkFinish(); return; }
+  if ((ev.key === "Delete" || ev.key === "Backspace") && mkSel()) { ev.preventDefault(); mkSnap(); MK.els = MK.els.filter((x) => x.id !== MK.sel); MK.sel = ""; MK.panel = "add"; mkRender(); }
+}, true);
+window.addEventListener("resize", () => { if (MK.open) mkDraw(); });
 
 /* ---------- render ---------- */
 function renderMain(){
@@ -3616,6 +4168,7 @@ document.addEventListener("click", async ev=>{
     case "call-start": await startCall(v,true); break;
     case "call-join": await startCall(v,false); break;
     case "call-leave": leaveCall(); break;
+    case "mockup": await openMockup(id||"",v); break;
     case "pins": await openPins(); break;
     case "act-filter": ACT.filter=v; ACT.rows=null; ACT.open.clear(); renderMain(); break;
     case "act-refresh": ACT.rows=null; ACT.health=null; renderMain(); break;
