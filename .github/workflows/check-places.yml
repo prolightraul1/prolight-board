@@ -1,9 +1,0 @@
-name: Check lunch search
-on: workflow_dispatch
-jobs:
-  check:
-    runs-on: ubuntu-latest
-    steps:
-      - run: |
-          code=$(curl -sS -m 60 -o b.txt -w "%{http_code}" "https://prolight-boardv1.vercel.app/api/places?lat=30.4900&lng=-84.2600")
-          n=$(grep -o '"tags"' b.txt | wc -l); echo "::notice::HTTP $code, places $n: $(head -c 300 b.txt | tr '\n' ' ')"
