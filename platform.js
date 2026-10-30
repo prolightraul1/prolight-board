@@ -380,13 +380,33 @@
     await sb.auth.signOut({ scope: "local" }).catch(() => {});
   }
   document.addEventListener("visibilitychange", () => { if (!document.hidden && loaded && !dayOk()) endDay().then(() => location.reload()); });
-  let freshSignIn = false;
+  let freshSignIn = false, lastPin = "";
   /* square, centered, 480px JPEG from any photo */
   async function squarePhoto(file) {
     const img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = URL.createObjectURL(file); });
     const s = Math.min(img.naturalWidth, img.naturalHeight), cv = document.createElement("canvas"); cv.width = cv.height = 480;
     cv.getContext("2d").drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 3, s, s, 0, 0, 480, 480);
     return new Promise((ok) => cv.toBlob(ok, "image/jpeg", 0.86));
+  }
+  function pinStep() {
+    return new Promise((resolve) => {
+      const first = (ME.name || "").split(" ")[0];
+      const g = showGate(`<h2>${esc(first)}, pick your own PIN</h2><p>You signed in with the PIN the office gave you. Choose a new 6-digit PIN only you know.</p>
+        <form id="np-form" class="gate-form"><label>New 6-digit PIN<input id="np-1" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="new-password" required></label>
+        <label>Type it again<input id="np-2" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="new-password" required></label>
+        <p class="gate-err" id="gate-err"></p><button type="submit" class="gate-go">Save my PIN</button></form>`);
+      g.querySelector("#np-form").onsubmit = async (e) => {
+        e.preventDefault();
+        const a = $("#np-1").value.trim(), b = $("#np-2").value.trim(), btn = g.querySelector(".gate-go");
+        if (!/^[0-9]{6}$/.test(a)) { $("#gate-err").textContent = "Use exactly 6 digits."; return; }
+        if (a !== b) { $("#gate-err").textContent = "The two PINs don't match."; return; }
+        if (a === lastPin) { $("#gate-err").textContent = "Pick a PIN that's different from the one the office gave you."; return; }
+        if (/^(\d)\1{5}$/.test(a) || a === "123456" || a === "654321") { $("#gate-err").textContent = "That PIN is too easy to guess. Try another."; return; }
+        btn.disabled = true; btn.textContent = "Saving…";
+        try { await PL.setPin(ME.id, a); ME.pin_ok = true; resolve(); }
+        catch (x) { btn.disabled = false; btn.textContent = "Save my PIN"; $("#gate-err").textContent = /taken|use|belongs|unique/i.test(x.message) ? "That PIN is taken. Pick another." : "Couldn't save it: " + x.message; }
+      };
+    });
   }
   function photoStep() {
     return new Promise((resolve) => {
@@ -453,7 +473,7 @@
     const { error } = await sb.auth.signInWithPassword({ email: person.email, password: pin });
     if (error) return /rate|many/i.test(error.message) ? "Too many tries. Wait a few minutes and try again." : "That PIN didn't match. Try again.";
     try { localStorage.setItem("prolight-day", dayKey()); localStorage.removeItem("prolight-last"); } catch (e) {}
-    freshSignIn = true;
+    freshSignIn = true; lastPin = pin;
     await afterSignIn();
     return null;
   }
@@ -512,6 +532,7 @@
     subscribe();
     if (freshSignIn) {
       freshSignIn = false; document.onkeydown = null;
+      if (ME.pin_ok === false) await pinStep();
       if (!ME.photo) await photoStep();
       if (ME.look && Array.isArray(ME.look.colors) && ME.look.colors.length) saveLookLocal(ME.look.colors.filter((k) => WCOL[k]));
       else if (!lookFlag()) await lookStep();
