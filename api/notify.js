@@ -29,13 +29,16 @@ module.exports = async (req, res) => {
       const call = m.body === "📹 Video call", from = nameOf(m.by);
       let who = [];
       if (m.channel === "ann") who = staff.filter((p) => p.id !== m.by);
+      else if (m.channel === "meet:prolight") who = staff.filter((p) => (p.can_manage || p.can_edit || !(p.partner === "shipshape" || ssCrews.includes(p.crew))) && (p.id !== m.by || call));
       else if (m.channel.startsWith("crew:")) who = crewPeople(m.channel.slice(5)).filter((p) => p.id !== m.by);
       else if (m.channel.startsWith("dm:")) who = staff.filter((p) => p.id !== m.by && m.channel.slice(3).split(":").includes(p.id));
       const url = "/?go=" + encodeURIComponent(call ? "call:" + m.channel : "chat:" + m.channel);
       sent = await pushTo(who, call ? "meeting" : "chat", (p) => {
         const es = lang(p) === "es";
-        if (call && m.channel === "ann") return { title: es ? "📹 Reunión en vivo" : "📹 Crew meeting is live", body: es ? `${from} empezó la reunión. Toca para unirte.` : `${from} started the meeting. Tap to join.`, url, tag: "meeting" };
-        if (call) return { title: es ? "📹 Videollamada" : "📹 Video call", body: es ? `${from} te está llamando. Toca para unirte.` : `${from} is calling. Tap to join.`, url, tag: "call-" + m.channel };
+        if (call && m.channel === "meet:prolight") return { title: es ? "📹 Llamada entrante · Equipo" : "📹 Incoming call · Daily team call", body: es ? "La llamada diaria del equipo empezó. Toca para unirte." : "The daily team call is starting. Tap to join.", url, tag: "meet", sticky: true };
+        if (call && m.channel === "ann") return { title: es ? "📹 Reunión en vivo" : "📹 Crew meeting is live", body: es ? `${from} empezó la reunión. Toca para unirte.` : `${from} started the meeting. Tap to join.`, url, tag: "meeting", sticky: true };
+        if (call) return { title: es ? "📹 Llamada entrante" : "📹 Incoming call", body: es ? `${from} te está llamando. Toca para unirte.` : `${from} is calling. Tap to join.`, url, tag: "call-" + m.channel, sticky: true };
+        if (m.channel === "meet:prolight") return null;
         const title = m.channel === "ann" ? (es ? "Anuncio" : "Announcement") : m.channel.startsWith("crew:") ? crewName(m.channel.slice(5)) : from;
         return { title, body: (m.channel.startsWith("dm:") ? "" : first(from) + ": ") + clip(m.body, 160), url, tag: "chat-" + m.channel };
       });

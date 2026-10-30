@@ -19,7 +19,7 @@ module.exports = async (req, res) => {
   try {
     const tok = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
     const ch = String((req.query && req.query.channel) || "");
-    if (!tok || !/^(ann|crew:[\w-]{1,40}|dm:[0-9a-f-]{36}:[0-9a-f-]{36})$/.test(ch)) return res.status(400).json({ error: "Pick a chat first." });
+    if (!tok || !/^(ann|meet:prolight|crew:[\w-]{1,40}|dm:[0-9a-f-]{36}:[0-9a-f-]{36})$/.test(ch)) return res.status(400).json({ error: "Pick a chat first." });
     const ur = await fetch(SB_URL + "/auth/v1/user", { headers: { apikey: SB_KEY, Authorization: "Bearer " + tok } });
     if (!ur.ok) return res.status(401).json({ error: "Sign in again." });
     const u = await ur.json();
@@ -38,6 +38,7 @@ module.exports = async (req, res) => {
     const exp = Math.floor(Date.now() / 1000) + 4 * 3600;
     const t = await daily("/meeting-tokens", { method: "POST", body: JSON.stringify({ properties: { room_name: name, user_name: me.name, user_id: u.id, exp, is_owner: !!me.can_manage } }) });
     if (!t.ok) return res.status(502).json({ error: "Daily: " + ((t.j && (t.j.info || t.j.error)) || t.status) });
+    await fetch(SB_URL + "/rest/v1/push_log", { method: "POST", headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY, "Content-Type": "application/json", Prefer: "return=minimal,resolution=ignore-duplicates" }, body: JSON.stringify({ key: `join:${ch}:${u.id}:${Date.now()}` }) }).catch(() => {});
     return res.status(200).json({ url: room.j.url, token: t.j.token });
   } catch (e) {
     return res.status(500).json({ error: e.message });

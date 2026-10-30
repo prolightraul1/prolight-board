@@ -740,6 +740,8 @@ html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
 .ss-view .c-crew,.ss-view .jhead span:nth-child(2),.ss-view .jhead span:nth-child(3){visibility:hidden}
 .wday h4{flex-wrap:wrap;gap:0 6px}
 .lbl:empty{display:none}
+.tog-l{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700}
+.team-call small{color:var(--ink-2)}
 .ann.push-ask{border-left-color:#7aa8ff}
 .ann.push-ask .eyebrow{color:#9fc0ff}
 #callRoot{position:fixed;inset:0;z-index:2500;background:#080c0a;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
@@ -2144,13 +2146,13 @@ const canPost = ch => ch!=="ann" || S.me.owner || S.me.manage;
 function vChat(){
   const chans=myChannels(), cur=S.chat.ch&&chans.find(c=>c.id===S.chat.ch)?S.chat.ch:null;
   const last=ch=>{ const m=chanMsgs(ch); return m[m.length-1]; };
-  const groups=[["ann","Announcements"],["crew","Crew channels"],["office","Office"],["dm","Direct messages"]].filter(([k])=>k==="ann"||k==="crew"||chans.some(c=>c.kind===k));
+  const groups=[["ann","Announcements"],["team",LANG_ES?"Llamada del equipo":"Team call"],["crew","Crew channels"],["office","Office"],["dm","Direct messages"]].filter(([k])=>k==="ann"||k==="crew"||chans.some(c=>c.kind===k));
   const listHTML=`<div class="chat-list">${groups.map(([k,l])=>{ let cs=chans.filter(c=>c.kind===k); if(k==="dm") cs.sort((a,b)=>String((last(b.id)||{}).at||"").localeCompare(String((last(a.id)||{}).at||""))||a.name.localeCompare(b.name));
     return `<span class="eyebrow">${l}</span>${cs.map(c=>{ const m=last(c.id), u=unreadIn(c.id); return `<button type="button" class="chat-ch ${cur===c.id?"on":""}" data-act="chat-open" data-v="${esc(c.id)}"><span class="m"><b>${esc(c.name)}</b><small>${m?esc((m.by===S.me.id?"You: ":"")+m.body.slice(0,60)):k==="dm"?"Send a message":"No messages yet"}</small></span>${u?`<i class="badge">${u}</i>`:""}</button>`; }).join("")}`; }).join("")}</div>`;
   let thread="";
   if(cur){
     const c=chans.find(x=>x.id===cur), M=chanMsgs(cur); let day="";
-    thread=`<div class="chat-thread"><div class="chat-head"><button type="button" class="btn small chat-back" data-act="chat-open" data-v="">‹</button><b>${esc(c.name)}</b>${c.kind!=="ann"?`<button type="button" class="btn small call-btn" data-act="call-start" data-v="${esc(cur)}">📹 ${LANG_ES?"Videollamada":"Video call"}</button>`:(S.me.manage||S.me.owner)?`<button type="button" class="btn small amber call-btn" data-act="call-start" data-v="ann">📹 ${LANG_ES?"Iniciar reunión con todos":"Start crew meeting"}</button>`:""}${c.kind==="ann"?`<span class="count">Only the office posts here</span>`:c.kind==="crew"?`<span class="count">${esc(membersOf(cur.slice(5)).join(", ")||"Crew + office")}</span>`:`<span class="count">Private</span>`}</div>
+    thread=`<div class="chat-thread"><div class="chat-head"><button type="button" class="btn small chat-back" data-act="chat-open" data-v="">‹</button><b>${esc(c.name)}</b>${c.kind==="team"?`<button type="button" class="btn small amber call-btn" data-act="call-join" data-v="${TEAM_ROOM}">📹 ${LANG_ES?"Unirme ahora":"Join now"}</button></div>${teamCallHead()}<div style="display:none">`:c.kind!=="ann"?`<button type="button" class="btn small call-btn" data-act="call-start" data-v="${esc(cur)}">📹 ${LANG_ES?"Videollamada":"Video call"}</button>`:(S.me.manage||S.me.owner)?`<button type="button" class="btn small amber call-btn" data-act="call-start" data-v="ann">📹 ${LANG_ES?"Iniciar reunión con todos":"Start crew meeting"}</button>`:""}${c.kind==="ann"?`<span class="count">Only the office posts here</span>`:c.kind==="crew"?`<span class="count">${esc(membersOf(cur.slice(5)).join(", ")||"Crew + office")}</span>`:`<span class="count">Private</span>`}</div>
       <div class="chat-msgs" id="chat-msgs">${M.map(m=>{ const d=isoOf(m.at), sep=d!==day?`<div class="chat-day">${esc(rel(d)||fmtDay(d,{weekday:"short",month:"short",day:"numeric"}))}</div>`:""; day=d; const mine=m.by===S.me.id;
         return `${sep}<div class="bub ${mine?"me":""}">${mine?"":`<b>${avatar(m.by,"xs")}${esc(who(m.by))}</b>`}${m.body===CALL_MSG?callBubble(m):`<div class="txt">${esc(m.body)}</div>`}<small>${new Date(m.at).toLocaleTimeString(LOC(),{hour:"numeric",minute:"2-digit"})}${(mine||S.me.manage)?` · <button type="button" class="linkbtn" data-act="chat-del" data-id="${esc(m.id)}">Delete</button>`:""}</small></div>`; }).join("")||`<p class="count" style="text-align:center;margin:24px 0">No messages yet.</p>`}</div>
       ${canPost(cur)?`<form class="chat-compose" id="chatForm"><textarea id="chat-text" rows="1" placeholder="${c.kind==="ann"?"Post an announcement to everyone":"Message "+esc(c.name)}">${esc(S.chat.draft[cur]||"")}</textarea><button type="submit" class="btn amber">Send</button></form>`:`<div class="note" style="margin:0">Only the office can post announcements.</div>`}</div>`;
@@ -3318,6 +3320,7 @@ function applyBrand(){
 function myChannels(){
   const me=PL.me()||{}, wide=me.all_crews||me.can_edit||me.can_manage, ss=ssOnly();
   const list=[{id:"ann",name:"Announcements",kind:"ann"}];
+  if(!ss) list.push({id:TEAM_ROOM,name:LANG_ES?"Llamada diaria del equipo":"Daily team call",kind:"team"});
   for(const c of crews()) if(wide||me.crew===c.id||(ss&&c.co==="shipshape")) list.push({id:"crew:"+c.id,name:c.name,kind:"crew"});
   for(const p of PL.staff()) if(p.active&&p.id!==me.id){
     if(plOnly()){ if(p.can_manage) list.push({id:dmId(me.id,p.id),name:p.name,kind:"office",who:p.id}); else if(!isSS(p.id)&&p.partner!=="shipshape") list.push({id:dmId(me.id,p.id),name:p.name,kind:"dm",who:p.id}); }
@@ -3339,10 +3342,10 @@ function applyCrewView(){
 
 /* ---------- video calls in chat (Daily.co) ---------- */
 const CALL_MSG = "📹 Video call";
-function callBubble(m){ const mine=m.by===S.me.id, meet=m.channel==="ann";
-  return `<div class="txt call-msg">📹 <b>${meet?(LANG_ES?"Reunión con todos los equipos":"Crew meeting"):mine?(LANG_ES?"Iniciaste una videollamada":"You started a video call"):(LANG_ES?"Videollamada":"Video call")}</b> <button type="button" class="btn small amber" data-act="call-join" data-v="${esc(m.channel)}">${LANG_ES?"Unirme":"Join"}</button></div>`; }
+function callBubble(m){ const mine=m.by===S.me.id&&m.channel!==TEAM_ROOM, meet=m.channel==="ann"||m.channel===TEAM_ROOM;
+  return `<div class="txt call-msg">📹 <b>${m.channel===TEAM_ROOM?(LANG_ES?"Llamada diaria del equipo":"Daily team call"):meet?(LANG_ES?"Reunión con todos los equipos":"Crew meeting"):mine?(LANG_ES?"Iniciaste una videollamada":"You started a video call"):(LANG_ES?"Videollamada":"Video call")}</b> <button type="button" class="btn small amber" data-act="call-join" data-v="${esc(m.channel)}">${LANG_ES?"Unirme":"Join"}</button></div>`; }
 async function startCall(ch, announce){
-  const c=ch==="ann"?(LANG_ES?"Reunión con todos los equipos":"Crew meeting"):(myChannels().find(x=>x.id===ch)||{}).name||"Chat";
+  const c=ch==="ann"?(LANG_ES?"Reunión con todos los equipos":"Crew meeting"):ch===TEAM_ROOM?(LANG_ES?"Llamada diaria del equipo":"Daily team call"):(myChannels().find(x=>x.id===ch)||{}).name||"Chat";
   let root=$("#callRoot"); if(!root){ root=document.createElement("div"); root.id="callRoot"; document.body.appendChild(root); }
   root.innerHTML=`<div class="call-bar"><span class="call-dot"></span><b>${esc(c)}</b><span class="grow"></span><button type="button" class="btn small danger" data-act="call-leave">${LANG_ES?"Salir":"Leave call"}</button></div><div class="call-body"><p class="lede" style="color:#cfd8d3">${LANG_ES?"Conectando…":"Connecting…"}</p></div>`;
   root.hidden=false; document.body.classList.add("in-call");
@@ -3359,6 +3362,8 @@ function leaveCall(){ const r=$("#callRoot"); if(r){ r.innerHTML=""; r.hidden=tr
 
 /* the all-crew meeting shows as a banner on every screen for 90 minutes after it starts */
 function meetingLive(){
+  const tm=inTeamCall()?chanMsgs(TEAM_ROOM).filter(x=>x.body===CALL_MSG).pop():null;
+  if(tm&&Date.now()-Date.parse(tm.at)<60*60e3&&!$("#callRoot:not([hidden]) iframe")) return `<div class="ann meet"><div><span class="eyebrow">📹 ${LANG_ES?"Llamada del equipo en vivo":"Daily team call is live"}</span><div>${LANG_ES?"Empezó a las":"Started at"} ${new Date(tm.at).toLocaleTimeString(LOC(),{hour:"numeric",minute:"2-digit"})}</div></div><button type="button" class="btn" data-act="call-join" data-v="${TEAM_ROOM}">${LANG_ES?"Unirme":"Join"}</button></div>`;
   const m=chanMsgs("ann").filter(x=>x.body===CALL_MSG).pop(); if(!m||Date.now()-Date.parse(m.at)>90*60e3||$("#callRoot:not([hidden]) iframe")) return "";
   return `<div class="ann meet"><div><span class="eyebrow">📹 ${LANG_ES?"Reunión en vivo":"Crew meeting is live"} · ${esc(who(m.by))}</span><div>${LANG_ES?"Empezó a las":"Started at"} ${new Date(m.at).toLocaleTimeString(LOC(),{hour:"numeric",minute:"2-digit"})}</div></div><button type="button" class="btn" data-act="call-join" data-v="ann">${LANG_ES?"Unirme":"Join"}</button></div>`;
 }
@@ -3418,6 +3423,25 @@ function pushBanner(){
   try{ if(ls("push-ask")) return ""; }catch(e){}
   return `<div class="ann push-ask"><div><span class="eyebrow">🔔 ${LANG_ES?"Notificaciones":"Notifications"}</span><div>${LANG_ES?"Recibe avisos de mensajes, reuniones y cambios de ruta.":"Get a buzz for messages, crew meetings and route changes."}</div></div><div class="bar" style="flex-wrap:nowrap"><button type="button" class="btn" data-act="push-on">${LANG_ES?"Activar":"Turn on"}</button><button type="button" class="btn small" data-act="push-later" style="background:none;border-color:#ffffff33;color:inherit">${LANG_ES?"Ahora no":"Not now"}</button></div></div>`;
 }
+
+/* ---------- daily team call (everyone except ShipShape) ---------- */
+const TEAM_ROOM = "meet:prolight";
+const meetCfg = () => ({ on:true, time:"08:00", days:[1,2,3,4,5], ...((S.settings&&S.settings.meeting)||{}) });
+const inTeamCall = () => !ssOnly();
+function meetWhen(){ const c=meetCfg(); if(!c.on) return LANG_ES?"Apagada":"Off"; const [h,m]=c.time.split(":").map(Number), d=new Date(); d.setHours(h,m,0,0);
+  const t=d.toLocaleTimeString(LOC(),{hour:"numeric",minute:"2-digit"}), wk=c.days.length===5&&[1,2,3,4,5].every(x=>c.days.includes(x));
+  return (wk?(LANG_ES?"Lunes a viernes":"Weekdays"):c.days.map(x=>["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][x]).join(", "))+" · "+t; }
+function teamCallHead(){
+  const c=meetCfg(), mgr=S.me.manage||S.me.owner;
+  return `<div class="note team-call" style="margin:0;border-radius:0">📹 <b>${LANG_ES?"Llamada diaria del equipo":"Daily team call"}</b> · ${esc(meetWhen())}<br><small>${LANG_ES?"Todos menos ShipShape. Llega un aviso 10 minutos antes y la llamada suena a la hora.":"Everyone except ShipShape. A reminder goes out 10 minutes before and the call rings at start time."}</small>
+    ${mgr?`<div class="bar" style="margin-top:8px"><label class="tog-l"><input type="checkbox" id="meet-on" ${c.on?"checked":""}> ${LANG_ES?"Activa":"On"}</label><input type="time" id="meet-time" class="search" value="${esc(c.time)}" style="width:auto;min-height:36px">
+      ${[1,2,3,4,5,6,0].map(d=>`<label class="tog-l"><input type="checkbox" data-meet-day="${d}" ${c.days.includes(d)?"checked":""}> ${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d]}</label>`).join("")}</div>`:""}</div>`;
+}
+async function saveMeet(patch){ const m={...meetCfg(),...patch}; try{ await S.db.doc("settings/board").set({...S.settings,meeting:m}); S.settings.meeting=m; toast(LANG_ES?"Guardado":"Saved"); }catch(e){ fail(e,"save the call schedule"); } }
+function clearBadges(){ try{ if(navigator.clearAppBadge) navigator.clearAppBadge(); }catch(e){} try{ if(PUSH.reg&&PUSH.reg.getNotifications) PUSH.reg.getNotifications().then(ns=>ns.forEach(n=>n.close())); }catch(e){} }
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden) clearBadges(); });
+window.addEventListener("focus",clearBadges);
+setTimeout(clearBadges,1500);
 
 /* ---------- render ---------- */
 function renderMain(){
@@ -3751,6 +3775,9 @@ document.addEventListener("change", async ev=>{
   if(["m-soldby","m-ref"].includes(t.id)&&S.form&&S.form.sold){ readJobForm(); renderDrawer(); return; }
   if(t.dataset&&t.dataset.jbh&&S.jbh){ t.checked?S.jbh.sel.add(t.dataset.jbh):S.jbh.sel.delete(t.dataset.jbh); const c=document.querySelector("[data-act=jbh-add]"); if(c) c.disabled=!S.jbh.sel.size; const k=c&&c.previousElementSibling; if(k) k.textContent=S.jbh.sel.size+" picked"; return; }
   if(t.dataset&&t.dataset.notify){ const N={...((PL.me()||{}).notify||{}),[t.dataset.notify]:t.checked}; try{ await PL.setNotify(N); }catch(e){ toast(/function|exist/i.test(e.message)?"Run update 16 in Supabase first.":e.message); } return; }
+  if(t.id==="meet-on"){ await saveMeet({on:t.checked}); return; }
+  if(t.id==="meet-time"&&t.value){ await saveMeet({time:t.value}); return; }
+  if(t.dataset&&t.dataset.meetDay!=null){ const d=+t.dataset.meetDay, c=meetCfg(); await saveMeet({days:t.checked?[...new Set([...c.days,d])].sort():c.days.filter(x=>x!==d)}); return; }
   if(t.id==="act-who"){ ACT.who=t.value; ACT.rows=null; renderMain(); return; }
   if(t.dataset&&t.dataset.otFor){ await saveOt(t.dataset.otFor,t.value==="1"); return; }
   if(t.dataset&&t.dataset.rateFor){ await saveRate(t.dataset.rateFor,t.value); return; }

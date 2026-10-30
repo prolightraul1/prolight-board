@@ -27,7 +27,7 @@ async function pushTo(people, kind, msg) {
     const p = people.find((x) => x.id === s.user_id), m = p && msg(p);
     if (!m) return;
     try {
-      const st = await send(s.sub, { title: m.title, body: m.body, url: m.url || "/", tag: m.tag || kind }, { topic: (m.tag || kind).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 32) });
+      const st = await send(s.sub, { title: m.title, body: m.body, url: m.url || "/", tag: m.tag || kind, sticky: !!m.sticky }, { ttl: m.sticky ? 600 : undefined, topic: (m.tag || kind).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 32) });
       if (st === 404 || st === 410) await sb(`/rest/v1/push_subs?endpoint=eq.${encodeURIComponent(s.endpoint)}`, { method: "DELETE" });
       else if (st < 300) sent++;
     } catch (e) { /* one phone failing shouldn't stop the rest */ }
