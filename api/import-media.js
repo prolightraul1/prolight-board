@@ -58,9 +58,10 @@ async function fields(b, dry) {
       if (extra.length) parts.push(extra.join("\n"));
       if (!blank(t.phone) && clean(t.phone).split("\n").length > 1) parts.push(clean(t.phone).split("\n").slice(1).join(": "));
       const notes = parts.join("\n\n").replace(/\$[\d,.]+/g, "");
-      if (notes && notes !== j.notes) { if (j.notes && !j.notesBefore) j.notesBefore = j.notes; j.notes = notes; r.changed.push("notes"); }
-      if ((t.when || "") !== (j.tclWhen || "")) { j.tclWhen = t.when || ""; r.changed.push("when"); }
-      if ((t.ready || "") !== (j.ready || "")) { j.ready = t.ready || ""; r.changed.push("ready"); }
+      if (notes && notes !== j.notes) { if (j.notes && !j.notesBefore) j.notesBefore = j.notes; j.notes = notes; r.changed.push("notes"); r.notesWas = (j.notesBefore || "").slice(0, 70); }
+      const when = t.whenFull != null ? t.whenFull : (t.when || "");
+      if (when && when !== (j.tclWhen || "")) { j.tclWhen = when; r.changed.push("when"); }
+      if (t.ready && t.ready !== (j.ready || "")) { j.ready = t.ready; r.changed.push("ready"); }
       const st = (t.st || "") + (/pause/i.test(t.when || "") ? " (on pause)" : "");
       if (st !== (j.tclStatus || "")) { j.tclStatus = st; r.changed.push("status"); }
       if (r.changed.length) { j.updatedAt = now; await put("jobs", job.id, j); }
