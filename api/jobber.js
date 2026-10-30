@@ -98,8 +98,9 @@ async function gql(token, query, variables) {
 const JOB_FIELDS = `id jobNumber title instructions createdAt startAt completedAt total jobberWebUri
   client { id name }
   property { address { street1 street2 city province postalCode } }
-  lineItems(first: 12) { nodes { name description totalPrice } }
-  visits(first: 3) { nodes { assignedUsers(first: 4) { nodes { name { full } } } } }`;
+  lineItems(first: 12) { nodes { name description totalPrice } }`;
+const VISIT_FIELDS = `visits(first: 3) { nodes { assignedUsers(first: 4) { nodes { name { full } } } } }`;
+let NO_USERS = false; // the Jobber app can't see who jobs are assigned to
 
 /* Jobs assigned in Jobber to these people go to their crew on the board.
    Anyone else (like Raul) stays unassigned so a manager can place it by hand. */
@@ -120,16 +121,20 @@ async function fetchJobs(token, since) {
     let after = null;
     for (let page = 0; page < 60; page++) {
       const q = filtered
-        ? `query($a:String,$s:ISO8601DateTime!){ jobs(first:20, after:$a, filter:{createdAt:{after:$s}}){ nodes{ ${JOB_FIELDS} } pageInfo{ hasNextPage endCursor } } }`
-        : `query($a:String){ jobs(first:20, after:$a){ nodes{ ${JOB_FIELDS} } pageInfo{ hasNextPage endCursor } } }`;
+        ? `query($a:String,$s:ISO8601DateTime!){ jobs(first:20, after:$a, filter:{createdAt:{after:$s}}){ nodes{ ${JOB_FIELDS} ${NO_USERS ? "" : VISIT_FIELDS} } pageInfo{ hasNextPage endCursor } } }`
+        : `query($a:String){ jobs(first:20, after:$a){ nodes{ ${JOB_FIELDS} ${NO_USERS ? "" : VISIT_FIELDS} } pageInfo{ hasNextPage endCursor } } }`;
       const d = await gql(token, q, filtered ? { a: after, s: since } : { a: after });
       out.push(...d.jobs.nodes);
       if (!d.jobs.pageInfo.hasNextPage) return;
       after = d.jobs.pageInfo.endCursor;
     }
   };
-  try { await run(true); }
-  catch (e) { if (!/filter|createdAt|argument|ISO8601/i.test(e.message)) throw e; out.length = 0; await run(false); }
+  const attempt = async (filtered) => {
+    try { await run(filtered); }
+    catch (e) { if (!NO_USERS && /User.*hidden|hidden due to permissions/i.test(e.message)) { NO_USERS = true; out.length = 0; await run(filtered); } else throw e; }
+  };
+  try { await attempt(true); }
+  catch (e) { if (!/filter|createdAt|argument|ISO8601/i.test(e.message)) throw e; out.length = 0; await attempt(false); }
   return out.filter((j) => !j.createdAt || j.createdAt >= since);
 }
 
@@ -351,6 +356,7 @@ async function sync(trigger, quick) {
     } catch (e) { res.photoError = e.message.slice(0, 200); break; }
   }
   if (NO_ACCESS.size && !res.photoError) res.photoError = `Your Jobber app can't read ${[...NO_ACCESS].join(" and ")} notes yet. Add read access for them in the Jobber Developer Center, then tap Reconnect.`;
+  if (NO_USERS) res.assignNote = "Jobber isn't sharing who jobs are assigned to, so Kilmar's jobs can't go to his crew yet. In the Jobber Developer Center, give the app read access to Users (team members), save, then tap Reconnect on the board.";
   const out = { at: now, trigger, seen: jobs.length, ...res, names: res.names.slice(0, 30) };
   await putInt("jobber", { ...(await getInt("jobber")), last: out, lastError: null });
   return out;
