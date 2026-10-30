@@ -98,7 +98,22 @@ async function gql(token, query, variables) {
 const JOB_FIELDS = `id jobNumber title instructions createdAt startAt completedAt total jobberWebUri
   client { id name }
   property { address { street1 street2 city province postalCode } }
-  lineItems(first: 12) { nodes { name description totalPrice } }`;
+  lineItems(first: 12) { nodes { name description totalPrice } }
+  visits(first: 6) { nodes { assignedUsers { nodes { name { full } } } } }`;
+
+/* Jobs assigned in Jobber to these people go to their crew on the board.
+   Anyone else (like Raul) stays unassigned so a manager can place it by hand. */
+const AUTO_CREW = ["kilmar bonilla"];
+const assigneesOf = (j) => [...new Set(((j.visits && j.visits.nodes) || []).flatMap((v) => ((v.assignedUsers && v.assignedUsers.nodes) || []).map((u) => String((u.name && u.name.full) || "").trim().toLowerCase())).filter(Boolean))];
+function crewFinder(staff, crews) {
+  return (fullName) => {
+    const first = fullName.split(/\s+/)[0];
+    const p = staff.find((x) => x.active !== false && x.crew && (String(x.name).toLowerCase() === fullName || String(x.name).toLowerCase().split(/\s+/)[0] === first));
+    if (p) return p.crew;
+    const c = crews.find((c) => (c.members || []).some((m) => { const n = String(m).toLowerCase().trim(); return n === fullName || n.split(/\s+/)[0] === first; }));
+    return c ? c.id : "";
+  };
+}
 async function fetchJobs(token, since) {
   const out = [];
   const run = async (filtered) => {
@@ -274,8 +289,12 @@ async function sync(trigger, quick) {
     if (c.data.jobberClientId) clientByJobber.set(c.data.jobberClientId, c);
     if (!clientByName.has(norm(c.data.name))) clientByName.set(norm(c.data.name), c);
   }
+  const settings = await allDocs("settings"), crews = ((settings.find((d) => d.id === "board") || {}).data || {}).crews || [];
+  const staff = await sb("/rest/v1/staff?select=id,name,crew,active").catch(() => []);
+  const crewFor = crewFinder(staff, crews);
+  const autoCrew = (j) => { for (const n of assigneesOf(j)) if (AUTO_CREW.includes(n)) { const c = crewFor(n); if (c) return c; } return ""; };
   const fin = new Map(boardFin.map((f) => [f.id, f.data])), done = new Set(boardLog.filter((l) => l.data.kind === "done").map((l) => l.data.jobId));
-  const now = new Date().toISOString(), rows = [], res = { added: 0, updated: 0, prowash: 0, tcl: 0, test: 0, photos: 0, names: [] };
+  const now = new Date().toISOString(), rows = [], res = { added: 0, updated: 0, assigned: 0, prowash: 0, tcl: 0, test: 0, photos: 0, names: [] };
   const media = []; // [jobber job, web id, board doc id, board data]
 
   for (const j of jobs) {
@@ -288,6 +307,7 @@ async function sync(trigger, quick) {
       const d = JSON.parse(JSON.stringify(existing.data)); let ch = false;
       const v = (d.visits || []).find((x) => x.type === "install");
       if (v && !v.date && date) { v.date = date; ch = true; }
+      if (!d.crew) { const c = autoCrew(j); if (c) { d.crew = c; ch = true; res.assigned++; } }
       if (ch) { d.updatedAt = now; rows.push({ coll: "jobs", id: existing.id, data: d }); }
       const f = fin.get(existing.id);
       if ((!f || !f.price) && price > 0) { rows.push({ coll: "fin", id: existing.id, data: { ...(f || { invoiceNo: "", collected: false, ssPaid: false }), price, privateNote: (f && f.privateNote) || "From Jobber #" + j.jobNumber } }); ch = true; }
@@ -307,7 +327,7 @@ async function sync(trigger, quick) {
     const id = "jb-" + wid;
     const notes = [j.instructions || "", k.washTotal ? `Jobber job also has ${money(k.washTotal)} of ProWash work (not imported).` : ""].filter(Boolean).join(" ");
     rows.push({ coll: "jobs", id, data: {
-      clientId: client.id, address: a && norm(a) !== norm(client.data.address) ? a : "", source: "prolight", stage: "booked", crew: "",
+      clientId: client.id, address: a && norm(a) !== norm(client.data.address) ? a : "", source: "prolight", stage: "booked", crew: autoCrew(j),
       scope: scopeOf(k.lines), notes, season: String(new Date().getFullYear()), rooflineFt: "", links: [], mockups: [], priority: "",
       importedFrom: "Jobber", jobberNo: String(j.jobNumber || ""), jobberUrl: j.jobberWebUri || "", createdAt: now, updatedAt: now,
       visits: [{ id: "inst", type: "install", date, time: "", crew: "", note: "", order: null }] } });
@@ -429,4 +449,4 @@ module.exports = async (req, res) => {
   }
 };
 module.exports.config = { maxDuration: 60 };
-module.exports._test = { classify, scopeOf, localDate, addr, webId };
+module.exports._test = { classify, scopeOf, localDate, addr, webId, assigneesOf, crewFinder, AUTO_CREW };
