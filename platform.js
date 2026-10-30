@@ -378,6 +378,7 @@
     return g;
   }
   function hideGate() { const g = $("#gate"); if (g) g.hidden = true; }
+  PL.pickLook = async (why) => { await lookStep(why); hideGate(); };
 
   function pinPad(title, sub, onDone, noBack) {
     const g = showGate(`${noBack ? "" : '<button type="button" class="gate-back" data-g="back">‹ Back</button>'}<h2>${esc(title)}</h2>${sub ? `<p>${sub}</p>` : ""}
@@ -457,15 +458,15 @@
     });
   }
   const WCOL = { warm: "#FFB23E", white: "#EEF3FF", red: "#E8352B", green: "#22B04F", blue: "#2F6BFF", purple: "#8E4DFF", orange: "#FF7A1A", yellow: "#FFD21F", teal: "#14B8A6" };
-  const LCOMBOS = [["Warm white",["warm"]],["Pure white",["white"]],["Warm + pure white",["warm","white"]],["Classic multicolor",["red","green","blue","orange","yellow"]],["Red & green",["red","green"]],["Candy cane",["red","white"]],["Red, white & green",["red","white","green"]],["Blue & white",["blue","white"]],["Icy",["white","blue","teal"]],["Red, white & blue",["red","white","blue"]],["Green & gold",["green","yellow"]],["Purple & teal",["purple","teal"]],["Rainbow",["red","orange","yellow","green","teal","blue","purple","white","warm"]]];
+  const LCOMBOS = [["Warm white",["warm"]],["Pure white",["white"]],["Warm + pure white",["warm","white"]],["Classic multicolor",["red","green","blue","orange","yellow"]],["Red & green",["red","green"]],["Candy cane",["red","white"]],["Red, white & green",["red","white","green"]],["Blue & white",["blue","white"]],["Icy",["white","blue","teal"]],["Red, white & blue",["red","white","blue"]],["Green & gold",["green","yellow"]],["Purple & teal",["purple","teal"]],...(new Date().getMonth() === 9 ? [["Halloween",["orange","purple"]]] : []),["Rainbow",["red","orange","yellow","green","teal","blue","purple","white","warm"]]];
   const lookFlag = () => { try { return !!localStorage.getItem("prolight-look-set:" + ME.id); } catch (e) { return false; } };
   function saveLookLocal(colors) { try { const o = JSON.parse(localStorage.getItem("look") || "{}"); o.colors = colors; localStorage.setItem("look", JSON.stringify(o)); localStorage.setItem("prolight-look-set:" + ME.id, "1"); } catch (e) {} }
-  function lookStep() {
+  function lookStep(why) {
     return new Promise((resolve) => {
       const first = (ME.name || "").split(" ")[0];
       let pick = null;
       const sw = (cs) => `<span class="look-swatch">${cs.map((k) => `<i style="--c:${WCOL[k]}"></i>`).join("")}</span>`;
-      const g = showGate(`<h2>${esc(first)}, pick your lights</h2><p>Your colors light up the bulbs across the board: your route, check-offs and the welcome screen. You can change them later in Account.</p>
+      const g = showGate(`<h2>${why ? esc(why) : esc(first) + ", pick your lights"}</h2><p>Your colors light up the bulbs across the board: your route, check-offs and the welcome screen. You can change them later in Account.</p>
         <div class="look-combos" style="width:100%;text-align:left">${LCOMBOS.map(([l, cs], i) => `<button type="button" class="look-combo" data-i="${i}" aria-pressed="false" style="color:var(--night-ink);background:var(--night-2);border-color:#2a3832">${sw(cs)}${esc(l)}</button>`).join("")}</div>
         <button type="button" class="gate-go" id="lk-save" disabled>Pick a set of colors</button><p class="gate-err" id="gate-err"></p>`);
       g.querySelector(".gate-card").style.width = "min(560px,100%)";

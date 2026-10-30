@@ -2360,7 +2360,7 @@ function lookPanel(){
   const L=look(), sw=keys=>`<span class="look-swatch">${keys.map(k=>`<i style="--c:${PALETTE[k].c}"></i>`).join("")}</span>`;
   const same=(a,b)=>a.length===b.length&&a.every((x,i)=>x===b[i]);
   return `<fieldset class="look"><legend>Look</legend>
-    <div class="f"><label>Bulb colors</label><div class="look-combos">${COMBOS.map(([n,k],i)=>`<button type="button" class="look-combo" data-act="look-combo" data-v="${i}" aria-pressed="${same(L.colors,k)}">${sw(k)}<span>${esc(n)}</span></button>`).join("")}</div>
+    <div class="f"><label>Bulb colors</label><div class="look-combos">${COMBOS.map(([n,k],i)=>!comboOk(n)?"":`<button type="button" class="look-combo" data-act="look-combo" data-v="${i}" aria-pressed="${same(L.colors,k)}">${sw(k)}<span>${esc(n)}</span></button>`).join("")}</div>
       <small>Or build your own: tap colors in the order you want them on the strand.</small>
       <div class="look-colors">${Object.entries(PALETTE).map(([k,p])=>{ const i=L.colors.indexOf(k); return `<button type="button" class="look-color" data-act="look-color" data-v="${k}" aria-pressed="${i>=0}"><i style="--c:${p.c}"></i>${esc(p.n)}${i>=0&&L.colors.length>1?`<b>${i+1}</b>`:""}</button>`; }).join("")}</div></div>
     <div class="f"><label>Light or dark</label><div class="seg" role="group">${[["auto","Dark after sunset"],["light","Always light"],["dark","Always dark"],["system","Match my phone"]].map(([k,l])=>`<button type="button" data-act="look-mode" data-v="${k}" aria-pressed="${L.mode===k}">${l}</button>`).join("")}</div></div>
@@ -3089,6 +3089,14 @@ async function requireNewPins(){
   catch(e){ S.newPinsAsk=false; renderMain(); toast(/function|exist/i.test(e.message)?"Run update 12 in Supabase first.":e.message); }
 }
 
+/* seasonal light themes: Halloween only in October; after that, anyone still on it picks new lights */
+const comboOk = n => n!=="Halloween" || new Date().getMonth()===9;
+function seasonalLookCheck(){
+  if(seasonalLookCheck.done||!S.ready||!window.PL||!PL.pickLook||!PL.me()) return; seasonalLookCheck.done=true;
+  const c=[...look().colors].sort().join(",");
+  if(!comboOk("Halloween") && c==="orange,purple") setTimeout(()=>PL.pickLook(LANG_ES?"¡Se acabó Halloween! Elige tus luces para la temporada":"Halloween's over! Pick your lights for the season").then(()=>{ applyLook(); renderMain(); }),1200);
+}
+
 /* ---------- Español: translates what's on screen for people who pick Spanish ---------- */
 var LANG_ES = (()=>{ try{ return localStorage.getItem("lang")==="es"; }catch(e){ return false; } })();
 function LOC(){ return LANG_ES ? "es-US" : "en-US"; }
@@ -3275,7 +3283,7 @@ function renderMain(){
   if(S.view==="map") mountMap();
   if(S.view==="route") mountRouteMap();
   if(fid){ const el=document.getElementById(fid); if(el){ el.focus(); try{el.setSelectionRange(pos,pos);}catch(e){} } }
-  lagCheck("screen: "+S.view, performance.now()-__t0); noteLoad();
+  lagCheck("screen: "+S.view, performance.now()-__t0); noteLoad(); seasonalLookCheck();
 }
 window.addEventListener("resize",()=>{ if(S.view==="map"&&LMAP) LMAP.invalidateSize(); });
 function refresh(){ if(refresh.q) return; refresh.q=requestAnimationFrame(()=>{ refresh.q=0; renderMain(); if(S.drawer && (S.drawer.kind==="job"||S.drawer.kind==="client")) renderDrawer(); }); }
