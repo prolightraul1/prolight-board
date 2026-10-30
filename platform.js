@@ -53,9 +53,16 @@
       return data || [];
     },
     async setLook(colors) {
-      const { error } = await sb.rpc("staff_set_look", { p_look: { colors } });
+      const look = { ...((ME && ME.look) || {}), colors };
+      const { error } = await sb.rpc("staff_set_look", { p_look: look });
       if (error) throw new Error(error.message);
-      if (ME) ME.look = { colors };
+      if (ME) ME.look = look;
+    },
+    async setLang(lang) {
+      const look = { ...((ME && ME.look) || {}), lang };
+      const { error } = await sb.rpc("staff_set_look", { p_look: look });
+      if (error) throw new Error(error.message);
+      if (ME) ME.look = look;
     },
     async setPin(id, pin) {
       const { error } = await sb.rpc("staff_set_pin", { p_id: id, p_pin: pin });
@@ -339,7 +346,8 @@
   function showGate(html) {
     let g = $("#gate");
     if (!g) { g = document.createElement("div"); g.id = "gate"; document.body.appendChild(g); }
-    g.innerHTML = `<div class="gate-card"><div class="gate-brand"><img src="/brand/prolight.png" alt="ProLight Tallahassee" width="220" height="91"><span>Season Board</span></div>${html}</div>`;
+    const es = (() => { try { return localStorage.getItem("lang") === "es"; } catch (e) { return false; } })();
+    g.innerHTML = `<button type="button" class="gate-lang" id="gate-lang">${es ? "English" : "Español"}</button><div class="gate-card"><div class="gate-brand"><img src="/brand/prolight.png" alt="ProLight Tallahassee" width="220" height="91"><span>Season Board</span></div>${html}</div>`;
     g.hidden = false;
     return g;
   }
@@ -507,6 +515,9 @@
       if (!ME.photo) await photoStep();
       if (ME.look && Array.isArray(ME.look.colors) && ME.look.colors.length) saveLookLocal(ME.look.colors.filter((k) => WCOL[k]));
       else if (!lookFlag()) await lookStep();
+      { let cur = "en"; try { cur = localStorage.getItem("lang") || "en"; } catch (e) {}
+        if (ME.look && ME.look.lang && ME.look.lang !== cur) { try { localStorage.setItem("lang", ME.look.lang); } catch (e) {} location.reload(); return; }
+        if (cur === "es" && !(ME.look && ME.look.lang)) PL.setLang("es").catch(() => {}); }
       hideGate(); resolveReady(); welcome();
       return;
     }
@@ -515,6 +526,7 @@
     resolveReady();
   }
 
+  document.addEventListener("click", (e) => { if (e.target && e.target.id === "gate-lang") { try { localStorage.setItem("lang", localStorage.getItem("lang") === "es" ? "en" : "es"); } catch (x) {} location.reload(); } });
   sb.auth.onAuthStateChange((ev) => { if (ev === "SIGNED_OUT" && loaded) location.reload(); });
   document.addEventListener("DOMContentLoaded", start);
 })();

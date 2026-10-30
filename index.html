@@ -720,6 +720,7 @@ html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
   .dgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .drawer{width:min(520px,100%)}
 }
+.gate-lang{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:max(14px,env(safe-area-inset-right,0px));z-index:2;background:var(--night-2);color:var(--night-ink);border:1px solid #2a3832;border-radius:999px;padding:6px 14px;font-weight:700;font-size:14px}
 </style>
 
 <div class="topbar"><div class="wrap">
@@ -775,17 +776,17 @@ let doneMap = new Map(), logByJob = new Map(), partialMap = new Map();
 function ls(k,v){ try{ if(v===undefined) return localStorage.getItem(k); localStorage.setItem(k,v); }catch(e){ return null; } }
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const money = n => { const v=Math.round((n||0)*100)/100; return "$" + v.toLocaleString("en-US",{minimumFractionDigits:Number.isInteger(v)?0:2,maximumFractionDigits:2}); };
+const money = n => { const v=Math.round((n||0)*100)/100; return "$" + v.toLocaleString(LOC(),{minimumFractionDigits:Number.isInteger(v)?0:2,maximumFractionDigits:2}); };
 function pad(n){ return String(n).padStart(2,"0"); }
 function todayISO(){ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
 function parseISO(s){ const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d); }
 function toISO(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
 function addDays(s,n){ const d=parseISO(s); d.setDate(d.getDate()+n); return toISO(d); }
 function monday(s){ const d=parseISO(s); const w=(d.getDay()+6)%7; d.setDate(d.getDate()-w); return toISO(d); }
-function fmtDay(s,o){ return s ? parseISO(s).toLocaleDateString("en-US", o||{month:"short",day:"numeric"}) : ""; }
+function fmtDay(s,o){ return s ? parseISO(s).toLocaleDateString(LOC(), o||{month:"short",day:"numeric"}) : ""; }
 function fmtTime(t){ if(!t) return ""; const [h,m]=t.split(":").map(Number); return `${((h+11)%12)+1}:${pad(m)} ${h<12?"AM":"PM"}`; }
 function rel(s){ const n=Math.round((parseISO(s)-parseISO(todayISO()))/86400000); return n===0?"Today":n===1?"Tomorrow":n===-1?"Yesterday":null; }
-function ago(iso){ const d=new Date(iso); return d.toLocaleDateString("en-US",{month:"short",day:"numeric"})+" · "+d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}); }
+function ago(iso){ const d=new Date(iso); return d.toLocaleDateString(LOC(),{month:"short",day:"numeric"})+" · "+d.toLocaleTimeString(LOC(),{hour:"numeric",minute:"2-digit"}); }
 function uid(){ return Math.random().toString(36).slice(2,10); }
 function toast(m){ const t=$("#toast"); t.textContent=m; t.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>t.hidden=true,2600); }
 
@@ -909,7 +910,7 @@ function stopCard(s,i,n){
   const media=(j.mockups||[]).filter(m=>m.type!=="pdf");
   const nLog=(logByJob.get(j.id)||[]).filter(e=>e.kind==="note").length;
   let doneBtn="";
-  if(d){ const can=S.me.owner||d.by===S.me.id; doneBtn = can ? `<button type="button" class="btn done" data-act="undone" data-id="${esc(d.id)}" title="Undo">✓ Done · ${esc(who(d.by))}, ${new Date(d.at).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}</button>` : `<span class="btn done">✓ Done · ${esc(who(d.by))}</span>`; }
+  if(d){ const can=S.me.owner||d.by===S.me.id; doneBtn = can ? `<button type="button" class="btn done" data-act="undone" data-id="${esc(d.id)}" title="Undo">✓ Done · ${esc(who(d.by))}, ${new Date(d.at).toLocaleTimeString(LOC(),{hour:"numeric",minute:"2-digit"})}</button>` : `<span class="btn done">✓ Done · ${esc(who(d.by))}</span>`; }
   else if(S.me.canLog) doneBtn=`<button type="button" class="btn amber" data-act="done" data-j="${esc(j.id)}" data-v="${esc(v.id)}">Mark ${VTYPE[v.type].toLowerCase()} done</button>`;
   return `<article class="stop ${d?"is-done":""}" data-sj="${esc(j.id)}">
     <div class="rail-c"><span class="bulb lg ${d?"on":""}${popCls(j,v)}"></span></div>
@@ -1396,6 +1397,7 @@ async function savePerson(){
 function dAccount(){
   const me=PL.me()||{};
   return drawerShell("Signed in", me.name||"You", `<p class="lede">${esc(permSummary(me))}${me.crew?" · "+esc(teamName(me.crew)):""}</p>
+  <div class="f" data-no-i18n><label>Language · Idioma</label><div class="seg" role="group" aria-label="Language"><button type="button" data-act="lang" data-v="en" aria-pressed="${!LANG_ES}">English</button><button type="button" data-act="lang" data-v="es" aria-pressed="${LANG_ES}">Español</button></div></div>
   ${myTime()}
   <div class="f"><label>My headshot</label><div class="bar">${avatar(S.me.id,"lg")}<label class="btn small file-btn">${(staffOf(S.me.id)||{}).photo?"Change photo":"Add photo"}<input type="file" accept="image/*" data-photo-for="${esc(S.me.id)}" hidden></label></div>${(PL.me()||{}).title?`<small>${esc(PL.me().title)}</small>`:""}</div>
   ${lookPanel()}
@@ -1480,7 +1482,7 @@ function sunsetFor(dateISO,lat=30.44,lng=-84.28){
   const H=Math.acos(cosH)/rad/15, T=H+RA-(0.06571*t)-6.622; let UT=(T-lngHour)%24; if(UT<0) UT+=24;
   return new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())+UT*3600e3);
 }
-const clockTxt=dt=>dt.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/New_York"});
+const clockTxt=dt=>dt.toLocaleTimeString(LOC(),{hour:"numeric",minute:"2-digit",timeZone:"America/New_York"});
 const WX={hourly:null,daily:null,at:0,loading:false};
 async function loadWx(){
   if(WX.loading||Date.now()-WX.at<30*60e3) return; WX.loading=true;
@@ -1613,7 +1615,7 @@ async function clockOut(id,auto,quiet,noResume){
   catch(e){ fail(e,"clock out"); }
 }
 function clockEntry(e){
-  const t=x=>new Date(x).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
+  const t=x=>new Date(x).toLocaleTimeString(LOC(),{hour:"numeric",minute:"2-digit"});
   return `<div class="entry"><div class="meta"><span><b>${esc(who(e.by))}</b> ${e.out?"was on site":"clocked in"}${e.auto?" (auto)":""}</span><span>${esc(fmtDay(isoOf(e.in)))}</span></div>
     <div class="txt mono" style="font-size:13px">${t(e.in)} – ${e.out?t(e.out):"now"} · ${fmtDur(clockMs(e))}</div></div>`;
 }
@@ -1678,7 +1680,7 @@ function vHours2(){
   const days=[...Array(7)].map((_,i)=>addDays(S.week,i));
   const rows=[...S.log.entries()].map(([id,e])=>({id,...e})).filter(e=>e.kind==="clock"&&!e.pending&&e.in&&days.includes(isoOf(e.in))).sort((a,b)=>a.in.localeCompare(b.in));
   const per=new Map(); for(const r of rows){ const p=per.get(r.by)||{ms:0,job:0,gen:0,stops:new Set()}; const m=clockMs(r); p.ms+=m; if(r.general) p.gen+=m; else { p.job+=m; p.stops.add(r.jobId+"|"+r.visitId); } per.set(r.by,p); }
-  const t=x=>new Date(x).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
+  const t=x=>new Date(x).toLocaleTimeString(LOC(),{hour:"numeric",minute:"2-digit"});
   return `<div class="bar"><button type="button" class="btn icon" data-act="week" data-v="-7" aria-label="Previous week">‹</button><b class="sign grow" style="font-size:22px">Week of ${fmtDay(S.week)}</b><button type="button" class="btn icon" data-act="week" data-v="7" aria-label="Next week">›</button></div>
   ${per.size?`<div class="tiles">${[...per.entries()].map(([id,p])=>`<div class="tile"><span class="l">${esc(who(id))}</span><span class="v">${fmtDur(p.ms)}</span><span class="count" style="font-size:13px">On jobs ${fmtDur(p.job)} · ${p.stops.size} stop${p.stops.size===1?"":"s"}<br>Shop & driving ${fmtDur(p.gen)}</span></div>`).join("")}</div>
   <div class="tbl"><table><thead><tr><th>Day</th><th>Person</th><th>Stop</th><th>In</th><th>Out</th><th class="r">Time</th></tr></thead><tbody>${rows.map(r=>`<tr ${S.me.owner?`data-act="clock-edit" data-id="${esc(r.id)}" style="cursor:pointer"`:""}><td>${fmtDay(isoOf(r.in),{weekday:"short",month:"short",day:"numeric"})}${r.edited?" ✎":""}</td><td>${esc(who(r.by))}${isSS(r.by)?' <small class="count">(ShipShape · job tracking)</small>':""}</td><td>${r.general?`<i>${r.where==="shop"?"Shop":"Driving"}${r.endDay?" · end of day":""}</i>`:esc(clientOf(S.jobs.get(r.jobId)||{}).name||"Job")}</td><td class="mono">${t(r.in)}${r.auto?" ·a":""}</td><td class="mono">${r.out?t(r.out)+(r.autoOut?" ·a":""):"open"}</td><td class="r">${fmtDur(clockMs(r))}</td></tr>`).join("")}</tbody></table></div>
@@ -1706,7 +1708,7 @@ function routeUrls(stops){
 
 /* ---------- payments + money totals ---------- */
 S.pays = S.pays || new Map();
-const money2 = n => "$" + (Math.round((n||0)*100)/100).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const money2 = n => "$" + (Math.round((n||0)*100)/100).toLocaleString(LOC(),{minimumFractionDigits:2,maximumFractionDigits:2});
 const firstDate = j => (j.visits||[]).map(v=>v.date).filter(Boolean).sort()[0] || "";
 const installedOn = j => { const d=[...S.log.values()].filter(e=>e.kind==="done"&&e.jobId===j.id).map(e=>e.at).sort()[0]; return d?isoOf(d):""; };
 function ledger(party){ return [...S.pays.entries()].map(([id,p])=>({id,...p})).filter(p=>p.party===party).sort((a,b)=>String(b.date).localeCompare(String(a.date))); }
@@ -2105,7 +2107,7 @@ function vChat(){
     const c=chans.find(x=>x.id===cur), M=chanMsgs(cur); let day="";
     thread=`<div class="chat-thread"><div class="chat-head"><button type="button" class="btn small chat-back" data-act="chat-open" data-v="">‹</button><b>${esc(c.name)}</b>${c.kind==="ann"?`<span class="count">Only the office posts here</span>`:c.kind==="crew"?`<span class="count">${esc(membersOf(cur.slice(5)).join(", ")||"Crew + office")}</span>`:`<span class="count">Private</span>`}</div>
       <div class="chat-msgs" id="chat-msgs">${M.map(m=>{ const d=isoOf(m.at), sep=d!==day?`<div class="chat-day">${esc(rel(d)||fmtDay(d,{weekday:"short",month:"short",day:"numeric"}))}</div>`:""; day=d; const mine=m.by===S.me.id;
-        return `${sep}<div class="bub ${mine?"me":""}">${mine?"":`<b>${avatar(m.by,"xs")}${esc(who(m.by))}</b>`}<div class="txt">${esc(m.body)}</div><small>${new Date(m.at).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}${(mine||S.me.manage)?` · <button type="button" class="linkbtn" data-act="chat-del" data-id="${esc(m.id)}">Delete</button>`:""}</small></div>`; }).join("")||`<p class="count" style="text-align:center;margin:24px 0">No messages yet.</p>`}</div>
+        return `${sep}<div class="bub ${mine?"me":""}">${mine?"":`<b>${avatar(m.by,"xs")}${esc(who(m.by))}</b>`}<div class="txt">${esc(m.body)}</div><small>${new Date(m.at).toLocaleTimeString(LOC(),{hour:"numeric",minute:"2-digit"})}${(mine||S.me.manage)?` · <button type="button" class="linkbtn" data-act="chat-del" data-id="${esc(m.id)}">Delete</button>`:""}</small></div>`; }).join("")||`<p class="count" style="text-align:center;margin:24px 0">No messages yet.</p>`}</div>
       ${canPost(cur)?`<form class="chat-compose" id="chatForm"><textarea id="chat-text" rows="1" placeholder="${c.kind==="ann"?"Post an announcement to everyone":"Message "+esc(c.name)}">${esc(S.chat.draft[cur]||"")}</textarea><button type="submit" class="btn amber">Send</button></form>`:`<div class="note" style="margin:0">Only the office can post announcements.</div>`}</div>`;
     const M2=chanMsgs(cur); if(M2.length) ls("read:"+S.me.id+":"+cur, M2[M2.length-1].at);
   }
@@ -2665,7 +2667,7 @@ function payCsv(){
   download(`ProLight-payroll-${S.week}.csv`, rows);
 }
 function payDetailCsv(){
-  const W=payWeek(), t=x=>x?new Date(x).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}):"";
+  const W=payWeek(), t=x=>x?new Date(x).toLocaleTimeString(LOC(),{hour:"numeric",minute:"2-digit"}):"";
   download(`ProLight-time-detail-${S.week}.csv`, [["Date","Employee","Type","Customer","Clock in","Clock out","Hours","How"],
     ...W.rows.map(r=>[isoOf(r.in),staffName(r.by),r.general?(r.where==="shop"?"Shop":"Driving"):"Job",r.general?"":(clientOf(S.jobs.get(r.jobId)||{}).name||""),t(r.in),r.out?t(r.out):"OPEN",h1(clockMs(r)/36e5),(r.auto?"auto":"manual")+(r.edited?" (edited)":"")])]);
 }
@@ -2676,7 +2678,7 @@ function payPrint(){
     <table><thead><tr><th>Employee</th><th>Rate</th><th>Hours</th><th>OT hrs</th><th>Hourly pay</th><th>Commission</th><th>Total</th></tr></thead><tbody>
     ${P.map(p=>`<tr><td>${esc(p.name)}<br><small>${esc(p.title)}</small></td><td>$${p.rate.toFixed(2)}</td><td>${h1(p.hrs)}</td><td>${p.ot?h1(p.ot):"–"}</td><td>${money2(p.regPay+p.otPay)}</td><td>${p.comm?money2(p.comm):"–"}</td><td><b>${money2(p.total)}</b></td></tr>`).join("")}</tbody>
     <tfoot><tr><td>Total</td><td></td><td>${h1(P.reduce((t,p)=>t+p.hrs,0))}</td><td></td><td>${money2(P.reduce((t,p)=>t+p.regPay+p.otPay,0))}</td><td>${money2(P.reduce((t,p)=>t+p.comm,0))}</td><td>${money2(P.reduce((t,p)=>t+p.total,0))}</td></tr></tfoot></table>
-    <p><small>Hours from the ProLight board clock-ins (shop, driving and jobs). Overtime over ${OT_AFTER} hrs/week at 1.5×. Prepared ${esc(new Date().toLocaleString("en-US"))}.</small></p><script>setTimeout(()=>print(),300)<\/script>`);
+    <p><small>Hours from the ProLight board clock-ins (shop, driving and jobs). Overtime over ${OT_AFTER} hrs/week at 1.5×. Prepared ${esc(new Date().toLocaleString(LOC()))}.</small></p><script>setTimeout(()=>print(),300)<\/script>`);
   w.document.close();
 }
 async function markCommPaid(){
@@ -2709,7 +2711,7 @@ function timeReqs(){ return [...S.log.entries()].map(([id,e])=>({id,...e})).filt
 const pendingReqs = () => timeReqs().filter(r=>r.status==="pending");
 const managers = () => PL.staff().filter(p=>p.active&&p.can_manage);
 const canApprove = r => !!S.me.manage;
-const tfmt = x => x ? new Date(x).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}) : "–";
+const tfmt = x => x ? new Date(x).toLocaleTimeString(LOC(),{hour:"numeric",minute:"2-digit"}) : "–";
 const clockLabel = e => e.general ? (e.where==="shop"?"Shop":"Driving") : (clientOf(S.jobs.get(e.jobId)||{}).name||"Job");
 const reqCount = () => S.me.manage ? pendingReqs().filter(canApprove).length : 0;
 
@@ -3046,7 +3048,7 @@ async function deletePerson(id){
 /* ---------- PIN report (managers) ---------- */
 function dPins(){
   const R=S.pins;
-  const fmt=x=>x?new Date(x).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):"–";
+  const fmt=x=>x?new Date(x).toLocaleDateString(LOC(),{month:"short",day:"numeric",year:"numeric"}):"–";
   let b=`<p class="lede" style="font-size:14px">Every login and its PIN. Keep this screen to yourself. PINs set before this report existed can't be read back (they're stored scrambled), so they show as hidden until you reset them.</p>
     <div class="bar"><button type="button" class="btn small" data-act="pins-show">${S.pinsShow?"Hide PINs":"Show PINs"}</button></div>`;
   if(!R) b+=skel(4);
@@ -3059,6 +3061,91 @@ function dPins(){
   return drawerShell("Team","PIN report",b);
 }
 async function openPins(){ S.pins=null; S.pinsShow=false; openDrawer("pins"); try{ S.pins=await PL.pinReport(); }catch(e){ S.pins={error:e.message}; } if(S.drawer&&S.drawer.kind==="pins") renderDrawer(); }
+
+/* ---------- Español: translates what's on screen for people who pick Spanish ---------- */
+var LANG_ES = (()=>{ try{ return localStorage.getItem("lang")==="es"; }catch(e){ return false; } })();
+function LOC(){ return LANG_ES ? "es-US" : "en-US"; }
+const ES = {
+  // navigation
+  "Today":"Hoy","Tomorrow":"Mañana","Yesterday":"Ayer","Route":"Ruta","Jobs":"Trabajos","Map":"Mapa","Week":"Semana","Chat":"Chat","Clients":"Clientes","Office":"Oficina","Payouts":"Pagos","Account":"Cuenta",
+  "Season Board":"Tablero de temporada","Board navigation":"Navegación",
+  // route
+  "Best order from shop":"Mejor orden desde el taller","Truck list":"Lista del camión","I'm hungry":"Tengo hambre","Start my day":"Empezar mi día","Auto clock-in":"Entrada automática","Auto clock-in · on":"Entrada automática · activa",
+  "All crews":"Todos los equipos","Sunset":"Atardecer","Weather":"Clima","Drive":"Manejo","No truck":"Sin camión","Lunch":"Almuerzo","Lights":"Luces","Roofline":"Techo",
+  "Mark done":"Marcar listo","Partly done":"Parcialmente listo","Clock in":"Marcar entrada","Clocked in":"Entrada marcada","Directions ↗":"Cómo llegar ↗","Notes & photos":"Notas y fotos","Mockup ↗":"Diseño ↗","Mockups":"Diseños",
+  "Apple Maps route ↗":"Ruta en Apple Maps ↗","Google Maps route ↗":"Ruta en Google Maps ↗","Apple Maps":"Apple Maps","Google Maps":"Google Maps","Directions open in":"Abrir direcciones en",
+  "Previous day":"Día anterior","Next day":"Día siguiente","Previous week":"Semana anterior","Next week":"Semana siguiente","This week":"Esta semana","Undo":"Deshacer",
+  "Day ended":"Día terminado","Driving":"Manejando","At the shop":"En el taller","On a job":"En un trabajo","End day":"Terminar día","Shop":"Taller",
+  "Estimated arrival, leaving the shop at 8:00 AM":"Llegada estimada, saliendo del taller a las 8:00 AM",
+  // statuses and visit types
+  "Install":"Instalación","Takedown":"Retiro","Service":"Servicio","Return":"Regreso","Scheduled":"Programado","Installed":"Instalado","Taken down":"Retirado","Booked":"Reservado","Quote sent":"Cotización enviada","Lead":"Prospecto","Cancelled":"Cancelado","Partly done":"Parcialmente listo",
+  "✓ Done":"✓ Listo","Done":"Listo","Unassigned":"Sin asignar","No crew":"Sin equipo","No crew yet":"Sin equipo todavía","No address":"Sin dirección","No date":"Sin fecha","No stops":"Sin paradas",
+  // jobs and clients
+  "Active":"Activos","Needs a crew":"Necesita equipo","Needs a date":"Necesita fecha","All":"Todos","All active":"Todos activos","ProLight crews":"Equipos ProLight","ShipShape crew":"Equipo ShipShape",
+  "Search name, address, TCL #, lights":"Buscar nombre, dirección, # TCL, luces","Search name, address, phone":"Buscar nombre, dirección, teléfono","Search jobs":"Buscar trabajos","Search clients":"Buscar clientes","Filter jobs":"Filtrar trabajos","Whose clients":"De quién son los clientes",
+  "No jobs match.":"Ningún trabajo coincide.","Customer":"Cliente","Whose job":"De quién es","Crew":"Equipo","Status · next":"Estado · siguiente","Client":"Cliente","Address":"Dirección","Phone":"Teléfono","Access":"Acceso","Season":"Temporada","TCL target":"Meta de TCL","Priority":"Prioridad","Ready":"Listo","Visits":"Visitas","Details":"Detalles","Copy phone":"Copiar teléfono",
+  "No mockups yet.":"Todavía no hay diseños.","Nothing posted yet.":"Todavía no hay nada publicado.","Report a problem":"Reportar un problema","Crews & trucks":"Equipos y camiones","Post":"Publicar","Add photo / video":"Agregar foto / video","Add photo":"Agregar foto",
+  "What did you see or do? Burned-out bulbs, extra footage, customer requests…":"¿Qué viste o hiciste? Focos fundidos, pies extra, pedidos del cliente…",
+  "Photos are resized automatically. Videos up to 50 MB, about 30 seconds.":"Las fotos se ajustan solas. Videos de hasta 50 MB, unos 30 segundos.",
+  "was on site (auto)":"estuvo en el sitio (auto)","marked install done":"marcó la instalación lista","TCL import":"Importado de TCL","You":"Tú",
+  // week and map
+  "Service calls":"Llamadas de servicio","One day's route":"Ruta de un día","Plan by area":"Planear por zona","Every open":"Todos abiertos","Everything":"Todo","Fit":"Ajustar","Zoom in":"Acercar","Zoom out":"Alejar","Map of jobs":"Mapa de trabajos","Show":"Mostrar","Looking up places…":"Buscando lugares…",
+  "Tap a pin to see the job, the closest jobs around it, and to assign a crew and date. Bulbs show the crew color. Hollow pins have no crew yet.":"Toca un pin para ver el trabajo y los trabajos más cercanos. El color del foco es el del equipo. Los pines vacíos no tienen equipo todavía.",
+  "Couldn't load the map. Check your signal.":"No se pudo cargar el mapa. Revisa tu señal.",
+  // chat
+  "Announcements":"Anuncios","Crew channels":"Canales de equipo","Direct messages":"Mensajes directos","Send a message":"Escribe un mensaje","No messages yet":"Todavía no hay mensajes","No messages yet.":"Todavía no hay mensajes.","Pick a channel or a person.":"Elige un canal o una persona.","Only the office can post announcements.":"Solo la oficina puede publicar anuncios.","Only the office posts here":"Solo la oficina publica aquí",
+  // truck list
+  "C9 bulbs":"Focos C9","Mini lights":"Luces mini","Clips":"Clips","Copy truck list":"Copiar lista del camión","Built from each job's \"what goes where\" list. Bring extra bulbs and clips. Footage only counts where it's on the job.":"Hecha con la lista de \"qué va dónde\" de cada trabajo. Lleva focos y clips extra.",
+  // partly done / problems
+  "Why couldn't you finish?":"¿Por qué no pudiste terminar?","What's left to do":"Qué falta por hacer","Ran out of time":"Se acabó el tiempo","Ran out of material":"Se acabó el material","Weather":"Clima","Customer asked to stop":"El cliente pidió parar","Equipment problem":"Problema con el equipo","Other":"Otro","Anything else? (optional)":"¿Algo más? (opcional)",
+  "Send to the office":"Enviar a la oficina","The office gets this right away and schedules the return visit.":"La oficina lo recibe al instante y programa la visita de regreso.","The office gets this and schedules the fix. Add photos in Notes & photos.":"La oficina lo recibe y programa el arreglo. Agrega fotos en Notas y fotos.",
+  "What's wrong":"Qué está mal","Bulbs out":"Focos apagados","Section out":"Sección apagada","Hanging or loose":"Colgando o suelto","Won't turn on / timer":"No prende / temporizador","Damage":"Daño","Wants a change":"Quiere un cambio","Not urgent":"No es urgente","Urgent":"Urgente","What did you see? Which part of the house?":"¿Qué viste? ¿Qué parte de la casa?",
+  // account, time
+  "Signed in":"Sesión iniciada","Sign out":"Cerrar sesión","Change my PIN":"Cambiar mi PIN","New 6-digit PIN":"Nuevo PIN de 6 dígitos","Type it again":"Escríbelo otra vez","Save new PIN":"Guardar nuevo PIN","My headshot":"Mi foto","Look":"Apariencia","Bulb colors":"Colores de focos",
+  "Light or dark":"Claro u oscuro","Dark after sunset":"Oscuro después del atardecer","Always light":"Siempre claro","Always dark":"Siempre oscuro","Match my phone":"Como mi teléfono","Startup lights":"Luces al iniciar","Once a day":"Una vez al día","Off":"Apagado","Play it now":"Verlo ahora","Snow on":"Nieve activa","Buzz on":"Vibración activa",
+  "Or build your own: tap colors in the order you want them on the strand.":"O crea la tuya: toca los colores en el orden que los quieres en la tira.",
+  "Warm white":"Blanco cálido","Pure white":"Blanco puro","Warm + pure white":"Blanco cálido + puro","Classic multicolor":"Multicolor clásico","Red & green":"Rojo y verde","Candy cane":"Bastón de caramelo","Red, white & green":"Rojo, blanco y verde","Blue & white":"Azul y blanco","Icy":"Hielo","Red, white & blue":"Rojo, blanco y azul","Green & gold":"Verde y dorado","Purple & teal":"Morado y turquesa","Halloween":"Halloween","Rainbow":"Arcoíris",
+  "Red":"Rojo","Green":"Verde","Blue":"Azul","Purple":"Morado","Orange":"Naranja","Yellow":"Amarillo","Teal":"Turquesa","Warm":"Cálido","White":"Blanco",
+  "+ Add missing time":"+ Agregar tiempo faltante","Add missing time":"Agregar tiempo faltante","Request fix":"Pedir corrección","Requested":"Pedido","Fix my time":"Corregir mi tiempo","Send to a manager":"Enviar a un gerente","‹ Prev":"‹ Anterior","Next ›":"Siguiente ›",
+  "Location missed something, or you forgot to clock in or out? Send a fix and a manager approves it.":"¿La ubicación falló, o se te olvidó marcar entrada o salida? Envía una corrección y un gerente la aprueba.",
+  "Day":"Día","What":"Qué","Which job":"Qué trabajo","Pick the job":"Elige el trabajo","At a job":"En un trabajo","Start":"Inicio","End":"Fin","What happened":"Qué pasó","Stops from that week are listed.":"Aparecen las paradas de esa semana.",
+  "e.g. Phone died at the Klees job, I left at 3:40":"ej. Se murió mi teléfono en el trabajo Klees, salí a las 3:40","My requests":"Mis pedidos","Waiting":"Esperando","Approved":"Aprobado","Denied":"Negado","Canceled":"Cancelado","Cancel":"Cancelar","No time yet this week.":"Todavía no hay tiempo esta semana.",
+  "Close":"Cerrar","Save":"Guardar","Back":"Atrás","Edit":"Editar","Delete":"Borrar","Copy text":"Copiar texto",
+  // sign-in
+  "Enter your PIN":"Escribe tu PIN","That PIN didn't match. Try again.":"Ese PIN no coincide. Intenta otra vez.","Take or choose a photo":"Toma o elige una foto","Use this photo":"Usar esta foto","Pick a different one":"Elegir otra","Saving…":"Guardando…","Pick a set of colors":"Elige un juego de colores",
+  "It shows when you sign in and next to your messages. A clear photo of your face works best.":"Aparece cuando entras y junto a tus mensajes. Una foto clara de tu cara es lo mejor.",
+  "Your colors light up the bulbs across the board: your route, check-offs and the welcome screen. You can change them later in Account.":"Tus colores encienden los focos en todo el tablero: tu ruta, lo que marcas y la bienvenida. Puedes cambiarlos luego en Cuenta.",
+  // toasts
+  "Marked done":"Marcado como listo","Posted":"Publicado","Saved":"Guardado","Deleted":"Borrado","Removed":"Quitado","PIN changed":"PIN cambiado","Photo saved":"Foto guardada","Saving photo…":"Guardando foto…","Sent to the office":"Enviado a la oficina","Sent. A manager will approve it.":"Enviado. Un gerente lo va a aprobar.","Request canceled":"Pedido cancelado",
+  "Use exactly 6 digits":"Usa exactamente 6 dígitos","The two PINs don't match":"Los dos PIN no coinciden","Write a note or add a photo first":"Primero escribe una nota o agrega una foto","Auto clock-in is on. Keep the board open on screen.":"La entrada automática está activa. Deja el tablero abierto en la pantalla.",
+  "This phone can't share its location with the board.":"Este teléfono no puede compartir su ubicación con el tablero.","Copied. Paste it into the group chat.":"Copiado. Pégalo en el chat del grupo.","This job has no address":"Este trabajo no tiene dirección","Near the shop (couldn't get your location)":"Cerca del taller (no se pudo obtener tu ubicación)","Couldn't get access":"No se pudo obtener acceso",
+  "Drive-thru":"Autoservicio","Checks off":"Marca trabajos","Own crew only":"Solo su equipo","Manager":"Gerente","Money":"Dinero","Crew lead":"Líder de equipo","Crew member":"Miembro del equipo","Sees all crews":"Ve todos los equipos","Quick":"Rápido","Language":"Idioma"
+};
+const ES_RX = [
+  [/^(\d+) jobs?$/, (m,n)=>`${n} trabajo${n==1?"":"s"}`], [/^(\d+) clients?$/, (m,n)=>`${n} cliente${n==1?"":"s"}`], [/^(\d+) stops?$/, (m,n)=>`${n} parada${n==1?"":"s"}`], [/^(\d+) runs?$/, (m,n)=>`${n} tramo${n==1?"":"s"}`],
+  [/^(\d+)\/(\d+) done$/, (m,a,b)=>`${a}/${b} listas`], [/^(\d+) on map$/, (m,n)=>`${n} en el mapa`],
+  [/^(\d+) days? to Christmas · (\d+) of (\d+) houses lit$/, (m,a,b,c)=>`Faltan ${a} días para Navidad · ${b} de ${c} casas encendidas`],
+  [/^STOP (\d+)$/, (m,n)=>`PARADA ${n}`], [/^Mark (install|takedown|service|return) done$/i, (m,t)=>`Marcar ${({install:"instalación",takedown:"retiro",service:"servicio",return:"regreso"})[t.toLowerCase()]} lista`],
+  [/^Clock out · (.+)$/, (m,a)=>`Marcar salida · ${a}`], [/^My time · this week · (.+)$/, (m,a)=>`Mi tiempo · esta semana · ${a}`], [/^My time · week of (.+) · (.+)$/, (m,a,b)=>`Mi tiempo · semana del ${a} · ${b}`],
+  [/^Week of (.+)$/, (m,a)=>`Semana del ${a}`], [/^Lit, no takedown date · (\d+)$/, (m,n)=>`Encendidos, sin fecha de retiro · ${n}`], [/^Booked, no install date · (\d+)$/, (m,n)=>`Reservados, sin fecha de instalación · ${n}`],
+  [/^Today · (.+) · (\d+)\/(\d+) done$/, (m,a,b,c)=>`Hoy · ${tr1(a)} · ${b}/${c} listas`], [/^Today · (.+) · no stops$/, (m,a)=>`Hoy · ${tr1(a)} · sin paradas`],
+  [/^✓ Done · (.+)$/, (m,a)=>`✓ Listo · ${a.replace(/^You\b/,"Tú")}`], [/^(.+) · Account$/, (m,a)=>`${a} · Cuenta`], [/^≈(\d+) mi, shop and back$/, (m,n)=>`≈${n} mi, ida y vuelta al taller`],
+  [/^No stops (today|tomorrow|yesterday|this day)$/i, (m,a)=>`Sin paradas ${({today:"hoy",tomorrow:"mañana",yesterday:"ayer","this day":"este día"})[a.toLowerCase()]}`],
+  [/^(.+), pick your lights$/, (m,a)=>`${a}, elige tus luces`], [/^Hey (.+)! Add your headshot$/, (m,a)=>`¡Hola ${a}! Agrega tu foto`], [/^Welcome, (.+)!$/, (m,a)=>`¡Hola, ${a}!`], [/^(\d+)\/(\d+) on TCL's checklist$/, (m,a,b)=>`${a}/${b} en la lista de TCL`], [/^Use (.+)$/, (m,a)=>ES[a]?`Usar ${ES[a]}`:null],
+  [/^on site (.+) \((\d+) people\)$/, (m,a,n)=>`en sitio ${a} (${n} personas)`], [/^Couldn't (.+)\. Check your signal and try again\.$/, ()=>"No se pudo guardar. Revisa tu señal e intenta otra vez."],
+  [/^Signal's back\. Sent (\d+) changes?\.$/, (m,n)=>`Volvió la señal. Se enviaron ${n} cambio${n==1?"":"s"}.`], [/^(\d+) waiting for signal$/, (m,n)=>`${n} esperando señal`],
+];
+function tr1(k){ if(ES[k]!=null) return ES[k]; for(const [r,f] of ES_RX){ const m=k.match(r); if(m){ const v=f(...m); if(v!=null) return v; } }
+  if(k.includes(" · ")){ const parts=k.split(" · "); let hit=false; const out=parts.map(p=>{ const t=ES[p.trim()]; if(t!=null){ hit=true; return t; } const m=p.match(/^(Install|Takedown|Service|Return) (.+)$/); if(m){ hit=true; return ES[m[1]]+" "+m[2]; } return p; }); if(hit) return out.join(" · "); }
+  const m=k.match(/^(Install|Takedown|Service|Return) (.{2,12})$/); if(m) return ES[m[1]]+" "+m[2];
+  return k; }
+const I18N_SKIP = "script,style,textarea,.t-notes,.bub .txt,.entry .txt,.note-raw,[data-no-i18n],.msg textarea";
+function trText(n){ const v=n.nodeValue, k=v.trim(); if(!k||!/[A-Za-z]/.test(k)) return; const p=n.parentElement; if(!p||p.closest(I18N_SKIP)) return; const t=tr1(k); if(t!==k) n.nodeValue=v.replace(k,t); }
+function trEl(el){ if(el.closest&&el.closest(I18N_SKIP)) return; for(const a of ["placeholder","aria-label","title"]){ const v=el.getAttribute&&el.getAttribute(a); if(v){ const t=tr1(v.trim()); if(t!==v.trim()) el.setAttribute(a,t); } } }
+function trTree(root){ if(!LANG_ES||!root) return; if(root.nodeType===3) return trText(root); if(root.nodeType!==1) return; trEl(root);
+  const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT|NodeFilter.SHOW_ELEMENT,{acceptNode:n=>n.nodeType===1&&n.matches(I18N_SKIP)?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT}); let n; while(n=w.nextNode()){ n.nodeType===3?trText(n):trEl(n); } }
+if(LANG_ES){ document.documentElement.lang="es"; const run=()=>{ trTree(document.body); new MutationObserver(ms=>{ for(const m of ms){ if(m.type==="characterData") trText(m.target); else m.addedNodes.forEach(trTree); } }).observe(document.body,{childList:true,subtree:true,characterData:true}); }; document.body?run():document.addEventListener("DOMContentLoaded",run); }
+function setLang(l){ try{ localStorage.setItem("lang",l); }catch(e){} if(window.PL&&PL.setLang) PL.setLang(l).catch(()=>{}).finally(()=>location.reload()); else location.reload(); }
 
 /* ---------- render ---------- */
 function renderMain(){
@@ -3219,6 +3306,7 @@ document.addEventListener("click", async ev=>{
     case "ctab": S.ctab=v; renderMain(); break;
     case "team": S.team=v; ls("team",v); renderMain(); break;
     case "account": openDrawer("account"); break;
+    case "lang": if((v==="es")!==LANG_ES) setLang(v); break;
     case "pins": await openPins(); break;
     case "pins-show": S.pinsShow=!S.pinsShow; renderDrawer(); break;
     case "person-del": S.form.confirmDel=true; renderDrawer(); break;
