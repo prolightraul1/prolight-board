@@ -356,6 +356,8 @@ async function sync(trigger, quick) {
     } catch (e) { res.photoError = e.message.slice(0, 200); break; }
   }
   if (NO_ACCESS.size && !res.photoError) res.photoError = `Your Jobber app can't read ${[...NO_ACCESS].join(" and ")} notes yet. Add read access for them in the Jobber Developer Center, then tap Reconnect.`;
+  if (NO_USERS) { try { const pl = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString()); res.tokenScopes = pl.scope || pl.scopes || Object.keys(pl).join(","); } catch (e) { res.tokenScopes = "unreadable"; }
+    try { await gql(token, `{ users(first: 1) { nodes { id } } }`); res.usersQuery = "ok"; } catch (e) { res.usersQuery = e.message.slice(0, 160); } }
   if (NO_USERS) res.assignNote = "Jobber isn't sharing who jobs are assigned to, so Kilmar's jobs can't go to his crew yet. In the Jobber Developer Center, give the app read access to Users (team members), save, then tap Reconnect on the board.";
   const out = { at: now, trigger, seen: jobs.length, ...res, names: res.names.slice(0, 30) };
   await putInt("jobber", { ...(await getInt("jobber")), last: out, lastError: null });
