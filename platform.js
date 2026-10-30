@@ -98,6 +98,7 @@
       if (error) throw new Error(error.message);
       if (ME) ME.notify = n;
     },
+    async authToken() { const { data } = await sb.auth.getSession(); return data.session ? data.session.access_token : ""; },
     async callTicket(channel) {
       const { data } = await sb.auth.getSession();
       const r = await fetch("/api/call?channel=" + encodeURIComponent(channel), { method: "POST", headers: { Authorization: "Bearer " + (data.session ? data.session.access_token : "") } });
