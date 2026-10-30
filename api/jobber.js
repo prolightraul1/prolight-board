@@ -360,6 +360,14 @@ async function sync(trigger, quick) {
     try { await gql(token, `{ users(first: 1) { nodes { id } } }`); res.usersQuery = "ok"; } catch (e) { res.usersQuery = e.message.slice(0, 160); } }
   if (NO_USERS) res.assignNote = "Jobber isn't sharing who jobs are assigned to, so Kilmar's jobs can't go to his crew yet. In the Jobber Developer Center, give the app read access to Users (team members), save, then tap Reconnect on the board.";
   const out = { at: now, trigger, seen: jobs.length, ...res, names: res.names.slice(0, 30) };
+  if (res.added && process.env.VAPID_PRIVATE_KEY) {
+    try {
+      const N = require("./_lib/notify"), staff = await N.staffAll();
+      if (await N.firstTime("sync:" + now)) await N.pushTo(staff.filter((p) => p.can_manage), "sync", (p) => N.lang(p) === "es"
+        ? { title: `Jobber: ${res.added} trabajo${res.added > 1 ? "s" : ""} nuevo${res.added > 1 ? "s" : ""}`, body: res.names.slice(0, 4).join(", "), url: "/?go=jobs", tag: "sync" }
+        : { title: `Jobber: ${res.added} new job${res.added > 1 ? "s" : ""}`, body: res.names.slice(0, 4).join(", "), url: "/?go=jobs", tag: "sync" });
+    } catch (e) { /* notifications are best effort */ }
+  }
   await putInt("jobber", { ...(await getInt("jobber")), last: out, lastError: null });
   return out;
 }

@@ -2,7 +2,7 @@
   "cleanUrls": true,
   "headers": [
     {
-      "source": "/(index.html|platform.js|config.js)?",
+      "source": "/(index.html|platform.js|config.js|sw.js)?",
       "headers": [
         {
           "key": "Cache-Control",

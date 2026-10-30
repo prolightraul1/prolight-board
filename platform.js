@@ -85,6 +85,19 @@
       window.dispatchEvent(new CustomEvent("prolight:msg", { detail: { eventType: "INSERT", new: data } }));
       return data;
     },
+    async pushSave(sub, device) {
+      const { error } = await sb.from("push_subs").upsert({ endpoint: sub.endpoint, user_id: ME.id, sub, device: device || "" }, { onConflict: "endpoint" });
+      if (error) throw new Error(error.message);
+    },
+    async pushRemove(endpoint) {
+      const { error } = await sb.from("push_subs").delete().eq("endpoint", endpoint);
+      if (error) throw new Error(error.message);
+    },
+    async setNotify(n) {
+      const { error } = await sb.rpc("staff_set_notify", { p_notify: n });
+      if (error) throw new Error(error.message);
+      if (ME) ME.notify = n;
+    },
     async callTicket(channel) {
       const { data } = await sb.auth.getSession();
       const r = await fetch("/api/call?channel=" + encodeURIComponent(channel), { method: "POST", headers: { Authorization: "Bearer " + (data.session ? data.session.access_token : "") } });
