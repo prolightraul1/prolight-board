@@ -508,6 +508,118 @@ legend{font-family:var(--f-sign);font-weight:800;font-size:20px;text-transform:u
   .drawer{animation:slide .18s ease-out}
   @keyframes slide{from{transform:translateY(16px);opacity:.6}}
 }
+/* ===== polish pass: calmer type, consistent cards, phone fits, desktop layout ===== */
+:root{--r:10px;--r-sm:7px;--shadow:0 1px 2px rgba(16,24,20,.06),0 1px 1px rgba(16,24,20,.04)}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){--shadow:none} }
+:root[data-theme="dark"]{--shadow:none}
+html,body{overflow-x:hidden}
+body{-webkit-font-smoothing:antialiased}
+/* type: page titles stay on the sign font; everything else reads like an app */
+.h-view{font-size:34px;letter-spacing:.015em}
+.pager .d .h-view{font-size:30px}
+.h-sec,legend{font-family:var(--f-body);font-weight:700;font-size:13px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)}
+legend{margin-bottom:10px}
+.t-name{font-family:var(--f-body);font-weight:700;font-size:21px;line-height:1.2;text-transform:none;letter-spacing:-.005em}
+.t-name:hover{text-decoration:underline;text-underline-offset:3px}
+.d-head h2{font-family:var(--f-body);font-weight:700;font-size:24px;line-height:1.15;text-transform:none;letter-spacing:-.01em}
+.vt{font-family:var(--f-body);font-weight:700;font-size:11.5px;letter-spacing:.07em;padding:3px 8px;border-radius:999px}
+.empty h3{font-family:var(--f-body);font-size:18px;text-transform:none;font-weight:700}
+.msg header b{font-family:var(--f-body);font-size:17px;text-transform:none;font-weight:700}
+.gate-card h2{font-family:var(--f-body);font-size:20px;text-transform:none;font-weight:700}
+.wday h4{font-family:var(--f-body);font-weight:700;font-size:13px;letter-spacing:.08em}
+.season-t{font-family:var(--f-body);font-weight:700;font-size:14px;letter-spacing:.06em}
+.tabs button{font-family:var(--f-body);font-weight:600;font-size:11px;letter-spacing:.01em;text-transform:none}
+/* surfaces */
+.ticket,.rows,.mcard,.tile,.side-card,.wday,.calc,.visit,.entry,.tbl,.empty,.composer,.msg,.chat-ch,.chat-thread,.truckline,.checks label,.vedit,.look-combo{border-radius:var(--r);box-shadow:var(--shadow)}
+.btn,.search,.f input,.f select,.f textarea,.seg{border-radius:var(--r-sm)}
+.seg button{border-radius:5px}
+.t-notes,.note{border-radius:var(--r-sm)}
+.lbl,.crewtag{border-radius:999px;padding:2px 8px}
+.btn{transition:background-color .12s,border-color .12s,filter .12s}
+.btn:not([disabled]):hover{border-color:color-mix(in srgb,var(--ink) 28%,var(--line))}
+.btn.amber:not([disabled]):hover{filter:brightness(1.06);border-color:var(--amber)}
+.chip:hover,.seg button:not([aria-pressed="true"]):hover{color:var(--ink)}
+.ticket{padding:14px 16px 16px}
+/* stop card: reorder arrows stay together in the corner */
+.ticket{position:relative}
+.t-top:has(.mv){padding-right:84px}
+.t-top .mv{position:absolute;top:10px;right:12px;display:inline-flex;gap:6px}
+.t-top .mv .btn.icon{width:34px;min-height:34px}
+/* route tools: one tidy row */
+.route-tools .bar{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.route-tools .bar::-webkit-scrollbar{display:none}
+.route-tools .bar>*{flex:none}
+/* countdown strand: one row, fades out at the edge instead of wrapping */
+.season{flex-wrap:nowrap}
+.season-t{flex:none;white-space:nowrap}
+.season-strand{flex-wrap:nowrap;overflow:hidden;min-width:0;justify-content:flex-end;-webkit-mask-image:linear-gradient(90deg,transparent,#000 24px);mask-image:linear-gradient(90deg,transparent,#000 24px)}
+@media (max-width:640px){ .season{display:grid;gap:8px} .season-t{white-space:normal} .season-strand{justify-content:flex-start;-webkit-mask-image:linear-gradient(90deg,#000 85%,transparent);mask-image:linear-gradient(90deg,#000 85%,transparent)} }
+/* office sub-tabs and long chip rows scroll instead of pushing the page wide */
+.seg{max-width:100%;overflow-x:auto;scrollbar-width:none}
+.seg::-webkit-scrollbar{display:none}
+.mgrid>*,.view>*{min-width:0}
+.mhero-v{overflow-wrap:anywhere}
+.kv dd,.calc .ln span{min-width:0}
+/* job list rows */
+.rows{grid-template-columns:minmax(0,1fr)}
+.jrow .r{min-width:0;max-width:40vw}
+@media (max-width:959px){ .jrow .s .lbl{font-size:10px;padding:1px 6px;flex:none} .season-t{font-size:13px} }
+.jrow .when{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.jrow{grid-template-columns:auto minmax(0,1fr) auto}
+.jrow .s .lbl{margin-left:0;vertical-align:1px}
+.jrow .m .s{display:flex;gap:8px;align-items:center;min-width:0}
+.jrow .m .s .a{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.jrow .r{display:grid;justify-items:end;gap:2px}
+.jrow .when{font-family:var(--f-mono);font-size:12px;color:var(--ink-2);white-space:nowrap}
+.jrow .c-tag,.jrow .c-crew{display:none}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;white-space:nowrap;padding:3px 10px;border-radius:999px;background:var(--sunk);color:var(--ink-2)}
+.pill.scheduled{background:color-mix(in srgb,var(--ink) 9%,transparent);color:var(--ink)}
+.pill.lit,.pill.partial{background:var(--amber-soft);color:var(--amber-text)}
+.pill.down{background:var(--cord-soft);color:var(--cord)}
+.pill.cancelled{background:var(--red-soft);color:var(--red)}
+/* job drawer: tidy header and an even action row */
+.d-marks{gap:10px;margin-top:8px}
+.d-marks .mk-tcl{height:46px} .d-marks .mk-ss{height:32px}
+.d-acts{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px}
+.d-acts .btn{width:100%}
+/* week board */
+.wstop .x div{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.25}
+.wstop .x small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wstop:hover{background:color-mix(in srgb,var(--ink) 7%,var(--sunk))}
+/* loading placeholders */
+.skel{display:grid;gap:10px}
+.skel i{display:block;height:64px;border-radius:var(--r);background:linear-gradient(90deg,var(--card) 0,var(--sunk) 40%,var(--card) 80%) 0 0/300% 100%;border:1px solid var(--line);animation:skel 1.2s linear infinite}
+.skel i:nth-child(1){height:40px;width:45%}
+@keyframes skel{to{background-position:-150% 0}}
+@media (prefers-reduced-motion: reduce){ .skel i{animation:none} }
+.kbd{font-family:var(--f-mono);font-size:11px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;color:var(--ink-2)}
+@media (min-width:960px){
+  .rail{width:232px}
+  main{margin-left:232px;padding-block:32px 56px}
+  .wrap.main{padding-left:40px;padding-right:max(40px,env(safe-area-inset-right,0px))}
+  .view{max-width:1280px;gap:16px}
+  .h-view{font-size:44px}
+  .pager .d .h-view{font-size:38px}
+  .rail nav button{font-family:var(--f-body);font-weight:600;font-size:15px;letter-spacing:0;text-transform:none;padding:10px 12px}
+  .rail nav button:not([aria-current="page"]):hover{background:color-mix(in srgb,var(--night-2) 60%,transparent);color:var(--night-ink)}
+  .rail .foot .btn,.rail .foot button{font-size:12px}
+  /* jobs list reads like a table on the computer */
+  .jrow{grid-template-columns:14px minmax(0,2.2fr) 170px 150px minmax(0,1.5fr);column-gap:16px;padding:11px 16px}
+  .jrow .c-tag,.jrow .c-crew{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:var(--ink-2)}
+  .jrow .m .s .lbl{display:none}
+  .jrow .r{display:flex;align-items:center;gap:10px;justify-content:flex-end;max-width:none}
+  .jrow .when{min-width:0}
+  .jhead{display:grid;grid-template-columns:14px minmax(0,2.2fr) 170px 150px minmax(0,1.5fr);column-gap:16px;padding:0 16px 6px;font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+  .jhead span:last-child{text-align:right}
+  .jhead::before{content:""}
+  .ticket{padding:16px 18px 18px}
+  .route-tools .bar{flex-wrap:wrap;overflow:visible}
+  .week .wday{min-height:180px}
+  .tbl table{min-width:0}
+}
+@media (max-width:959px){ .jhead{display:none} }
+@media (min-width:1280px){ .drawer{width:min(640px,100%)} }
+.wk-nav{display:inline-flex;gap:8px;flex:none}
 </style>
 
 <div class="topbar"><div class="wrap">
@@ -679,7 +791,7 @@ function vRoute(){
     <div class="bar">${teamSeg()}${stops.length?`<div class="prog grow"><span class="mono">${done}/${stops.length} done</span><span class="track"><span style="width:${stops.length?done/stops.length*100:0}%"></span></span></div>`:""}</div>
     ${S.ready?routeTools(d,stops):""}
   </div>`;
-  if(!S.ready){ h+= S.err?`<div class="note">${esc(S.err)}</div>`:`<p class="lede">Loading the board…</p>`; return h; }
+  if(!S.ready){ h+= S.err?`<div class="note">${esc(S.err)}</div>`:skel(5); return h; }
   let list;
   if(!stops.length){
     list=`<div class="empty"><div class="unlit"><span class="bulb lg"></span><span class="bulb lg"></span><span class="bulb lg"></span></div>
@@ -703,7 +815,7 @@ function stopCard(s,i,n){
     <div class="rail-c"><span class="bulb lg ${d?"on":""}${popCls(j,v)}"></span></div>
     <div class="ticket">
       <div class="t-top"><span class="ord">STOP ${pad(i+1)}</span><span class="vt ${v.type}">${VTYPE[v.type]}</span>${stopTimeTag(s)}${crewTags(j,v)}<span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span><span class="sp"></span>
-        ${S.me.owner&&n>1?`<button type="button" class="btn icon small" data-act="move" data-j="${esc(j.id)}" data-v="${esc(v.id)}" data-d="-1" ${i===0?"disabled":""} aria-label="Move up">↑</button><button type="button" class="btn icon small" data-act="move" data-j="${esc(j.id)}" data-v="${esc(v.id)}" data-d="1" ${i===n-1?"disabled":""} aria-label="Move down">↓</button>`:""}</div>
+        ${S.me.owner&&n>1?`<span class="mv"><button type="button" class="btn icon small" data-act="move" data-j="${esc(j.id)}" data-v="${esc(v.id)}" data-d="-1" ${i===0?"disabled":""} aria-label="Move up">↑</button><button type="button" class="btn icon small" data-act="move" data-j="${esc(j.id)}" data-v="${esc(v.id)}" data-d="1" ${i===n-1?"disabled":""} aria-label="Move down">↓</button></span>`:""}</div>
       <button type="button" class="t-name" data-act="job" data-id="${esc(j.id)}">${esc(c.name||"Customer")}</button>
       ${a?`<div class="t-addr">${esc(a)}</div>`:""}
       ${visitExtrasLine(v)}
@@ -736,10 +848,10 @@ function vJobs(){
   let h=`<div class="bar"><h1 class="h-view grow">Jobs</h1><button type="button" class="btn phone-only" data-act="view" data-v="clients">Clients</button>${S.me.owner?`<button type="button" class="btn amber" data-act="new-job">+ New job</button>`:""}</div>
     <input class="search" id="q-jobs" type="search" placeholder="Search name, address, TCL #, lights" value="${esc(S.q.jobs)}" aria-label="Search jobs">
     <div class="chips" role="group" aria-label="Filter jobs">${F.map(([k,l])=>`<button type="button" class="chip" data-act="jf" data-v="${k}" aria-pressed="${S.jf===k}">${l}</button>`).join("")}</div>`;
-  if(!S.ready) return h+`<p class="lede">Loading…</p>`;
+  if(!S.ready) return h+skel(5);
   if(!S.jobs.size) return h+`<div class="empty"><h3>No jobs yet</h3><p>${S.me.owner?"Add a job for each house this season. Mark it ProLight or TCL, pick the crew, and set the install and takedown dates.":"Jobs the office adds will appear here."}</p></div>`;
   h+=`<span class="count">${list.length} job${list.length===1?"":"s"}</span>`;
-  h+= list.length ? `<div class="rows">${list.map(jobRow).join("")}</div>` : `<p class="lede">No jobs match.</p>`;
+  h+= list.length ? jobHead()+`<div class="rows">${list.map(jobRow).join("")}</div>` : `<p class="lede">No jobs match.</p>`;
   return h;
 }
 function jobRow(j){
@@ -759,7 +871,7 @@ function vClients(){
   const jobsBy=new Map(); for(const j of jobsArr()){ if(!jobsBy.has(j.clientId)) jobsBy.set(j.clientId,[]); jobsBy.get(j.clientId).push(j); }
   let h=`<div class="bar"><h1 class="h-view grow">Clients</h1>${S.me.owner?`<button type="button" class="btn amber" data-act="new-client">+ New client</button>`:""}</div>
     <input class="search" id="q-clients" type="search" placeholder="Search name, address, phone" value="${esc(S.q.clients)}" aria-label="Search clients">`;
-  if(!S.ready) return h+`<p class="lede">Loading…</p>`;
+  if(!S.ready) return h+skel(5);
   if(!S.clients.size) return h+`<div class="empty"><h3>No clients yet</h3><p>Each client keeps their address, gate code and every season's job in one place, so next year's rebook is a tap away.</p></div>`;
   h+=`<span class="count">${list.length} client${list.length===1?"":"s"}</span><div class="rows">${list.map(c=>{ const js=jobsBy.get(c.id)||[]; const seasons=[...new Set(js.map(j=>j.season).filter(Boolean))].sort();
     return `<button type="button" class="row" data-act="client" data-id="${esc(c.id)}"><span class="bulb ${js.some(j=>status(j)==="lit")?"on":""}"></span>
@@ -771,9 +883,9 @@ function vClients(){
 function vWeek(){
   const days=[...Array(7)].map((_,i)=>addDays(S.week,i)), t=todayISO();
   let h=`<div class="bar"><h1 class="h-view grow">Week of ${fmtDay(S.week)}</h1>
-    <button type="button" class="btn icon" data-act="week" data-v="-7" aria-label="Previous week">‹</button><button type="button" class="btn small" data-act="week" data-v="0">This week</button><button type="button" class="btn icon" data-act="week" data-v="7" aria-label="Next week">›</button></div>
+    <span class="wk-nav"><button type="button" class="btn icon" data-act="week" data-v="-7" aria-label="Previous week">‹</button><button type="button" class="btn" data-act="week" data-v="0" style="min-height:40px">This week</button><button type="button" class="btn icon" data-act="week" data-v="7" aria-label="Next week">›</button></span></div>
     <div class="bar">${teamSeg()}</div>`;
-  if(!S.ready) return h+`<p class="lede">Loading…</p>`;
+  if(!S.ready) return h+skel(5);
   h+=`<div class="week">${days.map(d=>{ const st=stopsFor(d,S.team);
     return `<section class="wday ${d===t?"today":""}"><h4>${fmtDay(d,{weekday:"short"})} ${parseISO(d).getDate()}<span>${st.length?st.length+" stop"+(st.length>1?"s":""):""}</span></h4>
       ${st.length?st.map((s,i)=>{ const dn=isDone(s.j.id,s.v.id); return `<button type="button" class="wstop" data-act="go-day" data-v="${d}"><span class="bulb ${dn?"on":""}"></span><span class="x"><div><b class="mono">${i+1}</b> ${esc(clientOf(s.j).name||"Customer")}</div><small>${VTYPE[s.v.type]}${S.team==="all"?" · "+esc(teamName(crewOf(s.j,s.v))):""}${s.v.time?" · "+fmtTime(s.v.time):""}</small></span></button>`; }).join(""):`<span class="none">No stops</span>`}
@@ -880,7 +992,7 @@ function dJob(id){
   const visits=[...(j.visits||[])].sort((x,y)=>String(x.date||"9").localeCompare(String(y.date||"9")));
   const entries=logByJob.get(id)||[];
   let b=`<div class="bar"><span class="bulb ${BULB[st]}"></span><span class="st ${st}">${STATUS[st]}</span><span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span>${j.tclRef?`<span class="mono count">TCL #${esc(j.tclRef)}</span>`:""}</div>
-  <div class="bar">${a?`<a class="btn" href="${esc(mapsUrl(a))}" target="_blank" rel="noopener">Directions ↗</a>`:""}${c.phone?`<button type="button" class="btn" data-act="copytext" data-v="${esc(c.phone)}">Copy phone</button>`:""}
+  <div class="d-acts">${a?`<a class="btn" href="${esc(mapsUrl(a))}" target="_blank" rel="noopener">Directions ↗</a>`:""}${c.phone?`<button type="button" class="btn" data-act="copytext" data-v="${esc(c.phone)}">Copy phone</button>`:""}
     ${S.me.owner?`<button type="button" class="btn" data-act="edit-job" data-id="${esc(id)}">Edit job</button>`:""}<button type="button" class="btn" data-act="client" data-id="${esc(j.clientId)}">Client</button>${S.me.owner?`<button type="button" class="btn" data-act="svc-new" data-v="${esc(id)}">+ Service call</button>`:S.me.canLog?`<button type="button" class="btn" data-act="svc-report" data-v="${esc(id)}">Report a problem</button>`:""}${j.jobberUrl&&S.me.owner?`<a class="btn" href="${esc(j.jobberUrl)}" target="_blank" rel="noopener">Jobber #${esc(j.jobberNo||"")} ↗</a>`:""}</div>
   ${S.me.owner?`<div class="f"><label>Who's doing this job</label>${assignUI(j.crew,"assign",`data-id="${esc(id)}"`)}${membersOf(j.crew).length?`<small>${esc(membersOf(j.crew).join(", "))}</small>`:""}</div>`:""}
   <dl class="kv">${a?`<dt>Address</dt><dd>${esc(a)}</dd>`:""}${c.phone?`<dt>Phone</dt><dd class="mono">${esc(c.phone)}</dd>`:""}${c.gate?`<dt>Access</dt><dd>${esc(c.gate)}</dd>`:""}
@@ -2651,6 +2763,28 @@ async function jbhAdd(){
     toast(`${n} time entr${n===1?"y":"ies"} added from Jobber`); H.sel=new Set(); renderDrawer();
   }catch(x){ fail(x,"add the hours"); }
 }
+
+/* ---------- polish: job rows, keyboard shortcuts ---------- */
+function jobRow(j){
+  const c=clientOf(j), st=status(j), nv=nextVisit(j);
+  const team=crewObj(j.crew)&&crews().filter(x=>x.co===coOf(j.crew)).length>1?teamName(j.crew):(crewObj(j.crew)?teamName(j.crew):"Unassigned");
+  const when=nv?`${VTYPE[nv.type]} ${fmtDay(nv.date)}`:(j.tclWhen&&!["lit","down"].includes(st)?j.tclWhen:"");
+  const tag=`<span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span>`;
+  return `<button type="button" class="row jrow" data-act="job" data-id="${esc(j.id)}">
+    <span class="bulb ${BULB[st]}"></span>
+    <span class="m"><span class="n">${esc(c.name||"Customer")}</span><span class="s">${tag}<span class="a">${esc(addrOf(j)||"No address")}</span></span></span>
+    <span class="c-tag">${tag}</span><span class="c-crew">${esc(team)}</span>
+    <span class="r"><span class="pill ${st}">${STATUS[st]}</span>${when?`<span class="when">${esc(when)}</span>`:""}</span>
+  </button>`;
+}
+const jobHead = () => `<div class="jhead" aria-hidden="true"><span>Customer</span><span>Whose job</span><span>Crew</span><span>Status · next</span></div>`;
+const skel = (n=4) => `<div class="skel" aria-label="Loading">${"<i></i>".repeat(n)}</div>`;
+document.addEventListener("keydown", ev=>{
+  const t=ev.target, typing=t&&(t.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+  if(typing||ev.metaKey||ev.ctrlKey||ev.altKey) return;
+  if(ev.key==="/"){ const s=document.querySelector("#view input.search, #view input[type=search]"); if(s){ ev.preventDefault(); s.focus(); } }
+  else if((ev.key==="n"||ev.key==="N")&&S.me&&S.me.owner&&!S.drawer){ ev.preventDefault(); startJobForm(null,""); }
+});
 
 /* ---------- render ---------- */
 function renderMain(){
