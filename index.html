@@ -1350,7 +1350,7 @@ const PERMS=[["can_log","Check off stops and post notes, photos and video",""],[
 function permSummary(p){ return [p.can_manage&&"Manager",!p.can_manage&&p.can_edit&&"Office",p.can_money&&"Money",p.partner&&"ShipShape statement",p.can_log&&"Checks off",!p.all_crews&&"Own crew only"].filter(Boolean).join(" · ")||"Can only view"; }
 function vTeam(){
   const P=PL.staff();
-  return `<div class="bar"><p class="lede grow">Everyone who can sign in. Each person signs in with their own 6-digit PIN. No two people can have the same one.</p>${S.me.manage?`<button type="button" class="btn" data-act="pins">PIN report</button><button type="button" class="btn amber" data-act="person-new">+ Add person</button>`:""}</div>
+  return `${S.newPinsAsk?`<div class="note"><b>Sign everyone out and have them pick a new PIN?</b> Everyone except you is signed out right away on every device. When they sign back in with their current PIN, they have to choose a new one, so the PIN report has everyone's PIN. You keep yours.<div class="bar" style="margin-top:8px"><button type="button" class="btn amber" data-act="new-pins-yes">Yes, do it now</button><button type="button" class="btn" data-act="new-pins-no">Not now</button></div></div>`:""}<div class="bar"><p class="lede grow">Everyone who can sign in. Each person signs in with their own 6-digit PIN. No two people can have the same one.</p>${S.me.manage?`<button type="button" class="btn" data-act="new-pins">Everyone picks a new PIN</button><button type="button" class="btn" data-act="pins">PIN report</button><button type="button" class="btn amber" data-act="person-new">+ Add person</button>`:""}</div>
   <div class="rows">${P.map(p=>`<button type="button" class="row" data-act="person" data-id="${esc(p.id)}">${avatar(p.id)}
     <span class="m"><span class="n">${esc(p.name)}${p.id===S.me.id?" (you)":""}</span><span class="s">${esc([p.title,permSummary(p)].filter(Boolean).join(" · "))}</span></span>
     <span class="r"><span class="count" style="font-size:13px">${esc(p.crew?teamName(p.crew):"No crew")}</span>${p.active?"":`<span class="st cancelled">Turned off</span>`}</span></button>`).join("")}</div>
@@ -3062,6 +3062,17 @@ function dPins(){
 }
 async function openPins(){ S.pins=null; S.pinsShow=false; openDrawer("pins"); try{ S.pins=await PL.pinReport(); }catch(e){ S.pins={error:e.message}; } if(S.drawer&&S.drawer.kind==="pins") renderDrawer(); }
 
+/* ---------- sign everyone out so they pick a new PIN ---------- */
+function checkForcedSignIn(d){
+  if(!d||!d.after||!window.PL||!PL.me()||d.by===S.me.id||checkForcedSignIn.busy) return;
+  checkForcedSignIn.busy=true;
+  PL.signedInAt().then(t=>{ if(t && new Date(t)>=new Date(d.after)) { checkForcedSignIn.busy=false; return; } toast(LANG_ES?"La oficina pidió que todos vuelvan a entrar.":"The office asked everyone to sign in again."); setTimeout(()=>PL.signOut(),1500); }).catch(()=>{ checkForcedSignIn.busy=false; });
+}
+async function requireNewPins(){
+  try{ await PL.requireNewPins(); S.newPinsAsk=false; toast("Done. Everyone else is signed out and will pick a new PIN."); renderMain(); }
+  catch(e){ S.newPinsAsk=false; renderMain(); toast(/function|exist/i.test(e.message)?"Run update 12 in Supabase first.":e.message); }
+}
+
 /* ---------- Español: translates what's on screen for people who pick Spanish ---------- */
 var LANG_ES = (()=>{ try{ return localStorage.getItem("lang")==="es"; }catch(e){ return false; } })();
 function LOC(){ return LANG_ES ? "es-US" : "en-US"; }
@@ -3308,6 +3319,9 @@ document.addEventListener("click", async ev=>{
     case "account": openDrawer("account"); break;
     case "lang": if((v==="es")!==LANG_ES) setLang(v); break;
     case "pins": await openPins(); break;
+    case "new-pins": S.newPinsAsk=true; renderMain(); window.scrollTo(0,0); break;
+    case "new-pins-no": S.newPinsAsk=false; renderMain(); break;
+    case "new-pins-yes": t.disabled=true; await requireNewPins(); break;
     case "pins-show": S.pinsShow=!S.pinsShow; renderDrawer(); break;
     case "person-del": S.form.confirmDel=true; renderDrawer(); break;
     case "person-del-no": S.form.confirmDel=false; renderDrawer(); break;
@@ -3505,7 +3519,7 @@ renderMain();
   db.collection("log").onSnapshot(s=>{ S.log=new Map(s.docs.map(d=>[d.id,d.data()])); recompute(); got.l=true; refresh(); fetchNames(); }, e=>{ got.l=true; refresh(); });
   db.doc("settings/board").onSnapshot(s=>{ S.settings=s.exists?s.data():{}; refresh(); }, e=>{});
   loadChat();
-  db.collection("settings").onSnapshot(s=>{ { const fm=s.docs.find(d=>d.id==="former"); S.former=fm?fm.data()||{}:{}; } S.dayCfg=new Map(s.docs.filter(d=>d.id.startsWith("day-")).map(d=>[d.id.slice(4),d.data()])); refresh(); }, e=>{});
+  db.collection("settings").onSnapshot(s=>{ { const fm=s.docs.find(d=>d.id==="former"); S.former=fm?fm.data()||{}:{}; const si=s.docs.find(d=>d.id==="signin"); if(si) setTimeout(()=>checkForcedSignIn(si.data()),0); } S.dayCfg=new Map(s.docs.filter(d=>d.id.startsWith("day-")).map(d=>[d.id.slice(4),d.data()])); refresh(); }, e=>{});
   if(S.me.money){
     db.collection("fin").onSnapshot(s=>{ const m=new Map(), pays=new Map(); for(const d of s.docs){ if(d.id==="settings") S.finSet=d.data(); else if(d.id==="payroll") S.payroll=d.data()||{}; else if(d.id.startsWith("pay-")) pays.set(d.id,d.data()); else m.set(d.id,d.data()); } S.fin=m; S.pays=pays; S.stmt=null; refresh(); }, e=>{});
   }

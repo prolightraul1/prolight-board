@@ -115,6 +115,17 @@
     flushOutbox: () => flush(),
     photoUrl: (p) => (p && p.photo ? sb.storage.from("media").getPublicUrl(p.photo).data.publicUrl : ""),
     squarePhoto,
+    async signedInAt() {
+      const { data } = await sb.auth.getSession();
+      const u = data && data.session && data.session.user;
+      return (u && u.last_sign_in_at) || null;
+    },
+    async requireNewPins() {
+      const { data, error } = await sb.rpc("staff_require_new_pins");
+      if (error) throw new Error(error.message);
+      if (ME) ME.pin_ok = true;
+      return data;
+    },
     async signOut() {
       await sb.auth.signOut();
       try { localStorage.removeItem("prolight-last"); localStorage.removeItem("prolight-day"); if (ME) localStorage.removeItem(ckey(ME.id)); } catch (e) {}
