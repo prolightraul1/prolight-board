@@ -99,7 +99,7 @@ const JOB_FIELDS = `id jobNumber title instructions createdAt startAt completedA
   client { id name }
   property { address { street1 street2 city province postalCode } }
   lineItems(first: 12) { nodes { name description totalPrice } }
-  visits(first: 6) { nodes { assignedUsers { nodes { name { full } } } } }`;
+  visits(first: 3) { nodes { assignedUsers(first: 4) { nodes { name { full } } } } }`;
 
 /* Jobs assigned in Jobber to these people go to their crew on the board.
    Anyone else (like Raul) stays unassigned so a manager can place it by hand. */
@@ -340,7 +340,7 @@ async function sync(trigger, quick) {
   for (let i = 0; i < rows.length; i += 200) await putDocs(rows.slice(i, i + 200));
   // Photos: a few jobs per run so each sync stays quick; the rest come on the next sync.
   for (const [j, wid, id, d] of media) {
-    if (Date.now() - t0 > 45e3) { res.photosLeft = (res.photosLeft || 0) + 1; continue; }
+    if (Date.now() - t0 > 32e3) { res.photosLeft = (res.photosLeft || 0) + 1; continue; }
     try {
       const files = await copyFiles(token, j, wid);
       const fresh = (await sb(`/rest/v1/docs?coll=eq.jobs&id=eq.${encodeURIComponent(id)}&select=data`))[0];
@@ -403,7 +403,7 @@ module.exports = async (req, res) => {
     }
     if (action === "cron") {
       if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
-      return res.status(200).json(await sync("nightly"));
+      return res.status(200).json(await sync(req.query.quick ? "every 6 hours" : "nightly", !!req.query.quick));
     }
     const me = await manager(req);
     if (!me) return res.status(401).json({ error: "Only a board manager can do that." });
