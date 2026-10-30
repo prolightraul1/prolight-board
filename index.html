@@ -1946,9 +1946,11 @@ const QUICK = /burger|sandwich|chicken|mexican|tex-mex|pizza|bbq|barbecue|sub|de
 async function findFood(c){
   const key=c.lat.toFixed(3)+","+c.lng.toFixed(3); if(FOOD.cache.has(key)) return FOOD.cache.get(key);
   const q=`[out:json][timeout:20];nwr["amenity"~"^(fast_food|cafe|restaurant)$"](around:4000,${c.lat},${c.lng});out center tags 200;`;
-  const r=await fetch("https://overpass-api.de/api/interpreter",{method:"POST",body:"data="+encodeURIComponent(q)});
-  if(!r.ok) throw new Error("lookup failed");
-  const d=await r.json();
+  let d=null;
+  try{ const r=await fetch(`/api/places?lat=${c.lat.toFixed(4)}&lng=${c.lng.toFixed(4)}`); if(r.ok) d=await r.json(); }catch(e){}
+  if(!d||!Array.isArray(d.elements)) for(const m of ["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter","https://overpass.private.coffee/api/interpreter"]){
+    try{ const ctl=new AbortController(), t=setTimeout(()=>ctl.abort(),10000); const r=await fetch(m,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"data="+encodeURIComponent(q),signal:ctl.signal}); clearTimeout(t); if(r.ok){ d=await r.json(); break; } }catch(e){} }
+  if(!d||!Array.isArray(d.elements)) throw new Error("lookup failed");
   const list=d.elements.map(e=>{ const t=e.tags||{}; return {name:t.name||t.brand, brand:t.brand||"", amenity:t.amenity, cuisine:(t.cuisine||"").split(";")[0].replace(/_/g," "), drive:t.drive_through==="yes", hours:t.opening_hours||"", lat:e.lat??(e.center&&e.center.lat), lng:e.lon??(e.center&&e.center.lon), street:[t["addr:housenumber"],t["addr:street"]].filter(Boolean).join(" ")}; }).filter(p=>p.name&&p.lat);
   FOOD.cache.set(key,list); return list;
 }
