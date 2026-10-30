@@ -1,0 +1,8 @@
+name: Check lunch search
+on: workflow_dispatch
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for i in 1 2; do r=$(curl -sS -m 60 -o b.txt -w "%{http_code} %{time_total}s" "https://prolight-boardv1.vercel.app/api/places?lat=30.52&lng=-84.24"); n=$(grep -o '"tags"' b.txt | wc -l); echo "::notice::try $i: HTTP $r, places $n, from $(grep -o '"from":"[^"]*"' b.txt)"; done
