@@ -687,6 +687,39 @@ legend{margin-bottom:10px}
 .d-body:has(>.blk-visits)>.t-notes{order:6}
 .d-body>.blk-mock{order:7}
 .d-body>.kv-job{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+/* ===== tablets (iPad) ===== */
+html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
+@media (pointer:coarse){
+  .btn.small{min-height:40px;padding:0 12px}
+  .btn.icon{min-height:44px;width:44px}
+  .chip{padding:9px 14px}
+  .seg button{padding:10px 14px}
+  .row{padding-block:14px}
+  .wstop{padding:10px}
+  .f input,.f select,.f textarea,.search{font-size:16px}
+}
+@media (min-width:700px) and (max-width:959px){
+  .wrap.main{padding-left:28px;padding-right:max(28px,env(safe-area-inset-right,0px))}
+  .h-view{font-size:40px}
+  .mgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .dgrid{grid-template-columns:repeat(2,minmax(0,1fr))} .dc-wide{grid-column:1/-1}
+  .week{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tiles{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .look-combos{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .drawer{width:min(600px,100%)}
+  .tabs button{font-size:12px}
+  .tabs button svg{width:24px;height:24px}
+}
+/* iPad landscape and small laptops: keep the side menu slimmer so content has room */
+@media (min-width:960px) and (max-width:1199px){
+  .rail{width:196px} main{margin-left:196px}
+  .wrap.main{padding-left:24px;padding-right:max(24px,env(safe-area-inset-right,0px))}
+  .rail .logo{width:132px}
+  .route-cols.rc-map{grid-template-columns:minmax(0,1fr) minmax(300px,38%);gap:18px}
+  .jrow,.jhead{grid-template-columns:14px minmax(0,2fr) 140px 120px minmax(0,1.4fr)}
+  .dgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .drawer{width:min(520px,100%)}
+}
 </style>
 
 <div class="topbar"><div class="wrap">
@@ -816,7 +849,7 @@ function recompute(){
     if(e.kind==="done") doneMap.set(e.jobId+"|"+e.visitId, x); else if(e.kind==="partial"){ const k=e.jobId+"|"+e.visitId, o=partialMap.get(k); if(!o||String(o.at)<String(e.at)) partialMap.set(k,x); } }
   for(const a of logByJob.values()) a.sort((p,q)=>String(q.at).localeCompare(String(p.at)));
 }
-function who(id){ if(!id) return "TCL import"; if(id==="jobber") return "Jobber"; if(id===S.me.id) return "You"; return S.names.get(id) || "Crew member"; }
+function who(id){ if(!id) return "TCL import"; if(id==="jobber") return "Jobber"; if(id===S.me.id) return "You"; return S.names.get(id) || (S.former&&S.former[id]) || "Crew member"; }
 let nameReq=false;
 async function fetchNames(){
   if(!S.user||nameReq) return; const ids=[...new Set([...S.log.values()].map(e=>e.by).filter(id=>id && !S.names.has(id)))]; if(!ids.length) return;
@@ -824,7 +857,7 @@ async function fetchNames(){
 }
 
 /* ---------- nav ---------- */
-function navItems(){ const v=isMgr()&&wide()?[["today","Today"],["jobs","Jobs"],["week","Week"],["map","Map"],["route","Route"],["chat","Chat"],["clients","Clients"]]:[["route","Route"],["jobs","Jobs"],["map","Map"],["week","Week"],["chat","Chat"],["clients","Clients"]]; if(S.me.owner||S.me.money||S.me.manage||S.me.partner) v.push(["office",S.me.partner&&!S.me.money&&!S.me.owner?"Payouts":"Office"]); return v; }
+function navItems(){ const v=isMgr()&&tab()?[["today","Today"],["jobs","Jobs"],["week","Week"],["map","Map"],["route","Route"],["chat","Chat"],["clients","Clients"]]:[["route","Route"],["jobs","Jobs"],["map","Map"],["week","Week"],["chat","Chat"],["clients","Clients"]]; if(S.me.owner||S.me.money||S.me.manage||S.me.partner) v.push(["office",S.me.partner&&!S.me.money&&!S.me.owner?"Payouts":"Office"]); return v; }
 function renderNav(){
   const items=navItems();
   $("#railNav").innerHTML=items.map(([k,l])=>`<button type="button" data-act="view" data-v="${k}" aria-current="${S.view===k?"page":"false"}">${ICON[k]}${l}</button>`).join("");
@@ -1181,7 +1214,7 @@ function renderDrawer(){
   if(!D){ root.innerHTML=""; return; }
   const prev=$("#dbody"), top=prev?prev.scrollTop:0;
   const focusId=document.activeElement&&document.activeElement.id;
-  root.innerHTML = D.kind==="job"?dJob(D.id): D.kind==="client"?dClient(D.id): D.kind==="jobEdit"?dJobEdit(): D.kind==="truck"?dTruck(D.id): D.kind==="jbhours"?dJbHours(): D.kind==="treq"?dTimeReq(D.id): D.kind==="sale"?dSale(D.id): D.kind==="salepick"?dSalePick(): D.kind==="clockedit"?dClockEdit(D.id): D.kind==="svc"?dService(D.id): D.kind==="issue"?dIssue(D.id): D.kind==="svcpick"?dSvcPick(): D.kind==="crewtruck"?dCrewTruck(D.id): D.kind==="partial"?dPartial(D.id): D.kind==="return"?dReturn(D.id): D.kind==="pay"?dPay(): D.kind==="assign"?dAssign(D.id): D.kind==="food"?dFood(D.id): D.kind==="account"?dAccount(): D.kind==="person"?dPerson(): dClientEdit();
+  root.innerHTML = D.kind==="job"?dJob(D.id): D.kind==="client"?dClient(D.id): D.kind==="jobEdit"?dJobEdit(): D.kind==="truck"?dTruck(D.id): D.kind==="pins"?dPins(): D.kind==="jbhours"?dJbHours(): D.kind==="treq"?dTimeReq(D.id): D.kind==="sale"?dSale(D.id): D.kind==="salepick"?dSalePick(): D.kind==="clockedit"?dClockEdit(D.id): D.kind==="svc"?dService(D.id): D.kind==="issue"?dIssue(D.id): D.kind==="svcpick"?dSvcPick(): D.kind==="crewtruck"?dCrewTruck(D.id): D.kind==="partial"?dPartial(D.id): D.kind==="return"?dReturn(D.id): D.kind==="pay"?dPay(): D.kind==="assign"?dAssign(D.id): D.kind==="food"?dFood(D.id): D.kind==="account"?dAccount(): D.kind==="person"?dPerson(): dClientEdit();
   const nb=$("#dbody"); if(nb && D.keep) nb.scrollTop=top;
   if(focusId){ const el=document.getElementById(focusId); if(el && el.id==="compose-text"){ el.focus(); el.setSelectionRange(el.value.length,el.value.length); } }
   D.keep=true;
@@ -1316,7 +1349,7 @@ const PERMS=[["can_log","Check off stops and post notes, photos and video",""],[
 function permSummary(p){ return [p.can_manage&&"Manager",!p.can_manage&&p.can_edit&&"Office",p.can_money&&"Money",p.partner&&"ShipShape statement",p.can_log&&"Checks off",!p.all_crews&&"Own crew only"].filter(Boolean).join(" · ")||"Can only view"; }
 function vTeam(){
   const P=PL.staff();
-  return `<div class="bar"><p class="lede grow">Everyone who can sign in. Each person signs in with their own 6-digit PIN. No two people can have the same one.</p>${S.me.manage?`<button type="button" class="btn amber" data-act="person-new">+ Add person</button>`:""}</div>
+  return `<div class="bar"><p class="lede grow">Everyone who can sign in. Each person signs in with their own 6-digit PIN. No two people can have the same one.</p>${S.me.manage?`<button type="button" class="btn" data-act="pins">PIN report</button><button type="button" class="btn amber" data-act="person-new">+ Add person</button>`:""}</div>
   <div class="rows">${P.map(p=>`<button type="button" class="row" data-act="person" data-id="${esc(p.id)}">${avatar(p.id)}
     <span class="m"><span class="n">${esc(p.name)}${p.id===S.me.id?" (you)":""}</span><span class="s">${esc([p.title,permSummary(p)].filter(Boolean).join(" · "))}</span></span>
     <span class="r"><span class="count" style="font-size:13px">${esc(p.crew?teamName(p.crew):"No crew")}</span>${p.active?"":`<span class="st cancelled">Turned off</span>`}</span></button>`).join("")}</div>
@@ -1339,6 +1372,9 @@ function dPerson(){
     </fieldset>
     ${isNew?"":`<fieldset><legend>Access</legend><div class="checks"><label><input type="checkbox" id="pp-active" ${p.active?"checked":""}><span>Can sign in<small>Turn off when someone leaves. Their check-offs and notes stay on the board.</small></span></label></div></fieldset>`}
     <div class="actions"><span class="count" id="pp-err" style="color:var(--red)"></span><button type="submit" class="btn amber" ${S.busy?"disabled":""}>${isNew?"Add person":"Save changes"}</button></div>
+    ${!isNew&&S.me.manage&&p.id!==S.me.id?`<fieldset style="margin-top:8px"><legend>Delete</legend>${S.form.confirmDel?`<div class="note">Delete <b>${esc(p.name)}</b> for good? Their login and PIN stop working right away and their chat messages are removed. Their check-offs, notes and hours stay on the jobs and payroll under their name. This can't be undone.</div>
+      <div class="bar"><button type="button" class="btn danger" data-act="person-del-yes" data-v="${esc(p.id)}" ${S.busy?"disabled":""}>Yes, delete ${esc(p.name.split(" ")[0])}</button><button type="button" class="btn" data-act="person-del-no">Keep</button></div>`
+      :`<div class="bar"><button type="button" class="btn danger" data-act="person-del">Delete this person</button><small class="count">To just stop them signing in for now, turn off "Can sign in" instead.</small></div>`}</fieldset>`:""}
   </form>`;
   return drawerShell(isNew?"Team":"Edit person", isNew?"Add person":p.name, b);
 }
@@ -2190,7 +2226,7 @@ const COMBOS = [
   ["Purple & teal",["purple","teal"]], ["Halloween",["orange","purple"]], ["Rainbow",["red","orange","yellow","green","teal","blue","purple","white","warm"]] ];
 const LOOK_DEF = {colors:["warm"], mode:"auto", intro:"daily", snow:true, buzz:true};
 function look(){ try{ const o={...LOOK_DEF,...JSON.parse(ls("look")||"{}")}; o.colors=(o.colors||[]).filter(k=>PALETTE[k]); if(!o.colors.length) o.colors=["warm"]; return o; }catch(e){ return {...LOOK_DEF}; } }
-function setLook(p){ ls("look",JSON.stringify({...look(),...p})); applyLook(); }
+function setLook(p){ ls("look",JSON.stringify({...look(),...p})); applyLook(); if(p&&p.colors&&window.PL&&PL.setLook) PL.setLook(p.colors).catch(()=>{}); }
 const bulbColors = () => look().colors.map(k=>PALETTE[k].c);
 const lum = h => { const n=parseInt(h.slice(1),16), f=v=>{ v/=255; return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4); }; return .2126*f(n>>16&255)+.7152*f(n>>8&255)+.0722*f(n&255); };
 
@@ -2868,9 +2904,11 @@ document.addEventListener("keydown", ev=>{
 /* ---------- manager home (Today), office groups, week drag-and-drop, route map ---------- */
 const isMgr = () => !!(S.me.manage||S.me.owner);
 const wide = () => matchMedia("(min-width:960px)").matches;
+const tab = () => matchMedia("(min-width:700px)").matches;
 ICON.today='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>';
-function homeView(){ if(S._home||!S.ready||!isMgr()) return; S._home=1; if(wide()&&S.view==="route") S.view="today"; }
-matchMedia("(min-width:960px)").addEventListener("change",()=>{ if(S.view==="today"&&!wide()) S.view="route"; renderMain(); });
+function homeView(){ if(S._home||!S.ready||!isMgr()) return; S._home=1; if(tab()&&S.view==="route") S.view="today"; }
+matchMedia("(min-width:960px)").addEventListener("change",()=>renderMain());
+matchMedia("(min-width:700px)").addEventListener("change",()=>{ if(S.view==="today"&&!tab()) S.view="route"; renderMain(); });
 function openClocksNow(){ const out=[], t=todayISO(); for(const [id,e] of S.log) if(e.kind==="clock"&&!e.pending&&e.in&&!e.out&&isoOf(e.in)===t) out.push({id,...e}); return out.sort((a,b)=>staffName(a.by).localeCompare(staffName(b.by))); }
 function vToday(){
   const d=todayISO();
@@ -2931,7 +2969,7 @@ function vOffice(){
 
 /* week: drag jobs onto days, between days, and into order */
 function wkTray(){
-  if(!S.me.owner||!wide()) return "";
+  if(!S.me.owner||!tab()) return "";
   const all=jobsArr().filter(j=>j.stage!=="cancelled");
   const inst=all.filter(j=>["lead","quoted","booked"].includes(status(j))&&j.stage==="booked"), down=all.filter(j=>status(j)==="lit"&&!(j.visits||[]).some(v=>v.type==="takedown"&&v.date));
   const T=S.tray||"install", q=(S.q.tray||"").toLowerCase();
@@ -2996,6 +3034,31 @@ let RHOT=null;
 document.addEventListener("mouseover",ev=>{ if(S.view!=="route"||!RMAP) return; const st=ev.target.closest&&ev.target.closest(".stop[data-sj]"), id=st?st.dataset.sj:null; if(id===RHOT) return;
   const o=RHOT&&RPINS.get(RHOT); if(o&&o.getElement()) o.getElement().classList.remove("hot"); RHOT=id;
   const m=id&&RPINS.get(id); if(m&&m.getElement()){ m.getElement().classList.add("hot"); m.openTooltip(); } else if(o) o.closeTooltip(); });
+
+/* ---------- delete a person; names of people who left stay on their history ---------- */
+async function deletePerson(id){
+  const p=PL.staff().find(x=>x.id===id); if(!p) return;
+  S.busy=true; renderDrawer();
+  try{ await PL.remove(id); S.busy=false; S.form=null; toast(`${p.name} deleted`); closeDrawer(); }
+  catch(e){ S.busy=false; S.form.confirmDel=false; renderDrawer(); const el=$("#pp-err"); if(el) el.textContent=e.message.replace(/^.*?: /,""); }
+}
+
+/* ---------- PIN report (managers) ---------- */
+function dPins(){
+  const R=S.pins;
+  const fmt=x=>x?new Date(x).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):"–";
+  let b=`<p class="lede" style="font-size:14px">Every login and its PIN. Keep this screen to yourself. PINs set before this report existed can't be read back (they're stored scrambled), so they show as hidden until you reset them.</p>
+    <div class="bar"><button type="button" class="btn small" data-act="pins-show">${S.pinsShow?"Hide PINs":"Show PINs"}</button></div>`;
+  if(!R) b+=skel(4);
+  else if(R.error) b+=`<div class="note">${esc(R.error)}${/function|does not exist|schema/i.test(R.error)?"<br>Run update 10 in Supabase first.":""}</div>`;
+  else b+=`<div class="tbl"><table style="min-width:0"><thead><tr><th>Person</th><th>PIN</th><th>Set</th><th>Last sign-in</th><th></th></tr></thead><tbody>${R.map(r=>`<tr>
+      <td><b>${esc(r.name)}</b>${r.active?"":` <small class="count">(turned off)</small>`}</td>
+      <td class="mono" style="font-size:16px;letter-spacing:.12em">${r.pin?(S.pinsShow?esc(r.pin):"••••••"):`<small class="count" style="letter-spacing:0">Reset to see it</small>`}</td>
+      <td>${fmt(r.set_at)}</td><td>${fmt(r.last_sign_in)}</td>
+      <td><button type="button" class="btn small" data-act="person" data-id="${esc(r.id)}">${r.pin?"Change":"Reset PIN"}</button></td></tr>`).join("")}</tbody></table></div>`;
+  return drawerShell("Team","PIN report",b);
+}
+async function openPins(){ S.pins=null; S.pinsShow=false; openDrawer("pins"); try{ S.pins=await PL.pinReport(); }catch(e){ S.pins={error:e.message}; } if(S.drawer&&S.drawer.kind==="pins") renderDrawer(); }
 
 /* ---------- render ---------- */
 function renderMain(){
@@ -3156,6 +3219,11 @@ document.addEventListener("click", async ev=>{
     case "ctab": S.ctab=v; renderMain(); break;
     case "team": S.team=v; ls("team",v); renderMain(); break;
     case "account": openDrawer("account"); break;
+    case "pins": await openPins(); break;
+    case "pins-show": S.pinsShow=!S.pinsShow; renderDrawer(); break;
+    case "person-del": S.form.confirmDel=true; renderDrawer(); break;
+    case "person-del-no": S.form.confirmDel=false; renderDrawer(); break;
+    case "person-del-yes": await deletePerson(v); break;
     case "sold-type": readJobForm(); if(S.form&&S.form.sold){ S.form.sold.type=v; renderDrawer(); } break;
     case "new-job-sale": startJobForm(null,""); if(S.form){ S.form.job.source="prolight"; S.form.sold={by:sellers().some(p=>p.id===S.me.id)?S.me.id:"",type:"inbound",pct:"",ref:"",refPct:""}; renderDrawer(); } break;
     case "mt-wk": S.myWk=v==="0"?0:Math.min(0,(S.myWk||0)+Number(v)); renderDrawer(); break;
@@ -3349,7 +3417,7 @@ renderMain();
   db.collection("log").onSnapshot(s=>{ S.log=new Map(s.docs.map(d=>[d.id,d.data()])); recompute(); got.l=true; refresh(); fetchNames(); }, e=>{ got.l=true; refresh(); });
   db.doc("settings/board").onSnapshot(s=>{ S.settings=s.exists?s.data():{}; refresh(); }, e=>{});
   loadChat();
-  db.collection("settings").onSnapshot(s=>{ S.dayCfg=new Map(s.docs.filter(d=>d.id.startsWith("day-")).map(d=>[d.id.slice(4),d.data()])); refresh(); }, e=>{});
+  db.collection("settings").onSnapshot(s=>{ { const fm=s.docs.find(d=>d.id==="former"); S.former=fm?fm.data()||{}:{}; } S.dayCfg=new Map(s.docs.filter(d=>d.id.startsWith("day-")).map(d=>[d.id.slice(4),d.data()])); refresh(); }, e=>{});
   if(S.me.money){
     db.collection("fin").onSnapshot(s=>{ const m=new Map(), pays=new Map(); for(const d of s.docs){ if(d.id==="settings") S.finSet=d.data(); else if(d.id==="payroll") S.payroll=d.data()||{}; else if(d.id.startsWith("pay-")) pays.set(d.id,d.data()); else m.set(d.id,d.data()); } S.fin=m; S.pays=pays; S.stmt=null; refresh(); }, e=>{});
   }

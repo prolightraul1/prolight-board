@@ -42,6 +42,21 @@
       if (error) throw new Error(error.message);
       await PL.reloadStaff();
     },
+    async remove(id) {
+      const { error } = await sb.rpc("staff_delete", { p_id: id });
+      if (error) throw new Error(error.message);
+      await PL.reloadStaff();
+    },
+    async pinReport() {
+      const { data, error } = await sb.rpc("pin_report");
+      if (error) throw new Error(error.message);
+      return data || [];
+    },
+    async setLook(colors) {
+      const { error } = await sb.rpc("staff_set_look", { p_look: { colors } });
+      if (error) throw new Error(error.message);
+      if (ME) ME.look = { colors };
+    },
     async setPin(id, pin) {
       const { error } = await sb.rpc("staff_set_pin", { p_id: id, p_pin: pin });
       if (error) throw new Error(error.message);
@@ -372,8 +387,7 @@
         <div class="head-prev" id="hs-prev"><span>${esc((first[0] || "?").toUpperCase())}</span></div>
         <label class="gate-go head-pick">Take or choose a photo<input type="file" id="hs-file" accept="image/*" hidden></label>
         <button type="button" class="gate-go" id="hs-save" hidden>Use this photo</button>
-        <p class="gate-err" id="gate-err"></p>
-        <button type="button" class="gate-back" id="hs-skip" style="justify-self:center">Skip for now</button>`);
+        <p class="gate-err" id="gate-err"></p>`);
       let blob = null;
       g.querySelector("#hs-file").onchange = async (e) => {
         const f = e.target.files[0]; if (!f) return;
@@ -386,10 +400,31 @@
         try { await PL.setPhoto(ME.id, blob); resolve(); }
         catch (x) { e.target.disabled = false; e.target.textContent = "Use this photo"; $("#gate-err").textContent = "Couldn't save it: " + (x.message || "check your signal") + ". Try again."; }
       };
-      g.querySelector("#hs-skip").onclick = () => resolve();
     });
   }
   const WCOL = { warm: "#FFB23E", white: "#EEF3FF", red: "#E8352B", green: "#22B04F", blue: "#2F6BFF", purple: "#8E4DFF", orange: "#FF7A1A", yellow: "#FFD21F", teal: "#14B8A6" };
+  const LCOMBOS = [["Warm white",["warm"]],["Pure white",["white"]],["Warm + pure white",["warm","white"]],["Classic multicolor",["red","green","blue","orange","yellow"]],["Red & green",["red","green"]],["Candy cane",["red","white"]],["Red, white & green",["red","white","green"]],["Blue & white",["blue","white"]],["Icy",["white","blue","teal"]],["Red, white & blue",["red","white","blue"]],["Green & gold",["green","yellow"]],["Purple & teal",["purple","teal"]],["Rainbow",["red","orange","yellow","green","teal","blue","purple","white","warm"]]];
+  const lookFlag = () => { try { return !!localStorage.getItem("prolight-look-set:" + ME.id); } catch (e) { return false; } };
+  function saveLookLocal(colors) { try { const o = JSON.parse(localStorage.getItem("look") || "{}"); o.colors = colors; localStorage.setItem("look", JSON.stringify(o)); localStorage.setItem("prolight-look-set:" + ME.id, "1"); } catch (e) {} }
+  function lookStep() {
+    return new Promise((resolve) => {
+      const first = (ME.name || "").split(" ")[0];
+      let pick = null;
+      const sw = (cs) => `<span class="look-swatch">${cs.map((k) => `<i style="--c:${WCOL[k]}"></i>`).join("")}</span>`;
+      const g = showGate(`<h2>${esc(first)}, pick your lights</h2><p>Your colors light up the bulbs across the board: your route, check-offs and the welcome screen. You can change them later in Account.</p>
+        <div class="look-combos" style="width:100%;text-align:left">${LCOMBOS.map(([l, cs], i) => `<button type="button" class="look-combo" data-i="${i}" aria-pressed="false" style="color:var(--night-ink);background:var(--night-2);border-color:#2a3832">${sw(cs)}${esc(l)}</button>`).join("")}</div>
+        <button type="button" class="gate-go" id="lk-save" disabled>Pick a set of colors</button><p class="gate-err" id="gate-err"></p>`);
+      g.querySelector(".gate-card").style.width = "min(560px,100%)";
+      g.querySelectorAll(".look-combo").forEach((b) => b.onclick = () => { pick = LCOMBOS[+b.dataset.i]; g.querySelectorAll(".look-combo").forEach((x) => x.setAttribute("aria-pressed", x === b)); const s = $("#lk-save"); s.disabled = false; s.textContent = "Use " + pick[0]; });
+      $("#lk-save").onclick = async (e) => {
+        if (!pick) return; e.target.disabled = true; e.target.textContent = "Saving…";
+        saveLookLocal(pick[1]);
+        try { await PL.setLook(pick[1]); } catch (x) {}
+        if (typeof applyLook === "function") try { applyLook(); } catch (x) {}
+        resolve();
+      };
+    });
+  }
   function welcome() {
     let cols = ["warm"]; try { cols = (JSON.parse(localStorage.getItem("look") || "{}").colors || cols).filter((k) => WCOL[k]); } catch (e) {}
     if (!cols.length) cols = ["warm"];
@@ -470,6 +505,8 @@
     if (freshSignIn) {
       freshSignIn = false; document.onkeydown = null;
       if (!ME.photo) await photoStep();
+      if (ME.look && Array.isArray(ME.look.colors) && ME.look.colors.length) saveLookLocal(ME.look.colors.filter((k) => WCOL[k]));
+      else if (!lookFlag()) await lookStep();
       hideGate(); resolveReady(); welcome();
       return;
     }
