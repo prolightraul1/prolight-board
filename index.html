@@ -736,6 +736,10 @@ html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
 .act-t{color:var(--ink-2);font-size:12px;padding-top:4px}
 .act-row.bad{box-shadow:inset 3px 0 0 var(--red)} .act-row.warn{box-shadow:inset 3px 0 0 var(--amber)} .act-row.ok{box-shadow:inset 3px 0 0 var(--cord)}
 .act-more{margin:6px 0 0;padding:8px 10px;background:var(--sunk);border-radius:var(--r-sm);font:12px/1.5 var(--f-mono);white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto}
+.ss-view .lbl.tcl,.ss-view .lbl.pl,.ss-view .d-marks,.ss-view [aria-label="Whose clients"]{display:none!important}
+.ss-view .c-tag,.ss-view .jhead span:nth-child(2){visibility:hidden}
+.wday h4{flex-wrap:wrap;gap:0 6px}
+.ss-view .rail .logo{width:170px} .ss-view .topbar .logo{height:34px}
 .gate-lang{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:max(14px,env(safe-area-inset-right,0px));z-index:2;background:var(--night-2);color:var(--night-ink);border:1px solid #2a3832;border-radius:999px;padding:6px 14px;font-weight:700;font-size:14px}
 </style>
 
@@ -807,7 +811,8 @@ function uid(){ return Math.random().toString(36).slice(2,10); }
 function toast(m){ const t=$("#toast"); t.textContent=m; t.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>t.hidden=true,2600); }
 
 /* ---------- derived ---------- */
-function crews(){
+function crews(){ const a=crewsAll(); return ssOnly()?a.filter(c=>c.co==="shipshape"):a; }
+function crewsAll(){
   const c=S.settings.crews; if(Array.isArray(c)&&c.length) return c;
   const T=S.settings.teams||{};
   return DEFAULT_CREWS.map(d=>({...d, chat:(T[d.id==="pl1"?"prolight":d.id]||{}).chat||""}));
@@ -866,7 +871,7 @@ function recompute(){
     if(e.kind==="done") doneMap.set(e.jobId+"|"+e.visitId, x); else if(e.kind==="partial"){ const k=e.jobId+"|"+e.visitId, o=partialMap.get(k); if(!o||String(o.at)<String(e.at)) partialMap.set(k,x); } }
   for(const a of logByJob.values()) a.sort((p,q)=>String(q.at).localeCompare(String(p.at)));
 }
-function who(id){ if(!id) return "TCL import"; if(id==="jobber") return "Jobber"; if(id===S.me.id) return "You"; return S.names.get(id) || (S.former&&S.former[id]) || "Crew member"; }
+function who(id){ if(!id) return ssOnly()?"Office":"TCL import"; if(id==="jobber") return "Jobber"; if(id===S.me.id) return "You"; return S.names.get(id) || (S.former&&S.former[id]) || "Crew member"; }
 let nameReq=false;
 async function fetchNames(){
   if(!S.user||nameReq) return; const ids=[...new Set([...S.log.values()].map(e=>e.by).filter(id=>id && !S.names.has(id)))]; if(!ids.length) return;
@@ -892,6 +897,7 @@ function renderNav(){
 
 /* ---------- views ---------- */
 function teamSeg(){
+  if(ssOnly()&&crews().length<2) return "";
   const opts=[...crews().map(c=>[c.id,c.name]),["all","All crews"]], m=S.team!=="all"?membersOf(S.team):[];
   return `<div class="chips" role="group" aria-label="Crew" style="max-width:100%">${opts.map(([k,l])=>`<button type="button" class="chip" data-act="team" data-v="${esc(k)}" aria-pressed="${S.team===k}">${esc(l)}</button>`).join("")}</div>${m.length?`<div class="count" style="font-size:14px;flex-basis:100%">On this crew: ${esc(m.join(", "))}</div>`:""}`;
 }
@@ -951,7 +957,7 @@ function mediaTag(m){
 }
 
 function vJobs(){
-  const F=[["active","Active"],["unassigned","Needs a crew"],["unsched","Needs a date"],["scheduled","Scheduled"],["lit","Installed"],["down","Taken down"],["tcl","TCL"],["pl","ProLight"],["co-prolight","ProLight crews"],["co-shipshape","ShipShape crew"],["all","All"]];
+  const F=[["active","Active"],["unassigned","Needs a crew"],["unsched","Needs a date"],["scheduled","Scheduled"],["lit","Installed"],["down","Taken down"],["tcl","TCL"],["pl","ProLight"],["co-prolight","ProLight crews"],["co-shipshape","ShipShape crew"],["all","All"]].filter(([k])=>!ssOnly()||["active","unsched","scheduled","lit","down","all"].includes(k));
   let list=jobsArr(); const q=S.q.jobs.trim().toLowerCase();
   if(q) list=list.filter(j=>{ const c=clientOf(j); return [c.name,addrOf(j),c.phone,j.tclRef,j.scope,j.notes,label(j)].join(" ").toLowerCase().includes(q); });
   const f=S.jf, st=j=>status(j);
@@ -1115,12 +1121,12 @@ function dJob(id){
   const j={id,...j0}, c=clientOf(j), a=addrOf(j), st=status(j), f=S.fin.get(id)||{};
   const visits=[...(j.visits||[])].sort((x,y)=>String(x.date||"9").localeCompare(String(y.date||"9")));
   const entries=logByJob.get(id)||[];
-  let b=`<div class="bar"><span class="bulb ${BULB[st]}"></span><span class="st ${st}">${STATUS[st]}</span><span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span>${j.tclRef?`<span class="mono count">TCL #${esc(j.tclRef)}</span>`:""}</div>
+  let b=`<div class="bar"><span class="bulb ${BULB[st]}"></span><span class="st ${st}">${STATUS[st]}</span><span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span>${j.tclRef&&!ssOnly()?`<span class="mono count">TCL #${esc(j.tclRef)}</span>`:""}</div>
   <div class="d-acts">${a?`<a class="btn" href="${esc(mapsUrl(a))}" target="_blank" rel="noopener">Directions ↗</a>`:""}${c.phone?`<button type="button" class="btn" data-act="copytext" data-v="${esc(c.phone)}">Copy phone</button>`:""}
     ${S.me.owner?`<button type="button" class="btn" data-act="edit-job" data-id="${esc(id)}">Edit job</button>`:""}<button type="button" class="btn" data-act="client" data-id="${esc(j.clientId)}">Client</button>${S.me.owner?`<button type="button" class="btn" data-act="svc-new" data-v="${esc(id)}">+ Service call</button>`:S.me.canLog?`<button type="button" class="btn" data-act="svc-report" data-v="${esc(id)}">Report a problem</button>`:""}${j.jobberUrl&&S.me.owner?`<a class="btn" href="${esc(j.jobberUrl)}" target="_blank" rel="noopener">Jobber #${esc(j.jobberNo||"")} ↗</a>`:""}</div>
   ${S.me.owner?`<div class="f f-who"><label>Who's doing this job</label>${assignUI(j.crew,"assign",`data-id="${esc(id)}"`)}${membersOf(j.crew).length?`<small>${esc(membersOf(j.crew).join(", "))}</small>`:""}</div>`:""}
   <dl class="kv kv-job">${a?`<dt>Address</dt><dd>${esc(a)}</dd>`:""}${c.phone?`<dt>Phone</dt><dd class="mono">${esc(c.phone)}</dd>`:""}${c.gate?`<dt>Access</dt><dd>${esc(c.gate)}</dd>`:""}
-    ${j.scope?`<dt>Lights</dt><dd>${esc(j.scope)}</dd>`:""}${j.rooflineFt?`<dt>Roofline</dt><dd class="mono">${esc(j.rooflineFt)} ft</dd>`:""}${j.season?`<dt>Season</dt><dd class="mono">${esc(j.season)}</dd>`:""}${j.tclWhen?`<dt>TCL target</dt><dd>${esc(j.tclWhen)}</dd>`:""}${j.priority?`<dt>Priority</dt><dd>${esc(j.priority)}</dd>`:""}${j.ready?`<dt>Ready</dt><dd class="mono">${esc(j.ready)} on TCL's checklist</dd>`:""}</dl>
+    ${j.scope?`<dt>Lights</dt><dd>${esc(j.scope)}</dd>`:""}${j.rooflineFt?`<dt>Roofline</dt><dd class="mono">${esc(j.rooflineFt)} ft</dd>`:""}${j.season?`<dt>Season</dt><dd class="mono">${esc(j.season)}</dd>`:""}${j.tclWhen&&!ssOnly()?`<dt>TCL target</dt><dd>${esc(j.tclWhen)}</dd>`:""}${j.priority?`<dt>Priority</dt><dd>${esc(j.priority)}</dd>`:""}${j.ready&&!ssOnly()?`<dt>Ready</dt><dd class="mono">${esc(j.ready)} on TCL's checklist</dd>`:""}</dl>
   ${j.notes?`<div class="t-notes">${esc(j.notes)}</div>`:""}
   <section class="blk blk-visits"><h3 class="h-sec">Visits</h3>${visits.length?visits.map(v=>visitRow(j,v)).join(""):`<p class="lede">No visits scheduled.${S.me.owner?" Edit the job to add install and takedown dates.":""}</p>`}</section>
   <section class="blk blk-mock"><h3 class="h-sec">Mockups</h3>${(j.links||[]).length?`<div class="bar">${j.links.map((u,i)=>`<a class="btn small" href="${esc(u)}" target="_blank" rel="noopener">Mockup ${j.links.length>1?i+1+" ":""}↗</a>`).join("")}</div>`:""}${(j.mockups||[]).length?`<div class="gallery">${j.mockups.map(m=>`<div class="gal-item">${mediaTag(m)}${S.me.owner?`<button type="button" class="x" data-act="rm-mockup" data-id="${esc(m.id)}" aria-label="Remove mockup">×</button>`:""}</div>`).join("")}</div>`:((j.links||[]).length?"":`<p class="lede">No mockups yet.</p>`)}
@@ -1278,7 +1284,7 @@ function mapCard(j){
   return `<div class="side-card">
     <div class="bar" style="flex-wrap:nowrap"><span class="bulb ${BULB[st]}"></span><span class="st ${st}">${STATUS[st]}</span><span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span><span class="grow"></span><button type="button" class="btn icon small" style="flex:none" data-act="map-unsel" aria-label="Close">×</button></div>
     <div><button type="button" class="t-name" data-act="job" data-id="${esc(j.id)}">${esc(c.name||"Customer")}</button><div class="t-addr">${esc(a)}</div>${j.geo==="street"?`<small class="count">Pin is on the street, not the exact house.</small>`:""}</div>
-    <dl class="kv">${j.tclWhen?`<dt>TCL target</dt><dd>${esc(j.tclWhen)}</dd>`:""}${pv&&pv.date?`<dt>${VTYPE[pv.type]}</dt><dd>${fmtDay(pv.date,{weekday:"short",month:"short",day:"numeric"})} · ${esc(teamName(crewOf(j,pv)))}</dd>`:""}${j.scope?`<dt>Lights</dt><dd>${esc(j.scope)}</dd>`:""}</dl>
+    <dl class="kv">${j.tclWhen&&!ssOnly()?`<dt>TCL target</dt><dd>${esc(j.tclWhen)}</dd>`:""}${pv&&pv.date?`<dt>${VTYPE[pv.type]}</dt><dd>${fmtDay(pv.date,{weekday:"short",month:"short",day:"numeric"})} · ${esc(teamName(crewOf(j,pv)))}</dd>`:""}${j.scope?`<dt>Lights</dt><dd>${esc(j.scope)}</dd>`:""}</dl>
     ${S.me.owner?`<div class="f"><label>Crew</label>${assignUI(j.crew,"assign",`data-id="${esc(j.id)}"`)}</div>
       ${pv?`<div class="bar"><input type="date" id="map-date" class="search" style="flex:1 1 140px;min-width:0" value="${esc(pv.date||MAP.date)}"><button type="button" class="btn amber" data-act="map-sched" data-id="${esc(j.id)}">Set ${VTYPE[pv.type].toLowerCase()} date</button></div>`:""}
       ${!hasLL(j)?"":`<button type="button" class="btn small" data-act="map-place" data-id="${esc(j.id)}">Move pin</button>`}`:""}
@@ -2115,7 +2121,7 @@ const canPost = ch => ch!=="ann" || S.me.owner || S.me.manage;
 function vChat(){
   const chans=myChannels(), cur=S.chat.ch&&chans.find(c=>c.id===S.chat.ch)?S.chat.ch:null;
   const last=ch=>{ const m=chanMsgs(ch); return m[m.length-1]; };
-  const groups=[["ann","Announcements"],["crew","Crew channels"],["dm","Direct messages"]];
+  const groups=[["ann","Announcements"],["crew","Crew channels"],["dm","Direct messages"],["office","Office"]].filter(([k])=>k==="ann"||k==="crew"||chans.some(c=>c.kind===k));
   const listHTML=`<div class="chat-list">${groups.map(([k,l])=>{ let cs=chans.filter(c=>c.kind===k); if(k==="dm") cs.sort((a,b)=>String((last(b.id)||{}).at||"").localeCompare(String((last(a.id)||{}).at||""))||a.name.localeCompare(b.name));
     return `<span class="eyebrow">${l}</span>${cs.map(c=>{ const m=last(c.id), u=unreadIn(c.id); return `<button type="button" class="chat-ch ${cur===c.id?"on":""}" data-act="chat-open" data-v="${esc(c.id)}"><span class="m"><b>${esc(c.name)}</b><small>${m?esc((m.by===S.me.id?"You: ":"")+m.body.slice(0,60)):k==="dm"?"Send a message":"No messages yet"}</small></span>${u?`<i class="badge">${u}</i>`:""}</button>`; }).join("")}`; }).join("")}</div>`;
   let thread="";
@@ -3271,9 +3277,33 @@ function vActivity(){
   return h;
 }
 
+/* ---------- ShipShape crew view: nothing ProLight, ShipShape logo ---------- */
+function ssOnly(){
+  const me=window.PL&&PL.me(); if(!me||me.can_edit||me.can_money||me.can_manage) return false;
+  if(me.partner==="shipshape") return true;
+  const c=crewsAll().find(x=>x.id===normCrew(me.crew)); return !!c&&c.co==="shipshape";
+}
+function applyBrand(){
+  const ss=ssOnly(); if(applyBrand.last===ss) return; applyBrand.last=ss;
+  document.body.classList.toggle("ss-view",ss);
+  document.querySelectorAll(".rail .logo,.topbar .logo").forEach(img=>{ img.src=ss?"/brand/shipshape.png":"/brand/prolight.png"; img.alt=ss?"ShipShape Exteriors":"ProLight Tallahassee"; });
+  document.title=ss?"ShipShape · Season Board":"ProLight Season Board";
+  if(ss){ const ids=crews().map(c=>c.id); if(!ids.includes(S.team)) S.team=ids.length===1?ids[0]:"all"; S.ctab="all"; }
+}
+function myChannels(){
+  const me=PL.me()||{}, wide=me.all_crews||me.can_edit||me.can_manage, ss=ssOnly();
+  const list=[{id:"ann",name:"Announcements",kind:"ann"}];
+  for(const c of crews()) if(wide||me.crew===c.id||(ss&&c.co==="shipshape")) list.push({id:"crew:"+c.id,name:c.name,kind:"crew"});
+  for(const p of PL.staff()) if(p.active&&p.id!==me.id){
+    if(ss){ if(isSS(p.id)||p.partner==="shipshape") list.push({id:dmId(me.id,p.id),name:p.name,kind:"dm",who:p.id}); else if(p.can_manage) list.push({id:dmId(me.id,p.id),name:p.name,kind:"office",who:p.id}); }
+    else list.push({id:dmId(me.id,p.id),name:p.name,kind:"dm",who:p.id}); }
+  return list;
+}
+
 /* ---------- render ---------- */
 function renderMain(){
   const __t0=performance.now();
+  applyBrand();
   homeView();
   renderNav();
   const a=document.activeElement, fid=a&&a.id&&a.id.startsWith("q-")?a.id:null, pos=fid?a.selectionStart:0;
