@@ -281,14 +281,15 @@ async function copyFiles(token, j, wid) {
 
 /* Completions: read finished VISITS from Jobber (a job can stay open for invoicing long after the crew is done),
    including TCL jobs, and check them off on the board. Covers jobs created any time, not just recent ones. */
-const VISIT_DONE = `id title startAt completedAt job { id jobNumber title jobberWebUri client { name } }`;
+const VISIT_DONE = `id title startAt completedAt isLastScheduledVisit job { id jobNumber title jobberWebUri client { name } }`;
 async function fetchDoneVisits(token, since) {
   const out = [];
-  for (const mode of ["completedAt", "startAt"]) {
+  const tries = [["completedAt", VISIT_DONE], ["completedAt", VISIT_DONE.replace(" isLastScheduledVisit", "")], ["startAt", VISIT_DONE.replace(" isLastScheduledVisit", "")]];
+  for (const [mode, fields] of tries) {
     try {
       let after = null;
       for (let page = 0; page < 12; page++) {
-        const d = await gql(token, `query($a:String,$s:ISO8601DateTime!){ visits(first:50, after:$a, filter:{${mode}:{after:$s}}){ nodes{ ${VISIT_DONE} } pageInfo{ hasNextPage endCursor } } }`, { a: after, s: since });
+        const d = await gql(token, `query($a:String,$s:ISO8601DateTime!){ visits(first:50, after:$a, filter:{${mode}:{after:$s}}){ nodes{ ${fields} } pageInfo{ hasNextPage endCursor } } }`, { a: after, s: since });
         out.push(...d.visits.nodes.filter((v) => v.completedAt));
         if (!d.visits.pageInfo.hasNextPage) break;
         after = d.visits.pageInfo.endCursor;
@@ -301,18 +302,21 @@ async function fetchDoneVisits(token, since) {
 const tclName = (t) => String(t || "").replace(/^\s*tcl\s*[-–:]?\s*/i, "").replace(/\s*[-–(].*$/, "").trim();
 const NOT_INSTALL = /\b(fix|call ?back|repair|service call|touch ?up|bulbs? out)\b/i;
 function completions(visits, boardJobs, boardClients, boardLog, byWeb) {
-  const rows = [], names = [];
+  const rows = [], names = [], dels = [];
   const doneKey = new Set(boardLog.filter((l) => l.data.kind === "done").map((l) => l.data.jobId + "|" + l.data.visitId));
   const have = new Set(boardLog.map((l) => l.id));
   const tclClients = new Map(); for (const c of boardClients) if (c.data.source === "tcl") tclClients.set(norm(c.data.name), c.id);
   const jobOfClient = new Map(); for (const d of boardJobs) if (d.data.source === "tcl" && d.data.clientId) jobOfClient.set(d.data.clientId, d);
   for (const v of visits) {
-    const vid = webId({ id: v.id }), logId = "jbv-" + vid; if (have.has(logId)) continue;
+    const vid = webId({ id: v.id }), logId = "jbv-" + vid;
     const j = v.job || {}, title = v.title || j.title || "";
+    // wash visits, fix-ups and day 1 of a multi-day install don't finish the light job
+    const notDone = /pro\s?wash|prewash|house wash|roof wash|pressure/i.test(title) || NOT_INSTALL.test(title) || v.isLastScheduledVisit === false;
+    if (have.has(logId)) { if (notDone) dels.push(logId); continue; }
+    if (notDone) continue;
     let board = byWeb.get(webId(j));
     if ((!board || !board.data || !board.data.clientId) && /^\s*tcl\b/i.test(title)) { const cid = tclClients.get(norm(tclName(title))) || tclClients.get(norm(tclName(j.title))); board = cid && jobOfClient.get(cid); }
     if (!board || !board.data || !board.data.clientId) continue;
-    if (NOT_INSTALL.test(title)) continue;
     const visits = board.data.visits || [], inst = visits.find((x) => x.type === "install") || { id: "inst" }, down = visits.find((x) => x.type === "takedown");
     let target = null;
     if (!doneKey.has(board.id + "|" + inst.id)) target = inst.id;
@@ -321,7 +325,7 @@ function completions(visits, boardJobs, boardClients, boardLog, byWeb) {
     rows.push({ coll: "log", id: logId, data: { jobId: board.id, visitId: target, kind: "done", by: "jobber", at: v.completedAt, note: "Marked complete in Jobber" } });
     doneKey.add(board.id + "|" + target); names.push(/^\s*tcl\b/i.test(title) ? tclName(title) : title.trim());
   }
-  return { rows, names };
+  return { rows, names, dels };
 }
 async function sync(trigger, quick) {
   const t0 = Date.now();
@@ -390,6 +394,8 @@ async function sync(trigger, quick) {
     const doneSince = new Date(Date.now() - (quick ? 35 : 75) * 864e5).toISOString();
     const c = completions(await fetchDoneVisits(token, doneSince), [...boardJobs, ...rows.filter((r) => r.coll === "jobs").map((r) => ({ id: r.id, data: r.data }))], boardClients, [...boardLog, ...rows.filter((r) => r.coll === "log").map((r) => ({ id: r.id, data: r.data }))], byWeb);
     rows.push(...c.rows); res.completed = c.rows.length; if (c.names.length) res.completedNames = c.names;
+    for (const id of c.dels) { await sb(`/rest/v1/docs?coll=eq.log&id=eq.${encodeURIComponent(id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } }); }
+    if (c.dels.length) res.uncompleted = c.dels.length;
   } catch (e) { res.completedError = String(e.message || e).slice(0, 200); }
   for (let i = 0; i < rows.length; i += 200) await putDocs(rows.slice(i, i + 200));
   // Photos: a few jobs per run so each sync stays quick; the rest come on the next sync.
