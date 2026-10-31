@@ -279,6 +279,50 @@ async function copyFiles(token, j, wid) {
   return out;
 }
 
+/* Completions: read finished VISITS from Jobber (a job can stay open for invoicing long after the crew is done),
+   including TCL jobs, and check them off on the board. Covers jobs created any time, not just recent ones. */
+const VISIT_DONE = `id title startAt completedAt job { id jobNumber title jobberWebUri client { name } }`;
+async function fetchDoneVisits(token, since) {
+  const out = [];
+  for (const mode of ["completedAt", "startAt"]) {
+    try {
+      let after = null;
+      for (let page = 0; page < 12; page++) {
+        const d = await gql(token, `query($a:String,$s:ISO8601DateTime!){ visits(first:50, after:$a, filter:{${mode}:{after:$s}}){ nodes{ ${VISIT_DONE} } pageInfo{ hasNextPage endCursor } } }`, { a: after, s: since });
+        out.push(...d.visits.nodes.filter((v) => v.completedAt));
+        if (!d.visits.pageInfo.hasNextPage) break;
+        after = d.visits.pageInfo.endCursor;
+      }
+      return out;
+    } catch (e) { if (mode === "startAt") throw e; out.length = 0; }
+  }
+  return out;
+}
+const tclName = (t) => String(t || "").replace(/^\s*tcl\s*[-–:]?\s*/i, "").replace(/\s*[-–(].*$/, "").trim();
+const NOT_INSTALL = /\b(fix|call ?back|repair|service call|touch ?up|bulbs? out)\b/i;
+function completions(visits, boardJobs, boardClients, boardLog, byWeb) {
+  const rows = [], names = [];
+  const doneKey = new Set(boardLog.filter((l) => l.data.kind === "done").map((l) => l.data.jobId + "|" + l.data.visitId));
+  const have = new Set(boardLog.map((l) => l.id));
+  const tclClients = new Map(); for (const c of boardClients) if (c.data.source === "tcl") tclClients.set(norm(c.data.name), c.id);
+  const jobOfClient = new Map(); for (const d of boardJobs) if (d.data.source === "tcl" && d.data.clientId) jobOfClient.set(d.data.clientId, d);
+  for (const v of visits) {
+    const vid = webId({ id: v.id }), logId = "jbv-" + vid; if (have.has(logId)) continue;
+    const j = v.job || {}, title = v.title || j.title || "";
+    let board = byWeb.get(webId(j));
+    if ((!board || !board.data || !board.data.clientId) && /^\s*tcl\b/i.test(title)) { const cid = tclClients.get(norm(tclName(title))) || tclClients.get(norm(tclName(j.title))); board = cid && jobOfClient.get(cid); }
+    if (!board || !board.data || !board.data.clientId) continue;
+    if (NOT_INSTALL.test(title)) continue;
+    const visits = board.data.visits || [], inst = visits.find((x) => x.type === "install") || { id: "inst" }, down = visits.find((x) => x.type === "takedown");
+    let target = null;
+    if (!doneKey.has(board.id + "|" + inst.id)) target = inst.id;
+    else if (down && !doneKey.has(board.id + "|" + down.id) && /-(12|01|02)-/.test(String(v.startAt || ""))) target = down.id;
+    if (!target) continue;
+    rows.push({ coll: "log", id: logId, data: { jobId: board.id, visitId: target, kind: "done", by: "jobber", at: v.completedAt, note: "Marked complete in Jobber" } });
+    doneKey.add(board.id + "|" + target); names.push(/^\s*tcl\b/i.test(title) ? tclName(title) : title.trim());
+  }
+  return { rows, names };
+}
 async function sync(trigger, quick) {
   const t0 = Date.now();
   const conn = await getInt("jobber");
@@ -342,6 +386,11 @@ async function sync(trigger, quick) {
     media.push([j, wid, id, rows.find((r) => r.coll === "jobs" && r.id === id).data]);
     res.added++; res.names.push(cname);
   }
+  try {
+    const doneSince = new Date(Date.now() - (quick ? 35 : 75) * 864e5).toISOString();
+    const c = completions(await fetchDoneVisits(token, doneSince), [...boardJobs, ...rows.filter((r) => r.coll === "jobs").map((r) => ({ id: r.id, data: r.data }))], boardClients, [...boardLog, ...rows.filter((r) => r.coll === "log").map((r) => ({ id: r.id, data: r.data }))], byWeb);
+    rows.push(...c.rows); res.completed = c.rows.length; if (c.names.length) res.completedNames = c.names;
+  } catch (e) { res.completedError = String(e.message || e).slice(0, 200); }
   for (let i = 0; i < rows.length; i += 200) await putDocs(rows.slice(i, i + 200));
   // Photos: a few jobs per run so each sync stays quick; the rest come on the next sync.
   for (const [j, wid, id, d] of media) {
@@ -465,4 +514,4 @@ module.exports = async (req, res) => {
   }
 };
 module.exports.config = { maxDuration: 60 };
-module.exports._test = { classify, scopeOf, localDate, addr, webId, assigneesOf, crewFinder, AUTO_CREW };
+module.exports._test = { completions, tclName, classify, scopeOf, localDate, addr, webId, assigneesOf, crewFinder, AUTO_CREW };
