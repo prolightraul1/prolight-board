@@ -472,6 +472,27 @@ module.exports = async (req, res) => {
       try { await sync("connect"); } catch (e) { q = "error"; await putInt("jobber", { ...(await getInt("jobber")), lastError: e.message }); }
       res.writeHead(302, { Location: "/?jobber=" + q }); return res.end();
     }
+    if (action === "dayreport") {
+      // Revenue by crew for one day (no customer names in the reply, just board ids and amounts).
+      if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
+      const day = String(req.query.date || "").match(/^\d{4}-\d{2}-\d{2}$/) ? req.query.date : new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+      const ex = String(req.query.exclude || "").toLowerCase().split(",").filter(Boolean);
+      const [jobs, clients, fins, logs, settings] = await Promise.all(["jobs", "clients", "fin", "log", "settings"].map(allDocs));
+      const crews = ((settings.find((d) => d.id === "board") || {}).data || {}).crews || [];
+      const cl = new Map(clients.map((c) => [c.id, c.data])), fin = new Map(fins.map((f) => [f.id, f.data]));
+      const done = new Set(logs.filter((l) => l.data.kind === "done").map((l) => l.data.jobId + "|" + l.data.visitId));
+      const out = {}, skipped = [];
+      for (const j of jobs) for (const v of j.data.visits || []) {
+        if (v.date !== day) continue;
+        const name = String((cl.get(j.data.clientId) || {}).name || "").toLowerCase();
+        if (ex.some((e) => name.replace(/\s+/g, "").includes(e))) { skipped.push(j.id); continue; }
+        const crew = v.crew || j.data.crew || "unassigned", f = fin.get(j.id) || {}, price = +f.price || 0, tcl = j.data.source === "tcl";
+        const pct = typeof f.ssPct === "number" ? null : null;
+        (out[crew] = out[crew] || []).push({ id: j.id, src: tcl ? "tcl" : "pl", type: v.type, price, share: Math.round((tcl ? price * 0.4 : price) * 100) / 100, done: done.has(j.id + "|" + v.id) });
+      }
+      const rep = Object.entries(out).map(([id, list]) => ({ crew: id, name: (crews.find((c) => c.id === id) || {}).name || id, jobs: list, total: Math.round(list.reduce((t, x) => t + x.share, 0) * 100) / 100 }));
+      return res.status(200).json({ day, skipped, rep });
+    }
     if (action === "cron") {
       if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
       return res.status(200).json(await sync(req.query.quick ? "every 6 hours" : "nightly", !!req.query.quick));

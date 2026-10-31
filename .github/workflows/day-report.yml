@@ -1,0 +1,16 @@
+name: Day revenue report
+on:
+  workflow_dispatch:
+    inputs:
+      date: { description: "YYYY-MM-DD (blank = today)", required: false, default: "" }
+      exclude: { description: "names to leave out, comma separated", required: false, default: "" }
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Revenue by crew
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          code=$(curl -sS --max-time 60 -o body.txt -w "%{http_code}" -H "Authorization: Bearer $CRON_SECRET" "https://prolight-boardv1.vercel.app/api/jobber?action=dayreport&date=${{ inputs.date }}&exclude=${{ inputs.exclude }}" || echo 000)
+          echo "::notice::$code $(head -c 3500 body.txt | tr '\n' ' ')"
