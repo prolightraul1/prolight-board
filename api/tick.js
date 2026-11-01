@@ -64,8 +64,11 @@ module.exports = async (req, res) => {
         out.did.push("missed-call");
       }
     }
+    // board check-offs → Jobber (visit completed + notes, photos, videos)
+    try { const jp = await require("./jobber.js").pushToJobber({ max: 3 }); if (jp && (jp.completed?.length || jp.notes || jp.errors?.length)) out.jobber = jp; } catch (e) { out.jobberError = String(e.message || e).slice(0, 160); }
     return res.status(200).json(out);
   } catch (e) {
     return res.status(200).json({ error: e.message, ...out });
   }
 };
+module.exports.config = { maxDuration: 60 };

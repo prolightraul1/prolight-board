@@ -740,6 +740,7 @@ html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
 .ss-view .c-crew,.ss-view .jhead span:nth-child(2),.ss-view .jhead span:nth-child(3){visibility:hidden}
 .wday h4{flex-wrap:wrap;gap:0 6px}
 .lbl:empty{display:none}
+.crew-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.crew-ctl{display:inline-flex;gap:6px;margin-left:auto}
 #mockRoot{position:fixed;inset:0;z-index:2400;background:#0b0f0d;color:#eaf0eb;display:flex;flex-direction:column;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);font-size:14px}
 #mockRoot[hidden]{display:none}
 body.in-mock .toast{z-index:2600!important;top:calc(64px + env(safe-area-inset-top,0px));bottom:auto}
@@ -1177,7 +1178,7 @@ function vSettings(){
       <div class="f"><label for="s-trucks">Trucks, one per line</label><textarea id="s-trucks" placeholder="F-250 #1&#10;F-250 #2&#10;Box truck">${esc((S.settings.trucks||[]).join("\n"))}</textarea></div>
       <div class="f"><label for="s-trailers">Trailers, one per line</label><textarea id="s-trailers" placeholder="16 ft enclosed&#10;12 ft utility">${esc((S.settings.trailers||[]).join("\n"))}</textarea></div></div></fieldset>
     <fieldset><legend>Crews</legend><p class="lede" style="font-size:14px">Add the people on each crew, one name per line. Names show on the route and in the night-before text.</p>
-    ${C.map(c=>`<div class="vedit"><div class="full"><span class="lbl ${c.co==="shipshape"?"":"pl"}">${c.co==="shipshape"?"ShipShape":"ProLight"}</span>${C.filter(x=>x.co===c.co).length>1&&!used(c.id)?`<button type="button" class="btn small danger" data-act="rm-crew" data-v="${esc(c.id)}">Remove crew</button>`:""}</div>
+    ${C.map((c,ci)=>`<div class="vedit"><div class="full crew-head"><span class="lbl ${c.co==="shipshape"?"":"pl"}">${c.co==="shipshape"?"ShipShape":"ProLight"}</span>${crewCtl(c,ci,C)}</div>
       <div class="f"><label for="s-${c.id}-name">Crew name</label><input id="s-${c.id}-name" value="${esc(c.name)}"></div>
       <div class="f"><label for="s-${c.id}-chat">Group chat</label><input id="s-${c.id}-chat" value="${esc(c.chat||"")}" placeholder="e.g. Crew 1 (iMessage)"></div>
       <div class="f" style="grid-column:1/-1"><label for="s-${c.id}-members">Crew members</label><textarea id="s-${c.id}-members" placeholder="One name per line">${esc((c.members||[]).join("\n"))}</textarea></div></div>`).join("")}
@@ -4087,6 +4088,34 @@ window.addEventListener("keydown", (ev) => {
   if ((ev.key === "Delete" || ev.key === "Backspace") && mkSel()) { ev.preventDefault(); mkSnap(); MK.els = MK.els.filter((x) => x.id !== MK.sel); MK.sel = ""; MK.panel = "add"; mkRender(); }
 }, true);
 window.addEventListener("resize", () => { if (MK.open) mkDraw(); });
+/* ---------- crews: delete (moving their jobs) and reorder ---------- */
+function crewUses(id){ let n=0; for(const j of jobsArr()){ if(j.crew===id||(j.visits||[]).some(v=>normCrew(v.crew)===id||(v.crews||[]).includes(id))) n++; } return n; }
+function crewCtl(c,ci,C){
+  const up=ci>0?`<button type="button" class="btn small" data-act="crew-move" data-v="${esc(c.id)}|-1" aria-label="Move ${esc(c.name)} up">↑</button>`:"";
+  const dn=ci<C.length-1?`<button type="button" class="btn small" data-act="crew-move" data-v="${esc(c.id)}|1" aria-label="Move ${esc(c.name)} down">↓</button>`:"";
+  let h=`<span class="crew-ctl">${up}${dn}${C.length>1?`<button type="button" class="btn small danger" data-act="rm-crew" data-v="${esc(c.id)}">Delete crew</button>`:""}</span>`;
+  if(S.crewDel===c.id){
+    const n=crewUses(c.id), people=PL.staff().filter(p=>normCrew(p.crew)===c.id&&p.active).map(p=>p.name);
+    h+=`<div class="note crew-del" style="grid-column:1/-1;margin-top:8px"><b>Delete ${esc(c.name)}?</b>
+      ${n?`<div style="margin:6px 0">${n} job${n>1?"s are":" is"} on this crew. Move ${n>1?"them":"it"} to <select id="crew-moveto"><option value="">No crew (unassigned)</option>${C.filter(x=>x.id!==c.id).map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join("")}</select></div>`:`<div style="margin:6px 0">No jobs are on this crew.</div>`}
+      ${people.length?`<div class="count" style="margin-bottom:6px">${esc(people.join(", "))} ${people.length>1?"are":"is"} on this crew. Pick a new crew for ${people.length>1?"them":"them"} in Office → People after.</div>`:""}
+      <div class="bar"><button type="button" class="btn small danger" data-act="rm-crew-yes" data-v="${esc(c.id)}">Delete crew</button><button type="button" class="btn small" data-act="rm-crew-no">Cancel</button></div></div>`;
+  }
+  return h;
+}
+async function moveCrew(id,dir){ const C=collectCrews(), i=C.findIndex(c=>c.id===id), k=i+dir; if(i<0||k<0||k>=C.length) return; [C[i],C[k]]=[C[k],C[i]]; await writeCrews(C,"Crew order saved"); }
+async function deleteCrew(id){
+  const to=(document.getElementById("crew-moveto")||{}).value||"", C=collectCrews().filter(c=>c.id!==id), name=(crewsAll().find(c=>c.id===id)||{}).name||"Crew";
+  try{
+    let moved=0;
+    for(const j of jobsArr()){
+      const hit=j.crew===id||(j.visits||[]).some(v=>normCrew(v.crew)===id||(v.crews||[]).includes(id)); if(!hit) continue;
+      const visits=(j.visits||[]).map(v=>{ const x={...v}; if(normCrew(x.crew)===id) x.crew=to; if(Array.isArray(x.crews)) x.crews=[...new Set(x.crews.map(c=>c===id?to:c).filter(Boolean))]; return x; });
+      await S.db.doc("jobs/"+j.id).update({crew:j.crew===id?to:j.crew,visits,updatedAt:new Date().toISOString()}); moved++;
+    }
+    S.crewDel=null; await writeCrews(C,`${name} deleted${moved?` · ${moved} job${moved>1?"s":""} moved`:""}`);
+  }catch(e){ fail(e,"delete that crew"); }
+}
 
 /* ---------- render ---------- */
 function renderMain(){
@@ -4368,7 +4397,10 @@ document.addEventListener("click", async ev=>{
     case "map-place-cancel": MAP.placing=null; renderMain(); break;
     case "map-sched": t.disabled=true; await mapSchedule(id); break;
     case "add-crew": { const C=collectCrews(), n=C.filter(c=>c.co===v).length+1; C.push({id:(v==="prolight"?"pl":"ss")+uid().slice(0,5),co:v,name:(v==="prolight"?"ProLight Crew ":"ShipShape Crew ")+n,chat:"",members:[]}); await writeCrews(C,"Crew added"); break; }
-    case "rm-crew": await writeCrews(collectCrews().filter(c=>c.id!==v),"Crew removed"); break;
+    case "rm-crew": S.crewDel=v; renderMain(); break;
+    case "rm-crew-no": S.crewDel=null; renderMain(); break;
+    case "rm-crew-yes": t.disabled=true; await deleteCrew(v); break;
+    case "crew-move": { const [cid,d]=v.split("|"); await moveCrew(cid,+d); break; }
     case "day": S.day = v==="0"?todayISO():addDays(S.day,Number(v)); renderMain(); break;
     case "go-day": S._home=1; S.day=v; S.view="route"; renderMain(); window.scrollTo(0,0); break;
     case "week": S.week = v==="0"?monday(todayISO()):addDays(S.week,Number(v)); renderMain(); break;

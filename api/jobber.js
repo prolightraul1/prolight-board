@@ -327,6 +327,99 @@ function completions(visits, boardJobs, boardClients, boardLog, byWeb) {
   }
   return { rows, names, dels };
 }
+/* ---------- board → Jobber: when a job is checked off on the board, complete the visit in Jobber
+   and add the crew's notes, photos and videos to the job's notes. ---------- */
+const PUSH_FROM = "2026-11-01T03:30:00Z"; // only check-offs made after this went live
+const gidJob = (wid) => Buffer.from("gid://Jobber/Job/" + wid).toString("base64");
+const pubUrl = (id) => SB_URL + "/storage/v1/object/public/media/" + String(id).split("/").map(encodeURIComponent).join("/");
+async function markLogged(key) { await sb("/rest/v1/push_log", { method: "POST", headers: { Prefer: "return=minimal,resolution=ignore-duplicates" }, body: JSON.stringify({ key }) }).catch(() => {}); }
+const errs = (p) => ((p && p.userErrors) || []).map((e) => e.message).join("; ");
+async function findTclJob(token, name, date) {
+  const since = new Date(Date.parse((date || new Date().toISOString().slice(0, 10)) + "T00:00:00Z") - 21 * 864e5).toISOString();
+  let after = null;
+  for (let page = 0; page < 8; page++) {
+    const d = await gql(token, `query($a:String,$s:ISO8601DateTime!){ visits(first:50, after:$a, filter:{startAt:{after:$s}}){ nodes{ title job{ jobberWebUri title } } pageInfo{ hasNextPage endCursor } } }`, { a: after, s: since });
+    const hit = d.visits.nodes.find((v) => /^\s*tcl\b/i.test(v.title || (v.job || {}).title || "") && norm(tclName(v.title || v.job.title)) === norm(name));
+    if (hit) return (String(hit.job.jobberWebUri || "").match(/work_orders\/(\d+)/) || [])[1] || "";
+    if (!d.visits.pageInfo.hasNextPage) break; after = d.visits.pageInfo.endCursor;
+  }
+  return "";
+}
+async function pushToJobber(opts = {}) {
+  const res = { completed: [], notes: 0, files: 0, errors: [] };
+  const conn = await getInt("jobber"); if (!conn || !conn.refresh_token) return { skipped: "Jobber not connected" };
+  const since = new Date(Math.max(Date.parse(PUSH_FROM), Date.now() - 10 * 864e5)).toISOString();
+  const logs = await sb(`/rest/v1/docs?coll=eq.log&updated_at=gte.${encodeURIComponent(since)}&select=id,data`);
+  const sent = new Set((await sb("/rest/v1/push_log?key=like.jbpush:*&select=key").catch(() => [])).map((r) => r.key));
+  const logged = async (k) => sent.has(k);
+  const who = (id) => ((staff.find((p) => p.id === id) || {}).name || "Crew");
+  const cname = (j) => ((clients.find((c) => c.id === j.data.clientId) || {}).data || {}).name || "";
+  const mine = logs.filter((l) => l.data.by && l.data.by !== "jobber" && String(l.data.at || "") >= PUSH_FROM && !l.data.pending);
+  const dones = mine.filter((l) => l.data.kind === "done");
+  const doneJobs = new Set(logs.filter((l) => l.data.kind === "done").map((l) => l.data.jobId));
+  const notes = mine.filter((l) => (l.data.kind === "note" || l.data.kind === "issue") && doneJobs.has(l.data.jobId));
+  const work = [...new Set([...dones, ...notes].filter((l) => !sent.has("jbpush:" + l.id)).map((l) => l.data.jobId))];
+  if (!work.length) return res;
+  const [jobs, clients, staff] = await Promise.all([allDocs("jobs"), allDocs("clients"), sb("/rest/v1/staff?select=id,name").catch(() => [])]);
+  let token = null;
+  for (const jid of work.slice(0, opts.max || 4)) {
+    const job = jobs.find((j) => j.id === jid); if (!job) continue;
+    const todoDone = []; for (const l of dones.filter((x) => x.data.jobId === jid)) if (!(await logged("jbpush:" + l.id))) todoDone.push(l);
+    const todoNotes = []; for (const l of notes.filter((x) => x.data.jobId === jid)) if (!(await logged("jbpush:" + l.id))) todoNotes.push(l);
+    if (!todoDone.length && !todoNotes.length) continue;
+    try {
+      token = token || await accessToken();
+      let wid = (String(job.data.jobberUrl || "").match(/work_orders\/(\d+)/) || [])[1];
+      if (!wid && job.data.source === "tcl") {
+        const v0 = (job.data.visits || []).find((v) => v.type === "install") || {};
+        wid = await findTclJob(token, cname(job), v0.date);
+        if (wid) { const fresh = (await sb(`/rest/v1/docs?coll=eq.jobs&id=eq.${encodeURIComponent(jid)}&select=data`))[0]; await putDocs([{ coll: "jobs", id: jid, data: { ...((fresh && fresh.data) || job.data), jobberUrl: "https://secure.getjobber.com/work_orders/" + wid } }]); }
+      }
+      if (!wid) { for (const l of [...todoDone, ...todoNotes]) await markLogged("jbpush:" + l.id); res.errors.push(cname(job) + ": not in Jobber"); continue; }
+      const jg = gidJob(wid);
+      // 1. complete the matching visit
+      for (const l of todoDone) {
+        const bv = (job.data.visits || []).find((v) => v.id === l.data.visitId) || {};
+        const d = await gql(token, `query($id:EncodedId!){ job(id:$id){ visits(first:30){ nodes{ id startAt completedAt } } } }`, { id: jg });
+        const open = ((d.job && d.job.visits.nodes) || []).filter((v) => !v.completedAt).sort((a, b) => String(a.startAt).localeCompare(String(b.startAt)));
+        const pick = open.find((v) => bv.date && localDate(v.startAt) === bv.date) || (bv.type === "takedown" ? open[open.length - 1] : open[0]);
+        if (pick) {
+          const r = await gql(token, `mutation($v:EncodedId!,$at:ISO8601DateTime){ visitComplete(visitId:$v, input:{completedAt:$at}){ visit{ id } userErrors{ message } } }`, { v: pick.id, at: l.data.at });
+          if (errs(r.visitComplete)) throw new Error(errs(r.visitComplete));
+          res.completed.push(cname(job));
+        }
+      }
+      // 2. one note with everything the crew posted, photos and videos attached
+      const parts = [], files = [];
+      for (const l of todoDone) parts.push(`✓ ${(job.data.visits || []).find((v) => v.id === l.data.visitId)?.type === "takedown" ? "Takedown" : "Install"} marked done on the ProLight board by ${who(l.data.by)} · ${new Date(l.data.at).toLocaleString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}${l.data.note ? "\n" + l.data.note : ""}`);
+      for (const l of todoNotes.sort((a, b) => String(a.data.at).localeCompare(String(b.data.at)))) {
+        const t = String(l.data.text || l.data.note || "").trim(), kind = l.data.kind === "issue" ? "Problem reported" + (l.data.reason ? " (" + l.data.reason + ")" : "") : "Note";
+        if (t || (l.data.media || []).length) parts.push(`${kind} from ${who(l.data.by)}${t ? ": " + t : ""}`);
+        for (const m of l.data.media || []) files.push({ url: pubUrl(m.id) });
+      }
+      for (const l of todoDone) for (const m of l.data.media || []) files.push({ url: pubUrl(m.id) });
+      if (parts.length || files.length) {
+        const message = ["From the ProLight board", ...parts].join("\n\n");
+        const r = await gql(token, `mutation($j:EncodedId!,$in:JobCreateNoteInput!){ jobCreateNote(jobId:$j, input:$in){ jobNote{ id } userErrors{ message } } }`, { j: jg, in: { message, attachments: files.slice(0, 20) } });
+        if (errs(r.jobCreateNote)) {
+          // try the note on its own, then the files one by one
+          const r2 = await gql(token, `mutation($j:EncodedId!,$in:JobCreateNoteInput!){ jobCreateNote(jobId:$j, input:$in){ jobNote{ id } userErrors{ message } } }`, { j: jg, in: { message } });
+          if (errs(r2.jobCreateNote)) throw new Error(errs(r2.jobCreateNote));
+          const nid = r2.jobCreateNote.jobNote.id;
+          for (const f of files.slice(0, 20)) { const a = await gql(token, `mutation($n:EncodedId!,$j:EncodedId!,$f:[NoteAttachmentAttributes!]!){ jobNoteAddAttachment(noteId:$n, jobId:$j, noteAddAttachmentAttributes:$f){ userErrors{ message } } }`, { n: nid, j: jg, f: [f] }).catch((e) => ({ e })); if (!a.e && !errs(a.jobNoteAddAttachment)) res.files++; }
+        } else res.files += Math.min(files.length, 20);
+        res.notes++;
+      }
+      for (const l of [...todoDone, ...todoNotes]) await markLogged("jbpush:" + l.id);
+    } catch (e) {
+      const msg = String(e.message || e).slice(0, 200);
+      res.errors.push(cname(job) + ": " + msg);
+      if (/scope|permission|access|unauthori|forbidden/i.test(msg)) { res.needsWrite = true; break; }
+    }
+  }
+  if (res.completed.length || res.notes || res.errors.length) await putInt("jobberPush", { at: new Date().toISOString(), ...res }).catch(() => {});
+  return res;
+}
 async function sync(trigger, quick) {
   const t0 = Date.now();
   const conn = await getInt("jobber");
@@ -472,6 +565,10 @@ module.exports = async (req, res) => {
       try { await sync("connect"); } catch (e) { q = "error"; await putInt("jobber", { ...(await getInt("jobber")), lastError: e.message }); }
       res.writeHead(302, { Location: "/?jobber=" + q }); return res.end();
     }
+    if (action === "push") {
+      if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
+      return res.status(200).json(await pushToJobber({ max: 6 }));
+    }
     if (action === "schema") {
       if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
       const token = await accessToken(); let scopes = "";
@@ -554,4 +651,5 @@ module.exports = async (req, res) => {
   }
 };
 module.exports.config = { maxDuration: 60 };
+module.exports.pushToJobber = pushToJobber;
 module.exports._test = { completions, tclName, classify, scopeOf, localDate, addr, webId, assigneesOf, crewFinder, AUTO_CREW };
