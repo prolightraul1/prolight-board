@@ -580,6 +580,7 @@ module.exports = async (req, res) => {
       for (const p of staff.filter((x) => x.active)) {
         const first = String(p.name || "").trim().split(/\s+/)[0].toLowerCase();
         if (first === "raul") { set(p.id, { rate: 0, jobPct: 0, mgmtPct: 3 }); out.raul.push(p.name); continue; }
+        if (first === "test") { out.skipped.push(p.name); continue; }
         if (!p.can_manage && p.partner !== "shipshape" && !["jarrod", "brayden"].includes(first) && plCrews.includes(p.crew === "prolight" ? "pl1" : String(p.crew || ""))) { set(p.id, { rate: 20, jobPct: 4, mgmtPct: 0 }); out.techs.push(p.name); }
         else out.skipped.push(p.name);
       }
