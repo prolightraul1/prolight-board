@@ -5,6 +5,7 @@ on:
       q: { required: false, default: "" }
       inputs: { required: false, default: "" }
       types: { required: false, default: "" }
+      action: { required: false, default: "schema" }
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -13,5 +14,5 @@ jobs:
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          curl -sS --max-time 60 -o body.txt -H "Authorization: Bearer $CRON_SECRET" "https://prolight-boardv1.vercel.app/api/jobber?action=schema&q=${{ inputs.q }}&inputs=${{ inputs.inputs }}&types=${{ inputs.types }}"
+          curl -sS --max-time 60 -o body.txt -H "Authorization: Bearer $CRON_SECRET" "https://prolight-boardv1.vercel.app/api/jobber?action=${{ inputs.action }}&q=${{ inputs.q }}&inputs=${{ inputs.inputs }}&types=${{ inputs.types }}"
           n=$(wc -c < body.txt); i=0; while [ $i -lt $n ]; do echo "::notice::$(tail -c +$((i+1)) body.txt | head -c 3000 | tr '\n' ' ')"; i=$((i+3000)); done
