@@ -740,6 +740,10 @@ html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
 .ss-view .c-crew,.ss-view .jhead span:nth-child(2),.ss-view .jhead span:nth-child(3){visibility:hidden}
 .wday h4{flex-wrap:wrap;gap:0 6px}
 .lbl:empty{display:none}
+.fee-chip{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:999px;border:1px solid var(--amber,#f5b83d);color:var(--amber-ink,#9a6200);font:600 12px/1.5 var(--mono,ui-monospace,monospace);vertical-align:middle;white-space:nowrap}
+.fee-chip.ok{border-color:var(--ok,#1f8a4c);color:var(--ok,#1f8a4c)}
+.fee-blk{border:1px solid var(--amber,#f5b83d);border-radius:14px;padding:10px 14px;margin-bottom:10px}.fee-row{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-top:4px}.fee-row b{font-size:24px}.fee-row span{color:var(--ink-2)}
+.fee-sum{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 18px;margin:10px 0;padding:10px 14px;border:1px solid var(--amber,#f5b83d);border-radius:14px}.fee-sum b{font-size:18px}
 .lightbox{overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .lightbox img{max-width:100%;max-height:calc(100vh - 48px);max-height:calc(100dvh - 48px);cursor:zoom-in}
 .lightbox.lb-full{display:block;padding:0}.lightbox.lb-full img{max-width:none;max-height:none;width:auto;cursor:zoom-out;display:block;margin:0 auto}
@@ -1070,7 +1074,7 @@ function vJobs(){
     <div class="chips" role="group" aria-label="Filter jobs">${F.map(([k,l])=>`<button type="button" class="chip" data-act="jf" data-v="${k}" aria-pressed="${S.jf===k}">${l}</button>`).join("")}</div>`;
   if(!S.ready) return h+skel(5);
   if(!S.jobs.size) return h+`<div class="empty"><h3>No jobs yet</h3><p>${S.me.owner?"Add a job for each house this season. Mark it ProLight or TCL, pick the crew, and set the install and takedown dates.":"Jobs the office adds will appear here."}</p></div>`;
-  h+=`<span class="count">${list.length} job${list.length===1?"":"s"}</span>`;
+  h+=`<span class="count">${list.length} job${list.length===1?"":"s"}</span>`+myFeeTotals(list);
   h+= list.length ? jobHead()+`<div class="rows">${list.map(jobRow).join("")}</div>` : `<p class="lede">No jobs match.</p>`;
   return h;
 }
@@ -1229,7 +1233,7 @@ function dJob(id){
   <section class="blk blk-mock"><h3 class="h-sec">Mockups</h3>${(j.links||[]).length?`<div class="bar">${j.links.map((u,i)=>`<a class="btn small" href="${esc(u)}" target="_blank" rel="noopener">Mockup ${j.links.length>1?i+1+" ":""}↗</a>`).join("")}</div>`:""}${(j.mockups||[]).length?`<div class="gallery">${j.mockups.map(m=>`<div class="gal-item">${mediaTag(m)}${m.studio&&canMock()?`<button type="button" class="mk-edit" data-act="mockup" data-id="${esc(id)}" data-v="${esc(m.id)}">✎ Edit</button>`:""}${S.me.owner?`<button type="button" class="x" data-act="rm-mockup" data-id="${esc(m.id)}" aria-label="Remove mockup">×</button>`:""}</div>`).join("")}</div>`:((j.links||[]).length?"":`<p class="lede">No mockups yet.</p>`)}
     ${canMock()?`<div class="bar mk-cta"><button type="button" class="btn amber" data-act="mockup" data-id="${esc(id)}">✨ Light mockup</button><small>Draw lights on a photo of the house</small></div>`:""}${S.me.owner&&S.assets?`<div><label class="btn file-btn">+ Add mockup<input type="file" id="mockup-file" accept="image/*,application/pdf" multiple></label></div>`:""}</section>`;
   if(S.me.money){ const s=split(j,f);
-    b+=`<section class="blk blk-money"><h3 class="h-sec">Money</h3>${s.price?`<div class="calc">${calcLines(j,s.price,f.ssPct)}</div>
+    b+=`<section class="blk blk-money"><h3 class="h-sec">Money</h3>${myFeeBlock(j)}${s.price?`<div class="calc">${calcLines(j,s.price,f.ssPct)}</div>
       <div class="bar"><button type="button" class="tog" data-act="fin-tog" data-k="collected" data-id="${esc(id)}" aria-pressed="${!!f.collected}">${f.collected?"Collected":"Not collected"}</button>${s.ss?`<button type="button" class="tog" data-act="fin-tog" data-k="ssPaid" data-id="${esc(id)}" aria-pressed="${!!f.ssPaid}">${f.ssPaid?"ShipShape paid":"ShipShape owed"}</button>`:""}${f.invoiceNo?`<span class="mono count">Invoice ${esc(f.invoiceNo)}</span>`:""}</div>`:`<p class="lede">No price yet. Edit the job to add one.</p>`}
       ${f.privateNote?`<div class="note">${esc(f.privateNote)}</div>`:""}${j.source==="tcl"||extrasOf(f).length?extrasHTML(j,f):""}${saleLine(j)}</section>`; }
   b+=`<section class="blk"><h3 class="h-sec">Notes & photos</h3>`;
@@ -3016,7 +3020,7 @@ function jobRow(j){
   const tag=`<span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span>`;
   return `<button type="button" class="row jrow" data-act="job" data-id="${esc(j.id)}">
     <span class="bulb ${BULB[st]}"></span>
-    <span class="m"><span class="n">${esc(c.name||"Customer")}</span><span class="s">${tag}<span class="a">${esc(addrOf(j)||"No address")}</span></span></span>
+    <span class="m"><span class="n">${esc(c.name||"Customer")}${myFeeChip(j)}</span><span class="s">${tag}<span class="a">${esc(addrOf(j)||"No address")}</span></span></span>
     <span class="c-tag">${tag}</span><span class="c-crew">${esc(team)}</span>
     <span class="r"><span class="pill ${st}">${STATUS[st]}</span>${when?`<span class="when">${esc(when)}</span>`:""}</span>
   </button>`;
@@ -4372,6 +4376,26 @@ function myPayToday(d,st){
     <div class="dmoney">${line(`Management fee · ${pl.mgmtPct}% of ${doneToday.length} install${doneToday.length===1?"":"s"} done`,mgmt)}${line(`Job % · ${pl.jobPct}%`,jobPay)}${line(`Hours · ${h1(ms/36e5)} hrs at $${pl.rate}/hr`,hourly)}${line(`Sales commission · ${sales.length} sale${sales.length===1?"":"s"}`,comm)}
       ${line(`Still to earn · ${pl.mgmtPct}% of ${open.length} install${open.length===1?"":"s"} left`,moreMgmt)}${line("Commission on your sales still to install",moreComm)}</div>
     ${!pl.rate&&!pl.mgmtPct&&!pl.jobPct?`<p class="count">Set your pay in Office → Payroll → Pay plans.</p>`:""}</section>`;
+}
+/* ---------- Raul only: his management fee on every job ---------- */
+function myFee(j){
+  if(!isRaul()) return null;
+  const id=S.me.id, price=+((S.fin.get(j.id)||{}).price)||0, inst=installedOn(j);
+  const pl=planFor(id, inst||"9999-12-31"), pct=pl.mgmtPct||0;
+  return {price, pct, fee:Math.round(price*pct)/100, earned:!!inst&&pct>0, inst, before:!!inst&&!pct};
+}
+const myFeeChip = j => { const f=myFee(j); if(!f||!f.price||(!f.pct&&!f.before)) return ""; return `<span class="fee-chip ${f.earned?"ok":""}" title="Your ${f.pct}% management fee">${f.before?"before 3%":`${f.pct}% · ${money2(f.fee)}`}</span>`; };
+function myFeeBlock(j){
+  const f=myFee(j); if(!f) return "";
+  if(!f.price) return `<section class="blk fee-blk"><span class="eyebrow">Your management fee · only you see this</span><p class="count">No price on this job yet.</p></section>`;
+  return `<section class="blk fee-blk"><span class="eyebrow">Your management fee · only you see this</span>
+    <div class="fee-row"><b>${f.before?"$0.00":money2(f.fee)}</b><span>${f.before?`Installed ${esc(fmtDay(f.inst))}, before your 3% started`:`${f.pct}% of ${money2(f.price)} · ${f.earned?`earned ${esc(fmtDay(f.inst))}`:"you get it when the install is checked off"}`}</span></div></section>`;
+}
+function myFeeTotals(list){
+  if(!isRaul()) return "";
+  let earned=0, coming=0; for(const j of list){ if(j.stage==="cancelled") continue; const f=myFee(j); if(!f||!f.pct) continue; f.earned?earned+=f.fee:coming+=f.fee; }
+  if(!earned&&!coming) return "";
+  return `<div class="fee-sum"><span class="eyebrow">Your 3% · only you see this</span><span>Earned <b>${money2(earned)}</b></span><span>Still to come <b>${money2(coming)}</b></span><span class="count">on the jobs below</span></div>`;
 }
 
 /* ---------- render ---------- */
