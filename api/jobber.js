@@ -472,6 +472,19 @@ module.exports = async (req, res) => {
       try { await sync("connect"); } catch (e) { q = "error"; await putInt("jobber", { ...(await getInt("jobber")), lastError: e.message }); }
       res.writeHead(302, { Location: "/?jobber=" + q }); return res.end();
     }
+    if (action === "schema") {
+      if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
+      const token = await accessToken(); let scopes = "";
+      try { const pl = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString()); scopes = pl.scope || pl.scopes || ""; } catch (e) {}
+      const m = await gql(token, `{ __type(name:"Mutation"){ fields{ name args{ name type{ ...T } } } } } ${TT}`);
+      const want = new RegExp(String(req.query.q || "visit|note|attach|file|upload|jobClose|complete"), "i");
+      const tn = (t) => { let s = ""; for (; t; t = t.ofType) s += t.name ? t.name : t.kind === "LIST" ? "[" : "!"; return s; };
+      const muts = m.__type.fields.filter((f) => want.test(f.name)).map((f) => f.name + "(" + f.args.map((a) => a.name + ":" + tn(a.type)).join(",") + ")");
+      const types = {};
+      for (const n of String(req.query.types || "").split(",").filter(Boolean)) { try { const t = await typeQ(token, n); types[n] = (t.fields || t.inputFields || []).map ? (t.fields || []).map((f) => f.name + ":" + tn(f.type)) : t; } catch (e) { types[n] = e.message; } }
+      for (const n of String(req.query.inputs || "").split(",").filter(Boolean)) { try { const t = (await gql(token, `query($n:String!){ __type(name:$n){ inputFields{ name type{ ...T } } enumValues{ name } } } ${TT}`, { n })).__type; types[n] = t ? [...(t.inputFields || []).map((f) => f.name + ":" + tn(f.type)), ...(t.enumValues || []).map((e) => e.name)] : null; } catch (e) { types[n] = e.message; } }
+      return res.status(200).json({ scopes, muts, types });
+    }
     if (action === "dayreport") {
       // Revenue by crew for one day (no customer names in the reply, just board ids and amounts).
       if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });

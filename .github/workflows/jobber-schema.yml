@@ -1,0 +1,16 @@
+name: Jobber schema check
+on:
+  workflow_dispatch:
+    inputs:
+      q: { required: false, default: "" }
+      inputs: { required: false, default: "" }
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ask Jobber
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -sS --max-time 60 -o body.txt -H "Authorization: Bearer $CRON_SECRET" "https://prolight-boardv1.vercel.app/api/jobber?action=schema&q=${{ inputs.q }}&inputs=${{ inputs.inputs }}"
+          fold -w 3000 body.txt | while IFS= read -r l; do echo "::notice::$l"; done
