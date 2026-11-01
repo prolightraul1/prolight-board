@@ -64,6 +64,13 @@ module.exports = async (req, res) => {
         out.did.push("missed-call");
       }
     }
+    // Monday 7 AM: last week's payroll is ready (money managers)
+    if (now.dow === 1 && now.min >= 7 * 60 && now.min < 7 * 60 + 15 && (await firstTime("payroll-ready:" + now.date))) {
+      const money = await sb("/rest/v1/staff?can_money=eq.true&active=eq.true&select=id,name,active,notify,look").catch(() => []);
+      out.did.push("payroll:" + await pushTo(money, "payroll", (p) => lang(p) === "es"
+        ? { title: "Nómina lista", body: "La nómina de la semana pasada está lista en Oficina → Nómina.", url: "/?go=office:payroll-last", tag: "payroll" }
+        : { title: "Payroll is ready", body: "Last week's payroll is ready. Tap to open it.", url: "/?go=office:payroll-last", tag: "payroll" }));
+    }
     // board check-offs → Jobber (visit completed + notes, photos, videos)
     try { const jp = await require("./jobber.js").pushToJobber({ max: 3 }); if (jp && (jp.completed?.length || jp.notes || jp.errors?.length)) out.jobber = jp; } catch (e) { out.jobberError = String(e.message || e).slice(0, 160); }
     return res.status(200).json(out);

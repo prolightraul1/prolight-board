@@ -569,6 +569,23 @@ module.exports = async (req, res) => {
       if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
       return res.status(200).json(await pushToJobber({ max: 6 }));
     }
+    if (action === "payplan") {
+      // one-time: new pay plans starting Mon Nov 2 (Raul: 3% management fee only; ProLight techs: $20/hr + 4% of jobs they complete)
+      if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
+      const FROM = "2026-11-02", dry = !!req.query.dry;
+      const [staff, settings, finRows] = await Promise.all([sb("/rest/v1/staff?select=id,name,crew,active,can_manage,partner"), allDocs("settings"), sb("/rest/v1/docs?coll=eq.fin&id=eq.payroll&select=data")]);
+      const crews = ((settings.find((d) => d.id === "board") || {}).data || {}).crews || [], plCrews = crews.filter((c) => c.co === "prolight").map((c) => c.id);
+      const pay = (finRows[0] || {}).data || {}, rates = { ...(pay.rates || {}) }, set = (id, plan) => { const r = { ...(rates[id] || {}) }; r.plans = [...(r.plans || []).filter((p) => p.from !== FROM), { from: FROM, ...plan }]; rates[id] = r; };
+      const out = { raul: [], techs: [], skipped: [] };
+      for (const p of staff.filter((x) => x.active)) {
+        const first = String(p.name || "").trim().split(/\s+/)[0].toLowerCase();
+        if (first === "raul") { set(p.id, { rate: 0, jobPct: 0, mgmtPct: 3 }); out.raul.push(p.name); continue; }
+        if (!p.can_manage && p.partner !== "shipshape" && !["jarrod", "brayden"].includes(first) && plCrews.includes(p.crew === "prolight" ? "pl1" : String(p.crew || ""))) { set(p.id, { rate: 20, jobPct: 4, mgmtPct: 0 }); out.techs.push(p.name); }
+        else out.skipped.push(p.name);
+      }
+      if (!dry) await putDocs([{ coll: "fin", id: "payroll", data: { ...pay, rates } }]);
+      return res.status(200).json({ dry, from: FROM, ...out });
+    }
     if (action === "schema") {
       if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
       const token = await accessToken(); let scopes = "";
