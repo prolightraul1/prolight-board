@@ -587,6 +587,28 @@ module.exports = async (req, res) => {
       if (!dry) await putDocs([{ coll: "fin", id: "payroll", data: { ...pay, rates } }]);
       return res.status(200).json({ dry, from: FROM, ...out });
     }
+    if (action === "findjob" || action === "addsvc") {
+      if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
+      const [jobs, clients] = await Promise.all([allDocs("jobs"), allDocs("clients")]);
+      const cn = (j) => ((clients.find((c) => c.id === j.data.clientId) || {}).data || {}).name || "";
+      if (action === "findjob") {
+        const qs = String(req.query.q || "").toLowerCase().split(",").map((x) => x.trim()).filter(Boolean);
+        return res.status(200).json(Object.fromEntries(qs.map((q) => [q, jobs.filter((j) => cn(j).toLowerCase().includes(q) || String(j.data.jobberUrl || "").includes(q)).map((j) => ({ id: j.id, name: cn(j), src: j.data.source, stage: j.data.stage, scope: j.data.scope || "", visits: (j.data.visits || []).map((v) => v.type + ":" + (v.date || "-")) }))])));
+      }
+      // addsvc: body-less, items in q as id~note~scope|id~note~scope
+      const items = String(req.query.q || "").split("|").map((x) => x.split("~")).filter((x) => x[0]);
+      const out = [], now = new Date().toISOString(), rows = [];
+      for (const [id, note, scope] of items) {
+        const j = jobs.find((x) => x.id === id); if (!j) { out.push({ id, error: "not found" }); continue; }
+        const d = JSON.parse(JSON.stringify(j.data));
+        if ((d.visits || []).some((v) => v.type === "service" && v.note === note)) { out.push({ id, skip: "already there" }); continue; }
+        d.visits = [...(d.visits || []), { id: "svc" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), type: "service", date: "", time: "", crew: "", note, order: null, svc: { reason: "Bulb change out", details: note, urgent: false, reportedAt: now, by: "office" } }];
+        if (scope) { d.scopeBefore = d.scopeBefore || d.scope || ""; d.scope = scope; }
+        d.updatedAt = now; rows.push({ coll: "jobs", id, data: d }); out.push({ id, ok: true });
+      }
+      await putDocs(rows);
+      return res.status(200).json({ out });
+    }
     if (action === "schema") {
       if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
       const token = await accessToken(); let scopes = "";
