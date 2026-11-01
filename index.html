@@ -740,6 +740,7 @@ html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
 .ss-view .c-crew,.ss-view .jhead span:nth-child(2),.ss-view .jhead span:nth-child(3){visibility:hidden}
 .wday h4{flex-wrap:wrap;gap:0 6px}
 .lbl:empty{display:none}
+.tr-tog{display:inline-block;margin:4px 0 2px;padding:2px 8px;border:1px solid var(--line,#ccd);border-radius:999px;background:none;color:var(--ink-2,#566);font:600 12px/1.4 inherit;cursor:pointer}
 .pay-ed{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;margin-left:auto}.pay-ed label{display:inline-flex;align-items:center;gap:3px}.pay-row .m{min-width:200px}
 .crew-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.crew-ctl{display:inline-flex;gap:6px;margin-left:auto}
 #mockRoot{position:fixed;inset:0;z-index:2400;background:#0b0f0d;color:#eaf0eb;display:flex;flex-direction:column;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);font-size:14px}
@@ -1027,7 +1028,7 @@ function stopCard(s,i,n){
       <button type="button" class="t-name" data-act="job" data-id="${esc(j.id)}">${esc(c.name||"Customer")}</button>
       ${a?`<div class="t-addr">${esc(a)}</div>`:""}
       ${visitExtrasLine(v)}
-      ${(j.scope||j.rooflineFt)?`<div class="t-facts">${j.scope?`<span><b>Lights</b>${esc(j.scope)}</span>`:""}${j.rooflineFt?`<span><b>Roofline</b><span class="mono">${esc(j.rooflineFt)} ft</span></span>`:""}</div>`:""}
+      ${(j.scope||j.rooflineFt)?`<div class="t-facts">${j.scope?`<span><b>Lights</b><span data-tr>${esc(j.scope)}</span></span>`:""}${j.rooflineFt?`<span><b>Roofline</b><span class="mono">${esc(j.rooflineFt)} ft</span></span>`:""}</div>`:""}
       ${notes?`<div class="t-notes">${esc(notes)}</div>`:""}
       ${media.length?`<div class="thumbs">${media.map(m=>mediaTag(m)).join("")}</div>`:""}
       <div class="t-actions">${doneBtn}${d?"":partialBtn(j,v)}${clockBtn(j,v)}${a?`<a class="btn" href="${esc(mapsUrl(a))}" target="_blank" rel="noopener">Directions ↗</a>`:""}<button type="button" class="btn" data-act="job" data-id="${esc(j.id)}">Notes & photos${nLog?` · ${nLog}`:""}</button>${(j.links||[]).map((u,k)=>`<a class="btn" href="${esc(u)}" target="_blank" rel="noopener">Mockup${j.links.length>1?" "+(k+1):""} ↗</a>`).join("")}</div>
@@ -3093,7 +3094,7 @@ function wkTray(){
   const list=(T==="install"?inst:down).filter(j=>!q||[clientOf(j).name,addrOf(j)].join(" ").toLowerCase().includes(q));
   return `<section class="tray"><div class="bar"><b class="tray-t">Drag onto a day</b><div class="chips"><button type="button" class="chip" data-act="tray" data-v="install" aria-pressed="${T==="install"}">Needs install date · ${inst.length}</button><button type="button" class="chip" data-act="tray" data-v="takedown" aria-pressed="${T==="takedown"}">Needs takedown date · ${down.length}</button></div>
     <span class="grow"></span><input class="search" id="q-tray" type="search" placeholder="Find a customer" value="${esc(S.q.tray||"")}" aria-label="Find a customer" style="max-width:240px"></div>
-    <div class="tray-list">${list.map(j=>`<div class="tcard" draggable="true" data-dj="${esc(j.id)}" data-dt="${T}" title="Drag onto a day"><span class="bulb ${BULB[status(j)]}"></span><span class="x"><b>${esc(clientOf(j).name||"Customer")}</b><small>${esc(crewObj(j.crew)?teamName(j.crew):"No crew yet")}${j.tclWhen?" · "+esc(j.tclWhen):""}</small></span></div>`).join("")||`<p class="count">Nothing waiting${q?" for that search":""}.</p>`}</div>
+    <div class="tray-list">${list.map(j=>`<div class="tcard" draggable="true" data-dj="${esc(j.id)}" data-dt="${T}" title="Drag onto a day"><span class="bulb ${BULB[status(j)]}"></span><span class="x"><b>${esc(clientOf(j).name||"Customer")}</b><small>${esc(crewObj(j.crew)?teamName(j.crew):"No crew yet")}${j.tclWhen?` · <span data-tr>${esc(j.tclWhen)}</span>`:""}</small></span></div>`).join("")||`<p class="count">Nothing waiting${q?" for that search":""}.</p>`}</div>
     <p class="count" style="font-size:12.5px;margin:6px 0 0">Drag a stop onto another day to move it. To change the order within a day, pick a crew above, then drop a stop onto the one it should go before.</p></section>`;
 }
 let DRAG=null;
@@ -4125,7 +4126,7 @@ function planFor(id, day){
   return ps.length?{...base,...ps[ps.length-1]}:base;
 }
 const nextPlan = id => ((S.payroll.rates||{})[id]?.plans||[]).filter(p=>p.from>monday(isoOf(new Date().toISOString()))).sort((a,b)=>a.from.localeCompare(b.from))[0]||null;
-const jobBase = j => split(j,S.fin.get(j.id)||{}).incoming;
+const jobBase = j => +((S.fin.get(j.id)||{}).price)||0; // full job price, TCL jobs included
 // who did the install: anyone clocked in on the job; if nobody, the crew on that visit
 function jobWorkers(j,v,day){
   const clocked=new Set(); for(const e of S.log.values()) if(e.kind==="clock"&&!e.general&&e.jobId===j.id&&e.by) clocked.add(e.by);
@@ -4175,10 +4176,10 @@ function vPayroll(){
       <td class="r">${p.jobPay?`${money2(p.jobPay)}<br><small class="count">${p.jobs.length} job${p.jobs.length>1?"s":""}</small>`:"–"}</td><td class="r">${p.mgmt?`${money2(p.mgmt)}<br><small class="count">${p.mgmtJobs.length} job${p.mgmtJobs.length>1?"s":""}</small>`:"–"}</td>
       <td class="r">${p.comm?money2(p.comm):"–"}</td><td class="r"><b>${money2(p.total)}</b></td></tr>`).join("")}</tbody>
     <tfoot><tr><td>Total</td><td class="r"><b>${h1(sum("hrs"))}</b></td><td class="r">${h1(sum("ot"))}</td><td class="r">${money2(P.reduce((t,p)=>t+p.regPay+p.otPay,0))}</td><td class="r">${money2(sum("jobPay"))}</td><td class="r">${money2(sum("mgmt"))}</td><td class="r">${money2(sum("comm"))}</td><td class="r"><b>${money2(tot)}</b></td></tr></tfoot></table></div>
-    ${W.done.length?`<details style="margin-top:10px"><summary class="count" style="cursor:pointer">Installs finished this week (${W.done.length})</summary><div class="tbl"><table><thead><tr><th>Customer</th><th>Done</th><th class="r">Counts as</th><th>Paid to</th></tr></thead><tbody>${W.done.map(x=>{ const to=P.filter(p=>p.jobs.some(y=>y.j.id===x.j.id)).map(p=>p.name); return `<tr><td>${esc(clientOf(x.j).name||"")} ${label(x.j)?`<small class="count">${esc(label(x.j))}</small>`:""}</td><td>${esc(fmtDay(x.day))}</td><td class="r">${money2(x.base)}</td><td>${to.length?esc(to.join(", ")):`<small class="count">No technician on it${normCrew(x.v.crew||x.j.crew)?"":" (no crew)"}</small>`}</td></tr>`; }).join("")}</tbody></table></div></details>`:""}
+    ${W.done.length?`<details style="margin-top:10px"><summary class="count" style="cursor:pointer">Installs finished this week (${W.done.length})</summary><div class="tbl"><table><thead><tr><th>Customer</th><th>Done</th><th class="r">Job price</th><th>Paid to</th></tr></thead><tbody>${W.done.map(x=>{ const to=P.filter(p=>p.jobs.some(y=>y.j.id===x.j.id)).map(p=>p.name); return `<tr><td>${esc(clientOf(x.j).name||"")} ${label(x.j)?`<small class="count">${esc(label(x.j))}</small>`:""}</td><td>${esc(fmtDay(x.day))}</td><td class="r">${money2(x.base)}</td><td>${to.length?esc(to.join(", ")):`<small class="count">No technician on it${normCrew(x.v.crew||x.j.crew)?"":" (no crew)"}</small>`}</td></tr>`; }).join("")}</tbody></table></div></details>`:""}
     <div class="bar" style="margin-top:10px"><button type="button" class="btn amber" data-act="pay-csv">Download weekly payroll (CSV)</button><button type="button" class="btn" data-act="pay-print">Print / save PDF</button><button type="button" class="btn" data-act="pay-detail">Time detail (CSV)</button>
       ${P.some(p=>p.comm)?`<button type="button" class="btn" data-act="pay-commpaid">Mark this week's sales commissions paid</button>`:""}</div>
-    <p class="count" style="font-size:13px">Job % and management fees count in the week the install is checked off, on what ProLight takes in from the job (the full price on ProLight jobs, ProLight's ${Math.round(rates().tcl*100)}% on TCL jobs). Job % goes to everyone clocked in on the job, or the crew on it if nobody clocked in. Sales commission shows in the week the job was ${commWhen()==="sold"?"sold":"installed"}, until marked paid.</p>`;
+    <p class="count" style="font-size:13px">Job % and management fees count in the week the install is checked off, on the full job price (TCL jobs too, not just ProLight's share). Job % goes to everyone clocked in on the job, or the crew on it if nobody clocked in. Sales commission shows in the week the job was ${commWhen()==="sold"?"sold":"installed"}, until marked paid.</p>`;
   return h+rateList();
 }
 function rateList(){
@@ -4206,7 +4207,7 @@ function payCsv(){
     ...P.map(p=>[p.name,planText(p.plan),h1(p.hrs),h1(p.ot),f(p.regPay+p.otPay),f(p.jobPay),p.jobs.length,f(p.mgmt),f(p.comm),f(p.total)]),
     [],["Total","",h1(P.reduce((t,p)=>t+p.hrs,0)),h1(P.reduce((t,p)=>t+p.ot,0)),f(P.reduce((t,p)=>t+p.regPay+p.otPay,0)),f(P.reduce((t,p)=>t+p.jobPay,0)),"",f(P.reduce((t,p)=>t+p.mgmt,0)),f(P.reduce((t,p)=>t+p.comm,0)),f(P.reduce((t,p)=>t+p.total,0))]];
   const jl=P.flatMap(p=>[...p.jobs.map(x=>[p.name,"Job %",clientOf(x.j).name||"",x.j.source==="tcl"?"TCL":"ProLight",x.day,f(x.base),x.pct,f(x.amt)]),...p.mgmtJobs.map(x=>[p.name,"Management fee",clientOf(x.j).name||"",x.j.source==="tcl"?"TCL":"ProLight",x.day,f(x.base),x.pct,f(x.amt)])]);
-  if(jl.length) rows.push([],["Job pay detail"],["Employee","Type","Customer","Job","Finished","ProLight takes in","%","Pay"],...jl);
+  if(jl.length) rows.push([],["Job pay detail"],["Employee","Type","Customer","Job","Finished","Job price","%","Pay"],...jl);
   const cs=P.flatMap(p=>p.sales.map(s=>[p.name,clientOf(s.job).name||"",leadLabel(s.type),f(s.base),s.pct,f(s.comm)]));
   if(cs.length) rows.push([],["Sales commissions"],["Employee","Customer","Lead","Job amount","%","Commission"],...cs);
   download(`ProLight-payroll-${S.week}.csv`, rows);
@@ -4218,9 +4219,109 @@ function payPrint(){
     <table><thead><tr><th>Employee</th><th>Hours</th><th>OT</th><th>Hourly</th><th>Job %</th><th>Mgmt fee</th><th>Sales</th><th>Total</th></tr></thead><tbody>
     ${P.map(p=>`<tr><td>${esc(p.name)}<br><small>${esc(planText(p.plan))}</small></td><td>${h1(p.hrs)}</td><td>${p.ot?h1(p.ot):"–"}</td><td>${money2(p.regPay+p.otPay)}</td><td>${p.jobPay?money2(p.jobPay):"–"}</td><td>${p.mgmt?money2(p.mgmt):"–"}</td><td>${p.comm?money2(p.comm):"–"}</td><td><b>${money2(p.total)}</b></td></tr>`).join("")}</tbody>
     <tfoot><tr><td>Total</td><td>${h1(s("hrs"))}</td><td></td><td>${money2(P.reduce((t,p)=>t+p.regPay+p.otPay,0))}</td><td>${money2(s("jobPay"))}</td><td>${money2(s("mgmt"))}</td><td>${money2(s("comm"))}</td><td>${money2(s("total"))}</td></tr></tfoot></table>
-    ${W.done.length?`<h2>Installs finished this week</h2><table><thead><tr><th>Customer</th><th>Finished</th><th>ProLight takes in</th></tr></thead><tbody>${W.done.map(x=>`<tr><td>${esc(clientOf(x.j).name||"")}${x.j.source==="tcl"?" (TCL)":""}</td><td>${esc(fmtDay(x.day))}</td><td>${money2(x.base)}</td></tr>`).join("")}</tbody></table>`:""}
-    <p><small>Hours from board clock-ins. Job % and management fees on installs checked off this week, figured on what ProLight takes in. Prepared ${esc(new Date().toLocaleString("en-US"))}.</small></p><script>setTimeout(()=>print(),300)<\/script>`);
+    ${W.done.length?`<h2>Installs finished this week</h2><table><thead><tr><th>Customer</th><th>Finished</th><th>Job price</th></tr></thead><tbody>${W.done.map(x=>`<tr><td>${esc(clientOf(x.j).name||"")}${x.j.source==="tcl"?" (TCL)":""}</td><td>${esc(fmtDay(x.day))}</td><td>${money2(x.base)}</td></tr>`).join("")}</tbody></table>`:""}
+    <p><small>Hours from board clock-ins. Job % and management fees on installs checked off this week, figured on the full job price. Prepared ${esc(new Date().toLocaleString("en-US"))}.</small></p><script>setTimeout(()=>print(),300)<\/script>`);
   w.document.close();
+}
+/* ---------- Spanish: the rest of the screens, plus auto-translated notes and chat ---------- */
+Object.assign(ES, {
+  "Crews today":"Equipos hoy","Open route":"Abrir ruta","Needs attention":"Necesita atención","lit job with no takedown date":"trabajo encendido sin fecha de retiro","lit jobs with no takedown date":"trabajos encendidos sin fecha de retiro",
+  "Nobody is clocked in right now.":"Nadie está trabajando ahora mismo.","Next 7 days":"Próximos 7 días","Week view":"Ver semana","Today's route":"Ruta de hoy","Your stops":"Tus paradas",
+  "Tap a pin to see the job and get directions. Use the arrows to look at another day..":"Toca un pin para ver el trabajo y cómo llegar. Usa las flechas para ver otro día.",
+  "Tap a pin to see the job and get directions. Use the arrows to look at another day.":"Toca un pin para ver el trabajo y cómo llegar. Usa las flechas para ver otro día.",
+  "You don't have access to the office tools.":"No tienes acceso a las herramientas de la oficina.","Private":"Privado","Send":"Enviar","Crew + office":"Equipo + oficina","TCL job":"Trabajo de TCL","Job":"Trabajo",
+  "HIGH":"ALTA","MED":"MEDIA","LOW":"BAJA","High":"Alta","Medium":"Media","Low":"Baja",
+  "Notifications":"Notificaciones","Turn on notifications":"Activar notificaciones","e.g. lightning at 3:40, called it":"ej. rayos a las 3:40, paramos",
+  "No stops.":"Sin paradas.","No stops":"Sin paradas","Nothing is scheduled for this crew on this day. Use the arrows to check another day.":"No hay nada programado para este equipo este día. Usa las flechas para ver otro día.",
+  "Balance owed to ShipShape":"Saldo que se le debe a ShipShape","Not installed":"No instalado","Owed":"Se debe","Payments from ProLight":"Pagos de ProLight","No payments recorded yet.":"Todavía no hay pagos registrados.","Refresh":"Actualizar",
+  "partly done":"parcialmente listo","Partly done":"Parcialmente listo","Install · partly done":"Instalación · parcialmente listo",
+  "Last week":"La semana pasada","ASAP":"Lo antes posible","October":"Octubre","November":"Noviembre","December":"Diciembre","January":"Enero","Early Nov":"A principios de nov.","Late Nov":"A finales de nov.","No weekends":"Sin fines de semana","Take down last":"Retirar al final","Needs a date":"Necesita fecha",
+  "Multi":"Multicolor","Multicolor":"Multicolor","Red / green / white":"Rojo / verde / blanco","Red & white":"Rojo y blanco","Red & green":"Rojo y verde","Pure white":"Blanco puro","Cool white":"Blanco frío","Warm white":"Blanco cálido","Color not set":"Color sin definir","Red":"Rojo","Green":"Verde","Blue":"Azul","White":"Blanco","Gold":"Dorado","Purple":"Morado","Orange":"Naranja",
+  "That file is over 50 MB. Trim videos to about 30 seconds.":"Ese archivo pesa más de 50 MB. Corta los videos a unos 30 segundos.","That file is over 20 MB. Trim videos to about 15 seconds.":"Ese archivo pesa más de 20 MB. Corta los videos a unos 15 segundos.",
+  "That file type can't be uploaded. Use a photo or an MP4/MOV video.":"Ese tipo de archivo no se puede subir. Usa una foto o un video MP4/MOV.","The board's storage is full.":"El almacenamiento del tablero está lleno.",
+  "You don't have permission to upload here.":"No tienes permiso para subir archivos aquí.","Upload failed. Check your signal and try again.":"No se pudo subir. Revisa tu señal e intenta de nuevo.",
+  "The board is full. Delete old entries to make room.":"El tablero está lleno. Borra entradas viejas para hacer espacio.",
+  "Pin placed":"Pin colocado","Pick a date first":"Primero elige una fecha","This job has no open visit":"Este trabajo no tiene una visita abierta","Assign a crew first":"Primero asigna un equipo",
+  "Clock out has to be after clock in":"La salida tiene que ser después de la entrada","Time fixed":"Tiempo corregido","Added to your time card":"Agregado a tu tarjeta de tiempo","The original time is gone":"El tiempo original ya no está",
+  "Couldn't read that photo. Try a JPG or PNG.":"No se pudo leer esa foto. Prueba con JPG o PNG.","Couldn't open that photo.":"No se pudo abrir esa foto.","Uploading mockup…":"Subiendo diseño…","Mockup added":"Diseño agregado",
+  "Dismissed":"Descartado","No route fits. Pick a day.":"Ninguna ruta encaja. Elige un día.","Couldn't delete that":"No se pudo borrar","Found it":"Lo encontré",
+  "Couldn't find that address. Tap Place to pin it by hand.":"No se encontró esa dirección. Toca Colocar para marcarla a mano.","Text selected. Copy it from here.":"Texto seleccionado. Cópialo desde aquí.",
+  "Original":"Original","Show original":"Ver original","Show Spanish":"Ver en español","Translating…":"Traduciendo…",
+  "Office":"Oficina","Customer":"Cliente","Crew":"Equipo","Unassigned":"Sin asignar","No crew yet":"Sin equipo todavía","Install":"Instalación","Takedown":"Retiro","Service":"Servicio","Return":"Regreso",
+  "Directions ↗":"Cómo llegar ↗","Mockup ↗":"Diseño ↗","Open in Drive ↗":"Abrir en Drive ↗","Lights":"Luces","Roofline":"Línea del techo","Notes & photos":"Notas y fotos","What's left to do":"Lo que falta","Why couldn't you finish?":"¿Por qué no pudiste terminar?",
+  "Ran out of time":"Se acabó el tiempo","Ran out of material":"Se acabó el material","Weather":"Clima","Customer asked to stop":"El cliente pidió parar","Equipment problem":"Problema con el equipo","Other":"Otro",
+  "Damage":"Daño","Bulbs out":"Focos apagados","Section out":"Sección apagada","Hanging or loose":"Colgando o suelto","Won't turn on / timer":"No prende / temporizador","Wants a change":"Quiere un cambio",
+  "Not urgent":"No es urgente","Urgent":"Urgente","Send to the office":"Enviar a la oficina","Send to a manager":"Enviar a un gerente","What happened":"Qué pasó","What's wrong":"Qué está mal","Which job":"Qué trabajo","Pick the job":"Elige el trabajo",
+  "Truck list":"Lista del camión","Copy truck list":"Copiar lista del camión","C9 bulbs":"Focos C9","Mini lights":"Luces mini","Clips":"Clips","Bulb colors":"Colores de focos",
+  "Start":"Empezar","End":"Terminar","Clocked in":"Entrada marcada","Clock in":"Marcar entrada","Request fix":"Pedir corrección","Add missing time":"Agregar tiempo faltante",
+  "Video call":"Videollamada","Join":"Unirme","Leave":"Salir","Leave call":"Salir de la llamada","Missed call":"Llamada perdida","Crew meeting":"Reunión del equipo",
+  "Light mockup":"Diseño de luces","Light mockup (AI)":"Diseño de luces (IA)","Installed per TCL board":"Instalado según el tablero de TCL","Marked complete in Jobber":"Marcado como terminado en Jobber"
+});
+ES_RX.push(
+  [/^Next: (.+)$/, (_, a) => "Siguiente: " + a],
+  [/^On the clock now · (\d+)$/, (_, n) => "Trabajando ahora · " + n],
+  [/^Today's stops · (\d+)$/, (_, n) => "Paradas de hoy · " + n],
+  [/^(.+) · (\d+) stops?$/, (_, a, n) => `${a} · ${n} ${n === "1" ? "parada" : "paradas"}`],
+  [/^(.+) · on site (.+) \((\d+) people\)$/, (_, a, t, n) => `${a} · en el sitio ${t} (${n} personas)`],
+  [/^(.+) · on site (.+)$/, (_, a, t) => `${a} · en el sitio ${t}`],
+  [/^(.+) · done by (.+?), (.+)$/, (_, a, w, t) => `${tr1(a)} · hecho por ${w === "Office" ? "Oficina" : w}, ${t}`],
+  [/^done by (.+?), (.+)$/, (_, w, t) => `hecho por ${w === "Office" ? "Oficina" : w}, ${t}`],
+  [/^(\$[\d,.]+) earned on installed jobs · (\$[\d,.]+) paid · (\$[\d,.]+) on jobs not installed yet$/, (_, a, b, c) => `${a} ganado en trabajos instalados · ${b} pagado · ${c} en trabajos que todavía no se instalan`],
+  [/^Couldn't (.+?)\. Check your signal and try again\.$/, () => "No se pudo guardar. Revisa tu señal e intenta de nuevo."],
+  [/^You don't have permission to (.+)\.$/, () => "No tienes permiso para hacer eso."],
+  [/^Week of (\d+\/\d+)(.*)$/, (_, d, r) => "Semana del " + d + (r ? " " + r.replace("(client request)", "(lo pidió el cliente)") : "")],
+  [/^Week of (Oct|Nov|Dec|Jan) (\d+)$/, (_, m, d) => `Semana del ${d} de ${{ Oct: "oct", Nov: "nov", Dec: "dic", Jan: "ene" }[m]}`],
+  [/^Between (.+)$/, (_, d) => "Entre " + d.replace("–", " y ")],
+  [/^Copied (.+)$/, (_, a) => "Copiado " + a],
+  [/^(\d+) people$/, (_, n) => n + " personas"]
+);
+
+/* Free text (crew notes, job notes, chat, lights, TCL timing) goes through the translator, cached on this phone. */
+const TR = { cache: new Map(), queue: new Map(), timer: 0, off: false };
+try { const c = JSON.parse(localStorage.getItem("tr-es") || "{}"); for (const k in c) TR.cache.set(k, c[k]); } catch (e) {}
+const trKey = (s) => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return h.toString(36) + ":" + s.length; };
+const TR_SEL = ".t-notes,.bub .txt,.entry .txt,.note-raw,[data-tr]";
+function trApply(el, es) {
+  if (!el.dataset.orig) el.dataset.orig = el.textContent;
+  el.textContent = es; el.dataset.esDone = "1";
+  if (!el.nextElementSibling || !el.nextElementSibling.classList.contains("tr-tog")) {
+    if (el.matches("[data-tr]")) { el.title = "Original: " + el.dataset.orig; return; }
+    el.insertAdjacentHTML("afterend", `<button type="button" class="tr-tog" data-no-i18n>Ver original</button>`);
+  }
+}
+function trScan(root) {
+  if (!LANG_ES || TR.off || !root || !root.querySelectorAll) return;
+  const els = [...(root.matches && root.matches(TR_SEL) ? [root] : []), ...root.querySelectorAll(TR_SEL)];
+  for (const el of els) {
+    if (el.dataset.esDone || el.dataset.esShowOrig) continue;
+    const t = el.textContent.trim(); if (!t || !/[A-Za-z]{3}/.test(t)) continue;
+    const k = trKey(t), hit = TR.cache.get(k);
+    if (hit != null) { trApply(el, hit); continue; }
+    if (!TR.queue.has(k)) TR.queue.set(k, { t, els: [] }); TR.queue.get(k).els.push(el);
+  }
+  if (TR.queue.size && !TR.timer) TR.timer = setTimeout(trFlush, 250);
+}
+async function trFlush() {
+  TR.timer = 0; const batch = [...TR.queue.entries()].slice(0, 30); batch.forEach(([k]) => TR.queue.delete(k)); if (!batch.length) return;
+  try {
+    const tok = PL.authToken ? await PL.authToken() : "";
+    const r = await fetch("/api/translate", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + tok }, body: JSON.stringify({ texts: batch.map(([, v]) => v.t), to: "es" }) });
+    if (r.status === 501) { TR.off = true; return; } // translator not set up yet
+    const j = await r.json(); if (!r.ok || !Array.isArray(j.out)) throw new Error(j.error || "translate");
+    batch.forEach(([k, v], i) => { const es = j.out[i]; if (es == null) return; TR.cache.set(k, es); v.els.forEach((el) => el.isConnected && !el.dataset.esShowOrig && trApply(el, es)); });
+    try { const o = {}; [...TR.cache.entries()].slice(-800).forEach(([k, v]) => (o[k] = v)); localStorage.setItem("tr-es", JSON.stringify(o)); } catch (e) {}
+  } catch (e) { batch.forEach(([k, v]) => v.els.forEach((el) => delete el.dataset.esDone)); }
+  if (TR.queue.size) TR.timer = setTimeout(trFlush, 400);
+}
+if (LANG_ES) {
+  const go = () => { trScan(document.body); new MutationObserver((ms) => { for (const m of ms) m.addedNodes.forEach((n) => n.nodeType === 1 && trScan(n)); }).observe(document.body, { childList: true, subtree: true }); };
+  document.body ? go() : document.addEventListener("DOMContentLoaded", go);
+  document.addEventListener("click", (ev) => {
+    const b = ev.target.closest && ev.target.closest(".tr-tog"); if (!b) return; ev.stopPropagation();
+    const el = b.previousElementSibling; if (!el || !el.dataset.orig) return;
+    if (el.dataset.esShowOrig) { delete el.dataset.esShowOrig; const es = TR.cache.get(trKey(el.dataset.orig.trim())); if (es != null) el.textContent = es; b.textContent = "Ver original"; }
+    else { el.dataset.esShowOrig = "1"; el.textContent = el.dataset.orig; b.textContent = "Ver en español"; }
+  }, true);
 }
 
 /* ---------- render ---------- */
