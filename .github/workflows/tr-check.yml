@@ -1,0 +1,11 @@
+name: Translator check
+on: workflow_dispatch
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          r=$(curl -sS -m 20 -A "Mozilla/5.0" "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=es&dt=t&q=$(python3 -c 'import urllib.parse;print(urllib.parse.quote("Warm white C9 roofline. Wrap all 4 porch columns in minis.\nPower: no usable outlets front or side."))')")
+          echo "::notice::$(echo "$r" | head -c 600)"
+          code=$(curl -sS -m 20 -o /dev/null -w "%{http_code}" -X POST https://prolight-boardv1.vercel.app/api/translate -H "Content-Type: application/json" -d '{"texts":["hi"]}')
+          echo "::notice::board translate without sign-in answers $code (401 expected)"
