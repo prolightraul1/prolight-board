@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ProLight Season Board</title>
 <meta name="theme-color" content="#111916">
+<meta name="build" content="1793586288">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -740,6 +741,7 @@ html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
 .ss-view .c-crew,.ss-view .jhead span:nth-child(2),.ss-view .jhead span:nth-child(3){visibility:hidden}
 .wday h4{flex-wrap:wrap;gap:0 6px}
 .lbl:empty{display:none}
+#upd-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(80px + env(safe-area-inset-bottom,0px));z-index:2700;border:0;border-radius:999px;padding:10px 18px;background:var(--amber,#f5b83d);color:#1a1405;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.3);cursor:pointer}
 .xcrews{margin-top:10px}.xcrews>small{display:block;margin-bottom:6px;color:var(--ink-2);font-weight:600}.xcrews .chip .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
 .cmoney{margin:14px 0 4px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
 .cm-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--line)}.cm-row:first-of-type{border-top:0}
@@ -4464,19 +4466,34 @@ function wkMoney(d){
 }
 /* ---------- more than one crew on a job ---------- */
 function extraCrewsUI(j,id){
-  if(!j.crew) return "";
-  const open=(j.visits||[]).filter(v=>!isDone(id,v.id)), lead=normCrew(j.crew);
+  const open=(j.visits||[]).filter(v=>!isDone(id,v.id)), lead=normCrew(j.crew||"");
   const others=crews().filter(c=>c.id!==lead); if(!others.length) return "";
-  const on=c=>open.length&&open.every(v=>visitCrews({...j,id},v).includes(c.id));
-  return `<div class="xcrews"><small>Also on this job</small><div class="chips">${others.map(c=>`<button type="button" class="chip" data-act="extra-crew" data-id="${esc(id)}" data-v="${esc(c.id)}" aria-pressed="${on(c)}"><span class="dot" style="background:${crewColor(c.id)||"var(--ink-2)"}"></span>${esc(c.name)}</button>`).join("")}</div></div>`;
+  const on=c=>!!(open.length&&open.every(v=>visitCrews({...j,id},v).includes(c.id)));
+  return `<div class="xcrews"><small>${lead?"Add more crews to this job":"Crews on this job (the first one you pick leads)"}</small><div class="chips">${others.map(c=>`<button type="button" class="chip" data-act="extra-crew" data-id="${esc(id)}" data-v="${esc(c.id)}" aria-pressed="${on(c)}"><span class="dot" style="background:${crewColor(c.id)||"var(--ink-2)"}"></span>${esc(c.name)}</button>`).join("")}</div></div>`;
 }
 async function toggleExtraCrew(id,cid){
-  const j=S.jobs.get(id); if(!j) return; const jj={...j,id}, open=(j.visits||[]).filter(v=>!isDone(id,v.id));
+  const j=S.jobs.get(id); if(!j) return;
+  if(!j.crew){ try{ await S.db.doc("jobs/"+id).update({crew:cid,updatedAt:new Date().toISOString()}); toast(`${teamName(cid)} is on this job`); }catch(e){ fail(e,"change the crews"); } return; } const jj={...j,id}, open=(j.visits||[]).filter(v=>!isDone(id,v.id));
   const add=!open.every(v=>visitCrews(jj,v).includes(cid));
   const visits=(j.visits||[]).map(v=>{ if(isDone(id,v.id)) return v; const x={...v}, cur=(x.crews||[]).map(normCrew).filter(c=>c!==normCrew(x.crew||j.crew));
     x.crews=add?[...new Set([...cur,cid])]:cur.filter(c=>c!==cid); return x; });
   try{ await S.db.doc("jobs/"+id).update({visits,updatedAt:new Date().toISOString()}); toast(add?`${teamName(cid)} added to this job`:`${teamName(cid)} taken off this job`); }catch(e){ fail(e,"change the crews"); }
 }
+
+/* ---------- pick up new versions of the site without a manual refresh ---------- */
+const BUILD = (document.querySelector('meta[name="build"]')||{}).content||"";
+let _verAsk=0;
+async function checkVersion(){
+  if(!BUILD||Date.now()-_verAsk<60e3) return; _verAsk=Date.now();
+  try{ const t=await (await fetch("/?v="+Date.now(),{cache:"no-store"})).text(); const m=t.match(/<meta name="build" content="([^"]+)"/);
+    if(!m||m[1]===BUILD) return;
+    const busy=S.drawer||S.form||document.querySelector("#mockRoot:not([hidden]),#callRoot:not([hidden])")||/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement||{}).tagName||"");
+    if(!busy&&document.visibilityState==="visible"){ location.reload(); return; }
+    if(!document.getElementById("upd-bar")) document.body.insertAdjacentHTML("beforeend",`<button type="button" id="upd-bar" onclick="location.reload()">New version of the board — tap to update</button>`);
+  }catch(e){}
+}
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") checkVersion(); });
+setInterval(checkVersion,5*60e3);
 
 /* ---------- render ---------- */
 function renderMain(){
