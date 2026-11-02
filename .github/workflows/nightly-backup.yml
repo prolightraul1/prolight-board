@@ -1,0 +1,20 @@
+name: Nightly backup
+on:
+  schedule:
+    - cron: "0 5 * * *"   # midnight Eastern (standard time)
+  workflow_dispatch:
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Back up the board
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          for try in 1 2 3; do
+            code=$(curl -sS --max-time 90 -o body.txt -w "%{http_code}" -X POST -H "Authorization: Bearer $CRON_SECRET" "https://prolight-boardv1.vercel.app/api/backup?action=run" || echo 000)
+            [ "$code" = "200" ] && break; sleep 30
+          done
+          body=$(head -c 600 body.txt | tr '\n' ' ')
+          if [ "$code" != "200" ]; then echo "::error::Backup failed ($code): $body"; exit 1; fi
+          echo "::notice::Backup saved: $body"

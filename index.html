@@ -3096,7 +3096,7 @@ function vOffice(){
   let h=`<h1 class="h-view">Office</h1>${G.length>1?`<div class="seg ogroups" role="group" aria-label="Office">${G.map(([k,l])=>`<button type="button" data-act="ogroup" data-v="${k}" aria-pressed="${cur[0]===k}">${l}${k==="people"&&rc?` <i class="cnt">${rc}</i>`:""}</button>`).join("")}</div>`:""}
     ${cur[2].length>1?`<div class="chips" role="group" aria-label="${esc(cur[1])}">${cur[2].map(([k,l])=>`<button type="button" class="chip" data-act="office" data-v="${k}" aria-pressed="${okey()===k}">${l}</button>`).join("")}</div>`:""}`;
   const o=S.office;
-  h+=`<div class="obody">`+(o==="money"?vMoney(): o==="texts"?vTexts(): o==="team"?vTeam(): o==="hours"?vHours(): o==="statement"?vStatement(): o==="sales"?vSales(): o==="payroll"?vPayroll(): o==="activity"?vActivity(): vSettings())+`</div>`;
+  h+=`<div class="obody">`+(o==="money"?vMoney(): o==="texts"?vTexts(): o==="team"?vTeam(): o==="hours"?vHours(): o==="statement"?vStatement(): o==="sales"?vSales(): o==="payroll"?vPayroll(): o==="activity"?vActivity(): vSettings()+backupCard())+`</div>`;
   return h;
 }
 
@@ -4397,6 +4397,25 @@ function myFeeTotals(list){
   if(!earned&&!coming) return "";
   return `<div class="fee-sum"><span class="eyebrow">Your 3% · only you see this</span><span>Earned <b>${money2(earned)}</b></span><span>Still to come <b>${money2(coming)}</b></span><span class="count">on the jobs below</span></div>`;
 }
+/* ---------- backups card (managers): last nightly backups, download any of them ---------- */
+function backupCard(){
+  if(!S.me.manage) return "";
+  setTimeout(loadBackups,0);
+  return `<section class="form" style="max-width:720px;margin-top:16px"><fieldset><legend>Backups</legend>
+    <p class="lede" style="font-size:14px">Everything on the board is backed up every night at midnight: jobs, clients, money, hours, notes, chat and people. The last 45 nights are kept in a private storage area only managers can open. Photos and videos stay saved where they are.</p>
+    <div id="bk-list" class="count">Loading backups…</div></fieldset></section>`;
+}
+async function loadBackups(){
+  const el=document.getElementById("bk-list"); if(!el) return;
+  try{ const r=await fetch("/api/backup?action=list",{headers:{Authorization:"Bearer "+(await PL.authToken())}}); const j=await r.json(); if(!r.ok) throw new Error(j.error||"");
+    const f=(j.files||[]).filter(x=>/^board-/.test(x.name));
+    el.innerHTML=f.length?`<div class="rows">${f.slice(0,14).map(x=>{ const d=x.name.slice(6,16); return `<div class="row" style="cursor:default"><span class="m"><span class="n">${esc(fmtDay(d,{weekday:"short",month:"short",day:"numeric"}))}</span><span class="s">${x.kb} KB</span></span><span class="r"><button type="button" class="btn small" data-act="bk-get" data-v="${esc(x.name)}">Download</button></span></div>`; }).join("")}</div>${f.length>14?`<p class="count">${f.length} backups kept.</p>`:""}`:`The first backup runs tonight at midnight.`;
+  }catch(e){ el.textContent="Couldn't load the backups list."; }
+}
+async function getBackup(name){
+  try{ const r=await fetch("/api/backup?action=get&name="+encodeURIComponent(name),{headers:{Authorization:"Bearer "+(await PL.authToken())}}); const j=await r.json(); if(!r.ok) throw new Error(j.error); location.href=j.url; }
+  catch(e){ toast("Couldn't download that backup."); }
+}
 
 /* ---------- render ---------- */
 function renderMain(){
@@ -4570,6 +4589,7 @@ document.addEventListener("click", async ev=>{
     case "call-leave": leaveCall(); break;
     case "mockup": await openMockup(id||"",v); break;
     case "plan-save": t.disabled=true; await savePlan(v); break;
+    case "bk-get": await getBackup(v); break;
     case "pins": await openPins(); break;
     case "act-filter": ACT.filter=v; ACT.rows=null; ACT.open.clear(); renderMain(); break;
     case "act-refresh": ACT.rows=null; ACT.health=null; renderMain(); break;
