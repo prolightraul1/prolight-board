@@ -15,7 +15,7 @@ async function sb(path) {
 const scrub = (s) => String(s || "")
   .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "<email>")
   .replace(/https?:\/\/[^\s)"']+/g, (u) => { try { return new URL(u).pathname.split("/").pop() || "<url>"; } catch (e) { return "<url>"; } })
-  .replace(/(["'`])(?:(?!\1).){25,}\1/g, "$1…$1")
+  .replace(/(["'`])((?:(?!\1).){25,})\1/g, (m, q, x) => (/\s/.test(x) && !/[.()[\]=]/.test(x)) ? q + "…" + q : m)
   .replace(/\b\d{5,}\b/g, "<n>")
   .replace(/\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}/g, "<phone>")
   .slice(0, 300);

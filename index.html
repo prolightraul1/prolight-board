@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ProLight Season Board</title>
 <meta name="theme-color" content="#111916">
-<meta name="build" content="1793590711">
+<meta name="build" content="1793590876">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1527,15 +1527,15 @@ async function savePerson(){
   const out={ id:p.id, name:g("pp-name").value.trim(), crew:g("pp-crew").value, active:p.id?g("pp-active").checked:true };
   for(const [k] of PERMS) out[k]=g("pp-"+k).checked;
   out.partner=g("pp-partner").checked?"shipshape":"";
-  const pin=g("pp-pin").value.trim();
+  const pin=g("pp-pin").value.trim(), title0=(g("pp-title")||{value:""}).value.trim();
   if(!out.name){ g("pp-err").textContent="Add their name."; return; }
   if((!p.id||pin) && !/^[0-9]{6}$/.test(pin)){ g("pp-err").textContent="The PIN needs exactly 6 digits."; return; }
   S.busy=true;
   try{
     if(!p.id) await PL.add({...out,pin}); else { await PL.update(out); if(pin) await PL.setPin(p.id,pin); }
-    { const t=g("pp-title").value.trim(), who2=p.id||(PL.staff().find(x=>x.name===out.name)||{}).id; if(who2 && t!==((PL.staff().find(x=>x.id===who2)||{}).title||"")) await PL.setTitle(who2,t); }
+    { const t=title0, who2=p.id||(PL.staff().find(x=>x.name===out.name)||{}).id; if(who2 && t!==((PL.staff().find(x=>x.id===who2)||{}).title||"")) await PL.setTitle(who2,t); }
     S.busy=false; toast(p.id?"Saved":"Added "+out.name); closeDrawer();
-  }catch(e){ S.busy=false; g("pp-err").textContent=e.message.replace(/^.*?: /,""); }
+  }catch(e){ S.busy=false; const er=g("pp-err"); if(er) er.textContent=e.message.replace(/^.*?: /,""); else toast(e.message.replace(/^.*?: /,"")); }
 }
 function dAccount(){
   const me=PL.me()||{};
@@ -3329,12 +3329,12 @@ async function flushEvents(){ if(!EVQ.length||!window.PL||!PL.me()||!navigator.o
 setInterval(flushEvents, 15000);
 document.addEventListener("visibilitychange",()=>{ if(document.hidden) flushEvents(); });
 window.addEventListener("error",e=>{ if(!e.message||/ResizeObserver|Script error/i.test(e.message)) return; track("crash",{msg:String(e.message).slice(0,300),src:`${String(e.filename||"").split("/").pop()}:${e.lineno||""}`,stack:String((e.error&&e.error.stack)||"").slice(0,700)}); });
-window.addEventListener("unhandledrejection",e=>{ const r=e.reason, m=String((r&&r.message)||r||""); if(!m||/Failed to fetch|NetworkError|Load failed|AbortError/i.test(m)) return; track("crash",{msg:m.slice(0,300),stack:String((r&&r.stack)||"").slice(0,700),async:true}); });
+window.addEventListener("unhandledrejection",e=>{ const r=e.reason, m=String((r&&r.message)||r||""); if(!m||(r&&r.name==="AbortError")||/Failed to fetch|NetworkError|Load failed|AbortError|operation was aborted/i.test(m)) return; track("crash",{msg:m.slice(0,300),stack:String((r&&r.stack)||"").slice(0,700),async:true}); });
 const LAGT=new Map();
 function lagCheck(where, ms){ if(ms<300) return; const now=Date.now(); if(LAGT.has(where)&&now-LAGT.get(where)<120000) return; LAGT.set(where,now); track("lag",{where,ms:Math.round(ms)}); }
 try{ new PerformanceObserver(l=>{ for(const e of l.getEntries()) if(e.duration>700) lagCheck("busy page",e.duration); }).observe({type:"longtask",buffered:false}); }catch(e){}
 let LOADED_AT=0;
-function noteLoad(){ if(LOADED_AT||!S.ready) return; LOADED_AT=performance.now(); const ms=Math.round(LOADED_AT); track(ms>6000?"slow-load":"load",{ms,online:navigator.onLine}); }
+function noteLoad(){ if(LOADED_AT||!S.ready) return; const g=document.getElementById("gate"); if(g&&!g.hidden) return; LOADED_AT=performance.now(); const gate=Math.round(window.__gateMs||0), ms=Math.max(0,Math.round(LOADED_AT-gate)); track(ms>6000?"slow-load":"load",{ms,gateMs:gate||undefined,online:navigator.onLine}); }
 
 /* ---------- activity log screen (managers) ---------- */
 const ACT = { filter:"all", who:"", rows:null, health:null, more:true, loading:false, err:"", open:new Set() };

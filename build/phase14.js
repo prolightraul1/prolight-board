@@ -11,12 +11,12 @@ async function flushEvents(){ if(!EVQ.length||!window.PL||!PL.me()||!navigator.o
 setInterval(flushEvents, 15000);
 document.addEventListener("visibilitychange",()=>{ if(document.hidden) flushEvents(); });
 window.addEventListener("error",e=>{ if(!e.message||/ResizeObserver|Script error/i.test(e.message)) return; track("crash",{msg:String(e.message).slice(0,300),src:`${String(e.filename||"").split("/").pop()}:${e.lineno||""}`,stack:String((e.error&&e.error.stack)||"").slice(0,700)}); });
-window.addEventListener("unhandledrejection",e=>{ const r=e.reason, m=String((r&&r.message)||r||""); if(!m||/Failed to fetch|NetworkError|Load failed|AbortError/i.test(m)) return; track("crash",{msg:m.slice(0,300),stack:String((r&&r.stack)||"").slice(0,700),async:true}); });
+window.addEventListener("unhandledrejection",e=>{ const r=e.reason, m=String((r&&r.message)||r||""); if(!m||(r&&r.name==="AbortError")||/Failed to fetch|NetworkError|Load failed|AbortError|operation was aborted/i.test(m)) return; track("crash",{msg:m.slice(0,300),stack:String((r&&r.stack)||"").slice(0,700),async:true}); });
 const LAGT=new Map();
 function lagCheck(where, ms){ if(ms<300) return; const now=Date.now(); if(LAGT.has(where)&&now-LAGT.get(where)<120000) return; LAGT.set(where,now); track("lag",{where,ms:Math.round(ms)}); }
 try{ new PerformanceObserver(l=>{ for(const e of l.getEntries()) if(e.duration>700) lagCheck("busy page",e.duration); }).observe({type:"longtask",buffered:false}); }catch(e){}
 let LOADED_AT=0;
-function noteLoad(){ if(LOADED_AT||!S.ready) return; LOADED_AT=performance.now(); const ms=Math.round(LOADED_AT); track(ms>6000?"slow-load":"load",{ms,online:navigator.onLine}); }
+function noteLoad(){ if(LOADED_AT||!S.ready) return; const g=document.getElementById("gate"); if(g&&!g.hidden) return; LOADED_AT=performance.now(); const gate=Math.round(window.__gateMs||0), ms=Math.max(0,Math.round(LOADED_AT-gate)); track(ms>6000?"slow-load":"load",{ms,gateMs:gate||undefined,online:navigator.onLine}); }
 
 /* ---------- activity log screen (managers) ---------- */
 const ACT = { filter:"all", who:"", rows:null, health:null, more:true, loading:false, err:"", open:new Set() };

@@ -395,10 +395,12 @@
     if (!g) { g = document.createElement("div"); g.id = "gate"; document.body.appendChild(g); }
     const es = (() => { try { return localStorage.getItem("lang") === "es"; } catch (e) { return false; } })();
     g.innerHTML = `<button type="button" class="gate-lang" id="gate-lang">${es ? "English" : "Español"}</button><div class="gate-card"><div class="gate-brand"><img src="/brand/prolight.png" alt="ProLight Tallahassee" width="220" height="91"><span>Season Board</span></div>${html}</div>`;
+    if (g.hidden !== false || window.__gateT0 == null) window.__gateT0 = performance.now();
     g.hidden = false;
     return g;
   }
-  function hideGate() { const g = $("#gate"); if (g) g.hidden = true; }
+  // time spent on the sign-in / PIN screens, so "time to open" only measures the app, not the person typing
+  function hideGate() { const g = $("#gate"); if (g && !g.hidden && window.__gateT0 != null) { window.__gateMs = (window.__gateMs || 0) + performance.now() - window.__gateT0; window.__gateT0 = null; } if (g) g.hidden = true; }
   PL.pickLook = async (why) => { await lookStep(why); hideGate(); };
 
   function pinPad(title, sub, onDone, noBack) {
