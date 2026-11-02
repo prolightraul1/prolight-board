@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ProLight Season Board</title>
 <meta name="theme-color" content="#111916">
-<meta name="build" content="1793590218">
+<meta name="build" content="1793590711">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -3323,7 +3323,7 @@ const DEVICE = (()=>{ const ua=navigator.userAgent; const d=/iPad/.test(ua)||(/M
 const EVQ=[], EVSEEN=new Map();
 function track(type, info){
   try{ const key=type+"|"+(info&&(info.msg||info.where||info.what)||""), now=Date.now(); if(EVSEEN.has(key)&&now-EVSEEN.get(key)<60000) return; EVSEEN.set(key,now);
-    EVQ.push({type, device:DEVICE, view:(window.S&&S.view)||"", ...(info||{})}); if(EVQ.length>60) EVQ.splice(0,EVQ.length-60); }catch(e){}
+    EVQ.push({type, device:DEVICE, view:(window.S&&S.view)||"", build:((document.querySelector('meta[name="build"]')||{}).content||""), ...(info||{})}); if(EVQ.length>60) EVQ.splice(0,EVQ.length-60); }catch(e){}
 }
 async function flushEvents(){ if(!EVQ.length||!window.PL||!PL.me()||!navigator.onLine) return; const batch=EVQ.splice(0,25); try{ await PL.logEvents(batch); }catch(e){ if(!/function|exist/i.test(e.message||"")) EVQ.unshift(...batch); } }
 setInterval(flushEvents, 15000);

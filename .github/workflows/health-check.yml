@@ -1,0 +1,17 @@
+name: Health check
+on:
+  workflow_dispatch:
+    inputs:
+      hours: { description: "look back this many hours", required: false, default: "24" }
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Problems from the activity log
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          code=$(curl -sS --max-time 60 -o body.json -w "%{http_code}" -H "Authorization: Bearer $CRON_SECRET" "https://prolight-boardv1.vercel.app/api/health?action=problems&hours=${{ inputs.hours }}" || echo 000)
+          echo "HTTP $code"
+          echo "----BEGIN----"; cat body.json; echo; echo "----END----"
+          echo "::notice::$code $(head -c 3500 body.json | tr '\n' ' ')"
