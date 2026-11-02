@@ -740,6 +740,7 @@ html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
 .ss-view .c-crew,.ss-view .jhead span:nth-child(2),.ss-view .jhead span:nth-child(3){visibility:hidden}
 .wday h4{flex-wrap:wrap;gap:0 6px}
 .lbl:empty{display:none}
+.xcrews{margin-top:10px}.xcrews>small{display:block;margin-bottom:6px;color:var(--ink-2);font-weight:600}.xcrews .chip .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
 .cmoney{margin:14px 0 4px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
 .cm-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--line)}.cm-row:first-of-type{border-top:0}
 .cm-row .dot,.wk-money .dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex:none}.cm-row .count{flex:1}
@@ -1232,7 +1233,7 @@ function dJob(id){
   let b=`<div class="bar"><span class="bulb ${BULB[st]}"></span><span class="st ${st}">${STATUS[st]}</span><span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span>${j.tclRef&&!crewView()?`<span class="mono count">TCL #${esc(j.tclRef)}</span>`:""}</div>
   <div class="d-acts">${a?`<a class="btn" href="${esc(mapsUrl(a))}" target="_blank" rel="noopener">Directions ↗</a>`:""}${c.phone?`<button type="button" class="btn" data-act="copytext" data-v="${esc(c.phone)}">Copy phone</button>`:""}
     ${S.me.owner?`<button type="button" class="btn" data-act="edit-job" data-id="${esc(id)}">Edit job</button>`:""}<button type="button" class="btn" data-act="client" data-id="${esc(j.clientId)}">Client</button>${S.me.owner?`<button type="button" class="btn" data-act="svc-new" data-v="${esc(id)}">+ Service call</button>`:S.me.canLog?`<button type="button" class="btn" data-act="svc-report" data-v="${esc(id)}">Report a problem</button>`:""}${j.jobberUrl&&S.me.owner?`<a class="btn" href="${esc(j.jobberUrl)}" target="_blank" rel="noopener">Jobber #${esc(j.jobberNo||"")} ↗</a>`:""}</div>
-  ${S.me.owner?`<div class="f f-who"><label>Who's doing this job</label>${assignUI(j.crew,"assign",`data-id="${esc(id)}"`)}${membersOf(j.crew).length?`<small>${esc(membersOf(j.crew).join(", "))}</small>`:""}</div>`:""}
+  ${S.me.owner?`<div class="f f-who"><label>Who's doing this job</label>${assignUI(j.crew,"assign",`data-id="${esc(id)}"`)}${membersOf(j.crew).length?`<small>${esc(membersOf(j.crew).join(", "))}</small>`:""}${extraCrewsUI(j,id)}</div>`:""}
   <dl class="kv kv-job">${a?`<dt>Address</dt><dd>${esc(a)}</dd>`:""}${c.phone?`<dt>Phone</dt><dd class="mono">${esc(c.phone)}</dd>`:""}${c.gate?`<dt>Access</dt><dd>${esc(c.gate)}</dd>`:""}
     ${j.scope?`<dt>Lights</dt><dd>${esc(j.scope)}</dd>`:""}${j.rooflineFt?`<dt>Roofline</dt><dd class="mono">${esc(j.rooflineFt)} ft</dd>`:""}${j.season?`<dt>Season</dt><dd class="mono">${esc(j.season)}</dd>`:""}${j.tclWhen&&!crewView()?`<dt>TCL target</dt><dd>${esc(j.tclWhen)}</dd>`:""}${j.priority?`<dt>Priority</dt><dd>${esc(j.priority)}</dd>`:""}${j.ready&&!crewView()?`<dt>Ready</dt><dd class="mono">${esc(j.ready)} on TCL's checklist</dd>`:""}</dl>
   ${j.notes?`<div class="t-notes">${esc(j.notes)}</div>`:""}
@@ -4153,7 +4154,7 @@ const nextPlan = id => ((S.payroll.rates||{})[id]?.plans||[]).filter(p=>p.from>m
 // your % on a job: the management fee, or the self-install rate when you put it in yourself
 const SELF_PCT = 10;
 // on the "Raul" crew counts as installed yourself, unless you switched it off on that job
-const onRaulCrew = j => { const jj=S.jobs.get(j.id)||j, ids=[jj.crew,...(jj.visits||[]).filter(v=>v.type==="install").map(v=>v.crew)].filter(Boolean).map(normCrew); return ids.some(id=>/\braul\b/i.test((crewsAll().find(c=>c.id===id)||{}).name||"")); };
+const onRaulCrew = j => { const jj={id:j.id,...(S.jobs.get(j.id)||j)}, ins=(jj.visits||[]).filter(v=>v.type==="install"), ids=[normCrew(jj.crew),...ins.flatMap(v=>visitCrews(jj,v))].filter(Boolean); return ids.some(id=>/\braul\b/i.test((crewsAll().find(c=>c.id===id)||{}).name||"")); };
 const isSelf = j => { const f=S.fin.get(j.id)||{}; return f.selfInstall===true || (f.selfInstall!==false && onRaulCrew(j)); };
 const feePct = (pl, j) => pl.mgmtPct>0 ? (isSelf(j) ? (pl.selfPct||SELF_PCT) : pl.mgmtPct) : 0;
 const jobBase = j => +((S.fin.get(j.id)||{}).price)||0; // full job price, TCL jobs included
@@ -4161,8 +4162,8 @@ const jobBase = j => +((S.fin.get(j.id)||{}).price)||0; // full job price, TCL j
 function jobWorkers(j,v,day){
   const clocked=new Set(); for(const e of S.log.values()) if(e.kind==="clock"&&!e.general&&e.jobId===j.id&&e.by) clocked.add(e.by);
   if(clocked.size) return [...clocked];
-  const crew=normCrew((v&&v.crew)||j.crew); if(!crew) return [];
-  return PL.staff().filter(p=>p.active&&normCrew(p.crew)===crew).map(p=>p.id);
+  const cs=visitCrews(j,v||{}); if(!cs.length) return [];
+  return PL.staff().filter(p=>p.active&&cs.includes(normCrew(p.crew))).map(p=>p.id);
 }
 function payWeek(){
   const days=[...Array(7)].map((_,i)=>addDays(S.week,i)), set=new Set(days);
@@ -4443,7 +4444,7 @@ function crewDay(d,cid){
   const st=stopsFor(d,cid).filter(s=>s.v.type==="install"), price=j=>+((S.fin.get(j.id)||{}).price)||0;
   const pl=isRaul()?planFor(S.me.id,d):null;
   let rev=0, done=0, mine=0;
-  for(const s of st){ const p=price(s.j); rev+=p; if(isDone(s.j.id,s.v.id)) done+=p; if(pl) mine+=p*feePct(pl,{id:s.j.id})/100; }
+  for(const s of st){ const p=price(s.j)/Math.max(1,visitCrews(s.j,s.v).length); rev+=p; if(isDone(s.j.id,s.v.id)) done+=p; if(pl) mine+=p*feePct(pl,{id:s.j.id})/100; }
   return {n:st.length, rev, done, mine};
 }
 function crewMoneyFoot(d,team){
@@ -4460,6 +4461,21 @@ function wkMoney(d){
   const cs=(S.team==="all"?crews():crews().filter(c=>c.id===S.team)).map(c=>({c,...crewDay(d,c.id)})).filter(x=>x.n);
   if(!cs.length) return "";
   return `<div class="wk-money">${cs.map(x=>`<div><span class="dot" style="background:${crewColor(x.c.id)||"var(--ink-2)"}"></span>${esc(x.c.name)} <b class="mono">${money0(x.rev)}</b>${isRaul()&&x.mine?` <span class="cm-me mono">you ${money0(x.mine)}</span>`:""}</div>`).join("")}</div>`;
+}
+/* ---------- more than one crew on a job ---------- */
+function extraCrewsUI(j,id){
+  if(!j.crew) return "";
+  const open=(j.visits||[]).filter(v=>!isDone(id,v.id)), lead=normCrew(j.crew);
+  const others=crews().filter(c=>c.id!==lead); if(!others.length) return "";
+  const on=c=>open.length&&open.every(v=>visitCrews({...j,id},v).includes(c.id));
+  return `<div class="xcrews"><small>Also on this job</small><div class="chips">${others.map(c=>`<button type="button" class="chip" data-act="extra-crew" data-id="${esc(id)}" data-v="${esc(c.id)}" aria-pressed="${on(c)}"><span class="dot" style="background:${crewColor(c.id)||"var(--ink-2)"}"></span>${esc(c.name)}</button>`).join("")}</div></div>`;
+}
+async function toggleExtraCrew(id,cid){
+  const j=S.jobs.get(id); if(!j) return; const jj={...j,id}, open=(j.visits||[]).filter(v=>!isDone(id,v.id));
+  const add=!open.every(v=>visitCrews(jj,v).includes(cid));
+  const visits=(j.visits||[]).map(v=>{ if(isDone(id,v.id)) return v; const x={...v}, cur=(x.crews||[]).map(normCrew).filter(c=>c!==normCrew(x.crew||j.crew));
+    x.crews=add?[...new Set([...cur,cid])]:cur.filter(c=>c!==cid); return x; });
+  try{ await S.db.doc("jobs/"+id).update({visits,updatedAt:new Date().toISOString()}); toast(add?`${teamName(cid)} added to this job`:`${teamName(cid)} taken off this job`); }catch(e){ fail(e,"change the crews"); }
 }
 
 /* ---------- render ---------- */
@@ -4636,6 +4652,7 @@ document.addEventListener("click", async ev=>{
     case "plan-save": t.disabled=true; await savePlan(v); break;
     case "bk-get": await getBackup(v); break;
     case "map-prices": MAP.prices=!MAP.prices; try{ localStorage.setItem("map-prices",MAP.prices?"1":""); }catch(e){} renderMain(); break;
+    case "extra-crew": t.disabled=true; await toggleExtraCrew(id,v); break;
     case "pins": await openPins(); break;
     case "act-filter": ACT.filter=v; ACT.rows=null; ACT.open.clear(); renderMain(); break;
     case "act-refresh": ACT.rows=null; ACT.health=null; renderMain(); break;
