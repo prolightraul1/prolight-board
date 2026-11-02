@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ProLight Season Board</title>
 <meta name="theme-color" content="#111916">
-<meta name="build" content="1793587806">
+<meta name="build" content="1793590218">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -741,6 +741,7 @@ html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
 .ss-view .c-crew,.ss-view .jhead span:nth-child(2),.ss-view .jhead span:nth-child(3){visibility:hidden}
 .wday h4{flex-wrap:wrap;gap:0 6px}
 .lbl:empty{display:none}
+.vt.daytag{background:var(--amber,#f5b83d);color:#1a1300;font-weight:700}
 .wk-top{display:grid;gap:12px;margin:10px 0 14px}@media (min-width:960px){.wk-top{grid-template-columns:1fr 1fr}.wk-top .tw,.wk-top .tw-me{margin:0}}
 .wk-pay{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:4px 0 10px}
 .wkp{display:flex;flex-direction:column;align-items:center;gap:3px;border:0;background:none;padding:4px 0;cursor:pointer;color:inherit;font:inherit}
@@ -1324,7 +1325,7 @@ function dJobEdit(){
         <div class="f"><label for="v${i}-crew">Crew</label><select id="v${i}-crew"><option value="">Job's crew</option>${crews().map(c=>`<option value="${esc(c.id)}" ${normCrew(v.crew)===c.id?"selected":""}>${esc(c.name)}</option>`).join("")}</select></div>
         <div class="f"><label for="v${i}-note">Visit note</label><input id="v${i}-note" value="${esc(v.note)}"></div>
       </div>`).join("")}
-      <div class="bar"><button type="button" class="btn small" data-act="add-visit" data-v="install">+ Install</button><button type="button" class="btn small" data-act="add-visit" data-v="takedown">+ Takedown</button><button type="button" class="btn small" data-act="add-visit" data-v="service">+ Service call</button></div>
+      <div class="bar"><button type="button" class="btn small" data-act="add-visit" data-v="install" title="Big job? Add another install day. The price is split across the days and it counts as installed when the last day is checked off.">+ Install day</button><button type="button" class="btn small" data-act="add-visit" data-v="takedown">+ Takedown</button><button type="button" class="btn small" data-act="add-visit" data-v="service">+ Service call</button></div>
     </fieldset>
     <fieldset ${S.me.money?"":"hidden"}><legend>Money · only people with money access see this</legend>
       <div class="two"><div class="f"><label for="m-price">${j.source==="tcl"?"TCL job price":"Job price"}</label><input id="m-price" inputmode="decimal" value="${esc(fin.price)}" placeholder="0.00"></div>
@@ -1853,7 +1854,7 @@ function routeUrls(stops){
 S.pays = S.pays || new Map();
 const money2 = n => "$" + (Math.round((n||0)*100)/100).toLocaleString(LOC(),{minimumFractionDigits:2,maximumFractionDigits:2});
 const firstDate = j => (j.visits||[]).map(v=>v.date).filter(Boolean).sort()[0] || "";
-const installedOn = j => { const d=[...S.log.values()].filter(e=>e.kind==="done"&&e.jobId===j.id).map(e=>e.at).sort()[0]; return d?isoOf(d):""; };
+let installedOn = j => { const d=[...S.log.values()].filter(e=>e.kind==="done"&&e.jobId===j.id).map(e=>e.at).sort()[0]; return d?isoOf(d):""; };
 function ledger(party){ return [...S.pays.entries()].map(([id,p])=>({id,...p})).filter(p=>p.party===party).sort((a,b)=>String(b.date).localeCompare(String(a.date))); }
 function paidSet(party){ const s=new Set(); for(const p of ledger(party)) (p.jobs||[]).forEach(x=>s.add(x)); return s; }
 function moneyRows(){
@@ -4166,6 +4167,23 @@ const SELF_PCT = 10;
 const onRaulCrew = j => { const jj={id:j.id,...(S.jobs.get(j.id)||j)}, ins=(jj.visits||[]).filter(v=>v.type==="install"), ids=[normCrew(jj.crew),...ins.flatMap(v=>visitCrews(jj,v))].filter(Boolean); return ids.some(id=>/\braul\b/i.test((crewsAll().find(c=>c.id===id)||{}).name||"")); };
 const isSelf = j => { const f=S.fin.get(j.id)||{}; return f.selfInstall===true || (f.selfInstall!==false && onRaulCrew(j)); };
 const feePct = (pl, j) => pl.mgmtPct>0 ? (isSelf(j) ? (pl.selfPct||SELF_PCT) : pl.mgmtPct) : 0;
+/* multi-day installs: the job's value is split across its install days, and it pays once, when the last day is checked off */
+const instVisits = j => (j.visits||[]).filter(v=>v.type==="install"&&!v.returnOf);
+const dayShare = (j,v) => (v&&v.type==="install"&&!v.returnOf) ? 1/Math.max(1,instVisits(j).length) : 0;
+/* pay lands on the last install day, so projections count the whole job there and nothing on earlier days */
+const payShare = (j,v) => { const iv=instVisits(j); if(iv.length<=1) return 1; const last=[...iv].sort((a,b)=>String(a.date||"9999").localeCompare(String(b.date||"9999"))).pop(); return v.id===last.id?1:0; };
+function finishedInstalls(){
+  const out=new Map(), firstDone=new Map();
+  for(const e of [...S.log.values()].filter(e=>e.kind==="done"&&e.at).sort((a,b)=>a.at.localeCompare(b.at))){ const j0=S.jobs.get(e.jobId); if(!j0) continue; const v=(j0.visits||[]).find(x=>x.id===e.visitId)||{}; if(v.type==="takedown"||firstDone.has(e.jobId)) continue; firstDone.set(e.jobId,{e,v}); }
+  for(const [jid,f] of firstDone){
+    const j={id:jid,...S.jobs.get(jid)}, iv=instVisits(j);
+    if(iv.length<=1){ out.set(jid,{j,v:f.v,day:isoOf(f.e.at)}); continue; }
+    let last=null, ok=true;
+    for(const v of iv){ const d=doneMap.get(jid+"|"+v.id)||(j.visits||[]).filter(x=>x.returnOf===v.id).map(x=>doneMap.get(jid+"|"+x.id)).find(Boolean); if(!d||!d.at){ ok=false; break; } if(!last||d.at>last.at) last={at:d.at,v}; }
+    if(ok&&last) out.set(jid,{j,v:last.v,day:isoOf(last.at)});
+  }
+  return out;
+}
 const jobBase = j => +((S.fin.get(j.id)||{}).price)||0; // full job price, TCL jobs included
 // who did the install: anyone clocked in on the job; if nobody, the crew on that visit
 function jobWorkers(j,v,day){
@@ -4181,11 +4199,7 @@ function payWeek(){
   for(const r of rows){ const p=touch(r.by), m=clockMs(r), d=isoOf(r.in); p.ms+=m; p.dayMs[d]=(p.dayMs[d]||0)+m; r.general?p.gen+=m:p.job+=m; if(!r.out) p.open++; p.days.add(d); }
   for(const s of allSales()) if(s.earnedOn&&set.has(s.earnedOn)&&!s.paidAt){ const p=touch(s.by); p.comm+=s.comm; p.sales.push(s); }
   // installs checked off this week (first check-off of the install visit only, so takedowns don't pay twice)
-  const seen=new Set(), done=[];
-  for(const e of [...S.log.values()].filter(e=>e.kind==="done"&&e.at).sort((a,b)=>a.at.localeCompare(b.at))){
-    const j0=S.jobs.get(e.jobId); if(!j0||seen.has(e.jobId)) continue; const j={id:e.jobId,...j0}; const v=(j.visits||[]).find(x=>x.id===e.visitId)||{};
-    if(v.type==="takedown") continue; seen.add(j.id); const d=isoOf(e.at); if(set.has(d)) done.push({j,v,day:d,base:jobBase(j)});
-  }
+  const done=[...finishedInstalls().values()].filter(x=>set.has(x.day)).map(x=>({...x,base:jobBase(x.j)}));
   const staff=PL.staff().filter(p=>p.active);
   for(const x of done){
     for(const id of jobWorkers(x.j,x.v,x.day)){ const pl=planFor(id,x.day); if(pl.jobPct>0){ const p=touch(id), amt=Math.round(x.base*pl.jobPct)/100; p.jobPay+=amt; p.jobs.push({...x,pct:pl.jobPct,amt}); } }
@@ -4366,7 +4380,7 @@ if (LANG_ES) {
 /* ---------- Today: how much work is scheduled, done and left; and (Raul only) what he makes today ---------- */
 const isRaul = () => { const me=PL.me&&PL.me(); return !!(me&&S.me&&me.id===S.me.id&&/^raul\b/i.test(String(me.name||"").trim())); };
 function todayWork(d){
-  const st=stopsFor(d,"all"), price=s=>s.v.type==="install"?(+((S.fin.get(s.j.id)||{}).price)||0):0;
+  const st=stopsFor(d,"all"), price=s=>(+((S.fin.get(s.j.id)||{}).price)||0)*dayShare(s.j,s.v);
   const done=st.filter(s=>isDone(s.j.id,s.v.id)), left=st.filter(s=>!isDone(s.j.id,s.v.id)), sum=a=>a.reduce((t,s)=>t+price(s),0);
   const pct=st.length?Math.round(done.length/st.length*100):0, m=S.me.money;
   const tile=(lbl,list,cls)=>`<div class="tw-tile ${cls}"><small>${lbl}</small><b class="mono">${list.length}</b><span>${list.length===1?"stop":"stops"}${m&&sum(list)?` · ${money2(sum(list))}`:""}</span></div>`;
@@ -4384,7 +4398,7 @@ function myPayToday(d,st){
   let ms=0; for(const e of S.log.values()) if(e.kind==="clock"&&e.by===id&&e.in&&isoOf(e.in)===d) ms+=clockMs(e);
   const hourly=(ms/36e5)*pl.rate;
   // installs whose first check-off is today
-  const first=new Map(); for(const e of [...S.log.values()].filter(e=>e.kind==="done"&&e.at).sort((a,b)=>a.at.localeCompare(b.at))){ const j=S.jobs.get(e.jobId); if(!j) continue; const v=(j.visits||[]).find(x=>x.id===e.visitId)||{}; if(v.type==="takedown"||first.has(e.jobId)) continue; first.set(e.jobId,{j:{id:e.jobId,...j},v,day:isoOf(e.at)}); }
+  const first=finishedInstalls();
   const doneToday=[...first.values()].filter(x=>x.day===d);
   const mgmt=doneToday.reduce((t,x)=>t+price(x.j)*feePct(pl,x.j)/100,0), selfN=doneToday.filter(x=>feePct(pl,x.j)!==pl.mgmtPct).length;
   const jobPay=pl.jobPct?doneToday.filter(x=>jobWorkers(x.j,x.v,d).includes(id)).reduce((t,x)=>t+price(x.j)*pl.jobPct/100,0):0;
@@ -4392,8 +4406,8 @@ function myPayToday(d,st){
   const comm=sales.reduce((t,s)=>t+s.comm,0);
   const earned=hourly+mgmt+jobPay+comm;
   // still possible today: installs on today's schedule that haven't been checked off before
-  const open=st.filter(s=>s.v.type==="install"&&!isDone(s.j.id,s.v.id)&&!first.has(s.j.id));
-  const moreMgmt=open.reduce((t,s)=>t+price(s.j)*feePct(pl,{id:s.j.id})/100,0);
+  const open=st.filter(s=>s.v.type==="install"&&!s.v.returnOf&&!isDone(s.j.id,s.v.id)&&!first.has(s.j.id));
+  const moreMgmt=open.reduce((t,s)=>t+price(s.j)*payShare(s.j,s.v)*feePct(pl,{id:s.j.id})/100,0);
   const moreComm=open.map(s=>saleOf({id:s.j.id,...s.j})).filter(s=>s&&s.by===id&&commWhen()!=="sold").reduce((t,s)=>t+s.comm,0);
   const line=(l,v)=>v?`<div><small>${l}</small><b class="mono">${money2(v)}</b></div>`:"";
   return `<section class="dcard dc-wide tw-me"><header><span class="eyebrow">Your pay today · only you see this</span><button type="button" class="linkbtn" data-act="today-go" data-v="payroll">Payroll</button></header>
@@ -4453,7 +4467,7 @@ function crewDay(d,cid){
   const st=stopsFor(d,cid).filter(s=>s.v.type==="install"), price=j=>+((S.fin.get(j.id)||{}).price)||0;
   const pl=isRaul()?planFor(S.me.id,d):null;
   let rev=0, done=0, mine=0;
-  for(const s of st){ const p=price(s.j)/Math.max(1,visitCrews(s.j,s.v).length); rev+=p; if(isDone(s.j.id,s.v.id)) done+=p; if(pl) mine+=p*feePct(pl,{id:s.j.id})/100; }
+  for(const s of st){ const p=price(s.j)*dayShare(s.j,s.v)/Math.max(1,visitCrews(s.j,s.v).length); rev+=p; if(isDone(s.j.id,s.v.id)) done+=p; if(pl) mine+=p*feePct(pl,{id:s.j.id})/100; }
   return {n:st.length, rev, done, mine};
 }
 function crewMoneyFoot(d,team){
@@ -4505,7 +4519,7 @@ setInterval(checkVersion,5*60e3);
 const isCombo = j => (+j.washTotal||0)>0 || /ProWash work/i.test(j.notes||"");
 /* ---------- Week: work done/left for the week, and (Raul only) pay for the week ---------- */
 function weekWork(days){
-  const st=days.flatMap(d=>stopsFor(d,"all").map(s=>({...s,d}))), price=s=>s.v.type==="install"?(+((S.fin.get(s.j.id)||{}).price)||0):0;
+  const st=days.flatMap(d=>stopsFor(d,"all").map(s=>({...s,d}))), price=s=>(+((S.fin.get(s.j.id)||{}).price)||0)*dayShare(s.j,s.v);
   const done=st.filter(s=>isDone(s.j.id,s.v.id)), left=st.filter(s=>!isDone(s.j.id,s.v.id)), sum=a=>a.reduce((t,s)=>t+price(s),0), m=S.me.money;
   const pct=st.length?Math.round(done.length/st.length*100):0;
   const tile=(lbl,list,cls)=>`<div class="tw-tile ${cls}"><small>${lbl}</small><b class="mono">${list.length}</b><span>${list.length===1?"stop":"stops"}${m&&sum(list)?` · ${money2(sum(list))}`:""}</span></div>`;
@@ -4517,16 +4531,16 @@ function weekWork(days){
 function myPayWeek(days,st){
   const id=S.me.id, set=new Set(days), price=j=>+((S.fin.get(j.id)||{}).price)||0;
   let ms=0, hourly=0; for(const e of S.log.values()) if(e.kind==="clock"&&e.by===id&&e.in&&set.has(isoOf(e.in))){ const x=clockMs(e); ms+=x; hourly+=(x/36e5)*planFor(id,isoOf(e.in)).rate; }
-  const first=new Map(); for(const e of [...S.log.values()].filter(e=>e.kind==="done"&&e.at).sort((a,b)=>a.at.localeCompare(b.at))){ const j=S.jobs.get(e.jobId); if(!j) continue; const v=(j.visits||[]).find(x=>x.id===e.visitId)||{}; if(v.type==="takedown"||first.has(e.jobId)) continue; first.set(e.jobId,{j:{id:e.jobId,...j},v,day:isoOf(e.at)}); }
+  const first=finishedInstalls();
   const doneWk=[...first.values()].filter(x=>set.has(x.day));
   let mgmt=0, selfN=0, jobPay=0; for(const x of doneWk){ const pl=planFor(id,x.day), pc=feePct(pl,x.j); mgmt+=price(x.j)*pc/100; if(pc&&pc!==pl.mgmtPct) selfN++; if(pl.jobPct&&jobWorkers(x.j,x.v,x.day).includes(id)) jobPay+=price(x.j)*pl.jobPct/100; }
   const sales=allSales().filter(s=>s.by===id&&set.has(s.earnedOn)), comm=sales.reduce((t,s)=>t+s.comm,0);
   const earned=hourly+mgmt+jobPay+comm;
-  const open=st.filter(s=>s.v.type==="install"&&!isDone(s.j.id,s.v.id)&&!first.has(s.j.id));
-  const moreMgmt=open.reduce((t,s)=>t+price(s.j)*feePct(planFor(id,s.d),{id:s.j.id})/100,0);
+  const open=st.filter(s=>s.v.type==="install"&&!s.v.returnOf&&!isDone(s.j.id,s.v.id)&&!first.has(s.j.id));
+  const moreMgmt=open.reduce((t,s)=>t+price(s.j)*payShare(s.j,s.v)*feePct(planFor(id,s.d),{id:s.j.id})/100,0);
   const moreComm=open.map(s=>saleOf({id:s.j.id,...s.j})).filter(s=>s&&s.by===id&&commWhen()!=="sold").reduce((t,s)=>t+s.comm,0);
   // by day
-  const byDay=days.map(d=>{ const dd=doneWk.filter(x=>x.day===d).reduce((t,x)=>t+price(x.j)*feePct(planFor(id,d),x.j)/100,0)+sales.filter(s=>s.earnedOn===d).reduce((t,s)=>t+s.comm,0); const od=open.filter(s=>s.d===d).reduce((t,s)=>t+price(s.j)*feePct(planFor(id,d),{id:s.j.id})/100,0); return {d,dd,od}; });
+  const byDay=days.map(d=>{ const dd=doneWk.filter(x=>x.day===d).reduce((t,x)=>t+price(x.j)*feePct(planFor(id,d),x.j)/100,0)+sales.filter(s=>s.earnedOn===d).reduce((t,s)=>t+s.comm,0); const od=open.filter(s=>s.d===d).reduce((t,s)=>t+price(s.j)*payShare(s.j,s.v)*feePct(planFor(id,d),{id:s.j.id})/100,0); return {d,dd,od}; });
   const mx=Math.max(1,...byDay.map(x=>x.dd+x.od));
   const line=(l,v)=>v?`<div><small>${l}</small><b class="mono">${money2(v)}</b></div>`:"";
   return `<section class="dcard tw-me"><header><span class="eyebrow">Your pay this week · only you see this</span><button type="button" class="linkbtn" data-act="today-go" data-v="payroll">Payroll</button></header>
@@ -4534,6 +4548,26 @@ function myPayWeek(days,st){
     <div class="wk-pay">${byDay.map(x=>`<button type="button" class="wkp" data-act="go-day" data-v="${x.d}"><span class="bars"><i class="done" style="height:${x.dd/mx*100}%"></i><i class="left" style="height:${x.od/mx*100}%"></i></span><small>${esc(fmtDay(x.d,{weekday:"short"}))}</small><b class="mono">${x.dd+x.od?money0(x.dd+x.od):"–"}</b></button>`).join("")}</div>
     <div class="dmoney">${line(`Management fee · ${doneWk.length} install${doneWk.length===1?"":"s"} done${selfN?` (${selfN} you installed at 10%)`:""}`,mgmt)}${line("Job %",jobPay)}${line(`Hours · ${h1(ms/36e5)} hrs`,hourly)}${line(`Sales commission · ${sales.length} sale${sales.length===1?"":"s"}`,comm)}${line(`Still to earn · ${open.length} install${open.length===1?"":"s"} left this week`,moreMgmt)}${line("Commission on your sales still to install",moreComm)}</div></section>`;
 }
+/* ---------- multi-day installs ---------- */
+/* A job with 2+ install visits is one install spread over several days: the board shows "Day 1 of 2",
+   revenue is split across the days, and the job counts as installed (pay, commission) when the last day is checked off. */
+function installDayNo(j,v){
+  const iv=instVisits(j); if(iv.length<=1||!v||v.type!=="install") return null;
+  const base=v.returnOf?(j.visits||[]).find(x=>x.id===v.returnOf)||v:v;
+  const ord=[...iv].sort((a,b)=>String(a.date||"9999").localeCompare(String(b.date||"9999")));
+  return {n:ord.findIndex(x=>x.id===base.id)+1, of:iv.length};
+}
+const _crewTags32 = crewTags;
+crewTags = function(j,v){ const d=installDayNo(j,v); return (d?`<span class="vt daytag">Day ${d.n} of ${d.of}</span>`:"")+_crewTags32(j,v); };
+installedOn = function(j){
+  const iv=instVisits(j);
+  if(iv.length<=1){ const d=[...S.log.values()].filter(e=>e.kind==="done"&&e.jobId===j.id).map(e=>e.at).sort()[0]; return d?isoOf(d):""; }
+  let last="";
+  for(const v of iv){ const d=doneMap.get(j.id+"|"+v.id)||(j.visits||[]).filter(x=>x.returnOf===v.id).map(x=>doneMap.get(j.id+"|"+x.id)).find(Boolean); if(!d||!d.at) return ""; if(d.at>last) last=d.at; }
+  return last?isoOf(last):"";
+};
+ES_RX.push([/^Day (\d+) of (\d+)$/, (_, a, b) => `Día ${a} de ${b}`]);
+if(typeof ES==="object"){ ES["+ Install day"]="+ Día de instalación"; }
 
 /* ---------- render ---------- */
 function renderMain(){
