@@ -456,6 +456,7 @@ async function sync(trigger, quick) {
       if (!d.crew) { const c = autoCrew(j); if (c) { d.crew = c; ch = true; res.assigned++; } }
       if (ch) { d.updatedAt = now; rows.push({ coll: "jobs", id: existing.id, data: d }); }
       const f = fin.get(existing.id);
+      { const w = Math.round((k.washTotal || 0) * 100) / 100; if ((+d.washTotal || 0) !== w && (w || d.washTotal)) { d.washTotal = w; d.updatedAt = now; if (!rows.some((r) => r.coll === "jobs" && r.id === existing.id)) rows.push({ coll: "jobs", id: existing.id, data: d }); ch = true; } }
       if (f && f.price && k.washTotal && price > 0 && Math.abs(+f.price - (+j.total || 0)) < 0.01 && Math.abs(+f.price - price) >= 0.01) { rows.push({ coll: "fin", id: existing.id, data: { ...f, price } }); ch = true; }
       else if ((!f || !f.price) && price > 0) { rows.push({ coll: "fin", id: existing.id, data: { ...(f || { invoiceNo: "", collected: false, ssPaid: false }), price, privateNote: (f && f.privateNote) || "From Jobber #" + j.jobNumber } }); ch = true; }
       if (j.completedAt && !done.has(existing.id)) { rows.push({ coll: "log", id: "jbdone-" + wid, data: { jobId: existing.id, visitId: (v && v.id) || "inst", kind: "done", by: "jobber", at: j.completedAt } }); ch = true; }
@@ -476,7 +477,7 @@ async function sync(trigger, quick) {
     rows.push({ coll: "jobs", id, data: {
       clientId: client.id, address: a && norm(a) !== norm(client.data.address) ? a : "", source: "prolight", stage: "booked", crew: autoCrew(j),
       scope: scopeOf(k.lines), notes, season: String(new Date().getFullYear()), rooflineFt: "", links: [], mockups: [], priority: "",
-      importedFrom: "Jobber", jobberNo: String(j.jobNumber || ""), jobberUrl: j.jobberWebUri || "", createdAt: now, updatedAt: now,
+      importedFrom: "Jobber", jobberNo: String(j.jobNumber || ""), jobberUrl: j.jobberWebUri || "", createdAt: now, updatedAt: now, washTotal: Math.round((k.washTotal || 0) * 100) / 100,
       visits: [{ id: "inst", type: "install", date, time: "", crew: "", note: "", order: null }] } });
     rows.push({ coll: "fin", id, data: { price, invoiceNo: "", privateNote: "From Jobber #" + j.jobNumber, collected: false, ssPaid: false } });
     if (j.completedAt) rows.push({ coll: "log", id: "jbdone-" + wid, data: { jobId: id, visitId: "inst", kind: "done", by: "jobber", at: j.completedAt } });
@@ -617,7 +618,7 @@ module.exports = async (req, res) => {
       const [jobs, fins] = await Promise.all([allDocs("jobs"), allDocs("fin")]);
       const fin = new Map(fins.map((f) => [f.id, f.data]));
       const list = jobs.filter((j) => j.data.source !== "tcl" && /work_orders\/(\d+)/.test(String(j.data.jobberUrl || "")));
-      const out = [], rows = [];
+      const out = [], rows = [], combo = [];
       for (let i = 0; i < list.length; i += 10) {
         const chunk = list.slice(i, i + 10);
         const q = "{" + chunk.map((j, k) => `j${k}: job(id:"${gidJob(String(j.data.jobberUrl).match(/work_orders\/(\d+)/)[1])}"){ title total lineItems(first:20){ nodes{ name totalPrice } } }`).join(" ") + "}";
@@ -627,6 +628,9 @@ module.exports = async (req, res) => {
           const k2 = classify({ ...jb, client: {} }), lines = (jb.lineItems && jb.lineItems.nodes) || [];
           const light = Math.round((k2.lines || []).reduce((t, l) => t + (+l.totalPrice || 0), 0) * 100) / 100, total = +jb.total || lines.reduce((t, l) => t + (+l.totalPrice || 0), 0);
           const f = fin.get(j.id) || {}, cur = +f.price || 0;
+          // mark ProLight + ProWash combo jobs so they get their own tab on the board
+          const wash = Math.round((k2.washTotal || 0) * 100) / 100;
+          if ((+j.data.washTotal || 0) !== wash && (wash || j.data.washTotal)) { combo.push(j.id); rows.push({ coll: "jobs", id: j.id, data: { ...j.data, washTotal: wash, washLines: wash ? lines.filter((l) => !(k2.lines || []).includes(l)).map((l) => l.name).slice(0, 6) : [] } }); }
           if (!k2.washTotal || !light || Math.abs(cur - light) < 0.01) return;
           const r = { id: j.id, no: (j.data.jobberNo || ""), was: cur, light, jobberTotal: total, wash: Math.round(k2.washTotal * 100) / 100 };
           // fix when the board shows the full Jobber total (or nothing); leave hand-typed prices alone
@@ -636,7 +640,7 @@ module.exports = async (req, res) => {
         });
       }
       if (!dry && rows.length) await putDocs(rows);
-      return res.status(200).json({ dry, checked: list.length, mixed: out.length, fixed: rows.length, out });
+      return res.status(200).json({ dry, checked: list.length, mixed: out.length, combo: combo.length, writes: rows.length, out });
     }
     if (action === "schema") {
       if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });

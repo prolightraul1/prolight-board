@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ProLight Season Board</title>
 <meta name="theme-color" content="#111916">
-<meta name="build" content="1793586288">
+<meta name="build" content="1793587732">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -741,6 +741,7 @@ html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
 .ss-view .c-crew,.ss-view .jhead span:nth-child(2),.ss-view .jhead span:nth-child(3){visibility:hidden}
 .wday h4{flex-wrap:wrap;gap:0 6px}
 .lbl:empty{display:none}
+.lbl.wash{background:#e3f1fb;color:#0c5a8a;margin-left:4px}
 #upd-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(80px + env(safe-area-inset-bottom,0px));z-index:2700;border:0;border-radius:999px;padding:10px 18px;background:var(--amber,#f5b83d);color:#1a1405;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.3);cursor:pointer}
 .xcrews{margin-top:10px}.xcrews>small{display:block;margin-bottom:6px;color:var(--ink-2);font-weight:600}.xcrews .chip .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
 .cmoney{margin:14px 0 4px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
@@ -1068,14 +1069,14 @@ function mediaTag(m){
 }
 
 function vJobs(){
-  const F=[["active","Active"],["unassigned","Needs a crew"],["unsched","Needs a date"],["scheduled","Scheduled"],["lit","Installed"],["down","Taken down"],["tcl","TCL"],["pl","ProLight"],["co-prolight","ProLight crews"],["co-shipshape","ShipShape crew"],["all","All"]].filter(([k])=>!crewView()||["active","unsched","scheduled","lit","down","all"].includes(k));
+  const F=[["active","Active"],["unassigned","Needs a crew"],["unsched","Needs a date"],["scheduled","Scheduled"],["lit","Installed"],["down","Taken down"],["tcl","TCL"],["pl","ProLight"],["combo","ProLight + ProWash"],["co-prolight","ProLight crews"],["co-shipshape","ShipShape crew"],["all","All"]].filter(([k])=>!crewView()||["active","unsched","scheduled","lit","down","all"].includes(k));
   let list=jobsArr(); const q=S.q.jobs.trim().toLowerCase();
   if(q) list=list.filter(j=>{ const c=clientOf(j); return [c.name,addrOf(j),c.phone,j.tclRef,j.scope,j.notes,label(j)].join(" ").toLowerCase().includes(q); });
   const f=S.jf, st=j=>status(j);
   if(f==="active") list=list.filter(j=>!["down","cancelled"].includes(st(j)));
   if(f==="unsched") list=list.filter(j=>["lead","quoted","booked"].includes(st(j)) || (st(j)==="lit" && !(j.visits||[]).some(v=>v.type==="takedown"&&v.date)));
   if(["scheduled","lit","down"].includes(f)) list=list.filter(j=>st(j)===f);
-  if(f==="tcl") list=list.filter(j=>j.source==="tcl"); if(f==="pl") list=list.filter(j=>j.source!=="tcl");
+  if(f==="tcl") list=list.filter(j=>j.source==="tcl"); if(f==="pl") list=list.filter(j=>j.source!=="tcl"); if(f==="combo") list=list.filter(isCombo);
   if(f.startsWith("co-")) list=list.filter(j=>coOf(j.crew)===f.slice(3));
   if(f==="unassigned") list=list.filter(j=>!j.crew && j.stage!=="cancelled");
   list.sort((a,b)=>{ const x=nextVisit(a), y=nextVisit(b); if(x&&y) return x.date.localeCompare(y.date); if(x) return -1; if(y) return 1; return String(clientOf(a).name).localeCompare(String(clientOf(b).name)); });
@@ -3029,7 +3030,7 @@ function jobRow(j){
   const c=clientOf(j), st=status(j), nv=nextVisit(j);
   const team=crewObj(j.crew)&&crews().filter(x=>x.co===coOf(j.crew)).length>1?teamName(j.crew):(crewObj(j.crew)?teamName(j.crew):"Unassigned");
   const when=nv?`${VTYPE[nv.type]} ${fmtDay(nv.date)}`:(j.tclWhen&&!["lit","down"].includes(st)?j.tclWhen:"");
-  const tag=`<span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span>`;
+  const tag=`<span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span>${isCombo(j)&&!crewView()?`<span class="lbl wash">+ ProWash</span>`:""}`;
   return `<button type="button" class="row jrow" data-act="job" data-id="${esc(j.id)}">
     <span class="bulb ${BULB[st]}"></span>
     <span class="m"><span class="n">${esc(c.name||"Customer")}${myFeeChip(j)}</span><span class="s">${tag}<span class="a">${esc(addrOf(j)||"No address")}</span></span></span>
@@ -4494,6 +4495,8 @@ async function checkVersion(){
 }
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") checkVersion(); });
 setInterval(checkVersion,5*60e3);
+
+const isCombo = j => (+j.washTotal||0)>0 || /ProWash work/i.test(j.notes||"");
 
 /* ---------- render ---------- */
 function renderMain(){
