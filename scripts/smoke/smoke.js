@@ -16,8 +16,9 @@ const VIEWS=['today','route','week','jobs','clients','map','chat','office'], OFF
 const srv=http.createServer((q,s)=>{ let p=decodeURIComponent(q.url.split('?')[0]); if(p==='/') p='/index.html'; const f=path.join(ROOT,p); if(!f.startsWith(ROOT)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){ s.writeHead(404); return s.end(); } s.writeHead(200,{'content-type':{'.html':'text/html','.js':'text/javascript','.png':'image/png','.svg':'image/svg+xml'}[path.extname(f)]||'application/octet-stream'}); fs.createReadStream(f).pipe(s); }).listen(8799);
 (async()=>{
   const b=await chromium.launch(); let bad=0;
-  for(const who of [{uid:'u-raul',w:1280,h:900},{uid:'u-raul',w:820,h:1180,es:true},{uid:'u-mike',w:390,h:844}]){
-    const ctx=await b.newContext({viewport:{width:who.w,height:who.h},hasTouch:who.w<900});
+  for(const who of [{uid:'u-raul',w:1280,h:900},{uid:'u-raul',w:820,h:1180,es:true},{uid:'u-mike',w:390,h:844,ios:true}]){
+    const ctx=await b.newContext({viewport:{width:who.w,height:who.h},hasTouch:who.w<900,...(who.ios?{userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'}:{})});
+    if(who.ios) await ctx.addInitScript(()=>{ Object.defineProperty(navigator,'standalone',{get:()=>true}); window.__ZOOM=1; window.__IH=null; const ih=Object.getOwnPropertyDescriptor(window,'innerHeight'); Object.defineProperty(window,'innerHeight',{configurable:true,get(){ return window.__IH??ih.get.call(window); }}); if(window.visualViewport) Object.defineProperty(visualViewport,'scale',{get:()=>window.__ZOOM}); });
     await ctx.addInitScript(({seed,users,who})=>{ window.__SEED=seed; window.__USERS=users; window.__CALLS=[]; localStorage.setItem('look',JSON.stringify({intro:'off'})); if(who.es) localStorage.setItem('lang','es'); sessionStorage.setItem('mock-session',JSON.stringify({uid:who.uid})); },{seed,users,who});
     await ctx.route(/unpkg|cdnjs|jsdelivr|googleapis|gstatic|tile/, r=>r.abort());
     await ctx.route(/supabase-js/, r=>r.fulfill({contentType:'text/javascript',body:fs.readFileSync(__dirname+'/mock-supabase.js','utf8')}));
@@ -29,6 +30,11 @@ const srv=http.createServer((q,s)=>{ let p=decodeURIComponent(q.url.split('?')[0
     if(who.uid==='u-raul') for(const o of OFFICE){ await p.evaluate(o=>{ S.view='office'; S.office=o; renderMain(); },o).catch(e=>errs.push('office '+o+': '+e.message)); await p.waitForTimeout(150); }
     await p.evaluate(()=>{ S.view='jobs'; renderMain(); openDrawer('job','j2'); }).catch(e=>errs.push('drawer: '+e.message)); await p.waitForTimeout(200);
     await p.evaluate(()=>{ closeDrawer(); S.view='route'; renderMain(); }); await p.waitForTimeout(200);
+    if(who.ios){ // pinch-zoom on the iPhone home-screen app must not push the bottom bar down or log keyboard shrink
+      const z=await p.evaluate(async()=>{ for(const [s,h] of [[1.5,560],[2,420],[3,280]]){ window.__ZOOM=s; window.__IH=h; visualViewport.dispatchEvent(new Event('resize')); dispatchEvent(new Event('resize')); await new Promise(r=>setTimeout(r,300)); }
+        const out={tf:(document.querySelector('.tabs')||{style:{}}).style.transform||'', lag:EVQ.filter(e=>/keyboard shrink/.test(e.where||'')).length}; window.__ZOOM=1; window.__IH=null; dispatchEvent(new Event('resize')); return out; });
+      if(z.tf||z.lag) errs.push('zoom: bar moved or lag logged '+JSON.stringify(z));
+    }
     console.log(`${who.uid}${who.es?' es':''} ${who.w}px: ${errs.length?'ERRORS '+JSON.stringify(errs):'ok'}`); bad+=errs.length; await ctx.close();
   }
   await b.close(); srv.close(); process.exit(bad?1:0);
