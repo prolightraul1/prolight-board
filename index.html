@@ -740,6 +740,7 @@ html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
 .ss-view .c-crew,.ss-view .jhead span:nth-child(2),.ss-view .jhead span:nth-child(3){visibility:hidden}
 .wday h4{flex-wrap:wrap;gap:0 6px}
 .lbl:empty{display:none}
+.pin-tip.pin-price{font-weight:800;font-variant-numeric:tabular-nums}
 .fee-self{display:flex;align-items:center;gap:8px;margin-top:10px;font-weight:600}.fee-self small{color:var(--ink-2);font-weight:500}.fee-chip.self{border-color:var(--ok,#1f8a4c)}
 .fee-chip{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:999px;border:1px solid var(--amber,#f5b83d);color:var(--amber-ink,#9a6200);font:600 12px/1.5 var(--mono,ui-monospace,monospace);vertical-align:middle;white-space:nowrap}
 .fee-chip.ok{border-color:var(--ok,#1f8a4c);color:var(--ok,#1f8a4c)}
@@ -1348,7 +1349,8 @@ function openDrawer(kind,id){ S.drawer={kind,id,keep:false}; renderDrawer(); }
 function closeDrawer(){ S.drawer=null; S.form=null; renderDrawer(); }
 
 /* ---------- map ---------- */
-const MAP = { cx:null, cy:null, k:null, sel:null, mode:"unsched", day:todayISO(), placing:null, date:addDays(todayISO(),1) };
+const MAP = { cx:null, cy:null, k:null, sel:null, mode:"unsched", day:todayISO(), placing:null, date:addDays(todayISO(),1), prices:(()=>{ try{ return !!localStorage.getItem("map-prices"); }catch(e){ return false; } })() };
+const money0 = n => "$"+Math.round(+n||0).toLocaleString("en-US");
 const PL_COLORS = ["#f2a516","#e0573c","#8fb339","#b26ad8","#2fb3a8"];
 function crewColor(id){ const c=crewObj(id); if(!c) return null; if(c.co==="shipshape") return "#3c7de0"; const i=crews().filter(x=>x.co==="prolight").findIndex(x=>x.id===c.id); return PL_COLORS[(i<0?0:i)%PL_COLORS.length]; }
 function pendingVisit(j){ return (j.visits||[]).filter(v=>!isDone(j.id,v.id)).sort((a,b)=>String(a.date||"9").localeCompare(String(b.date||"9")))[0]||null; }
@@ -1367,7 +1369,7 @@ function vMap(){
   const modes=plOnly()?[["day","Today's route"],["sched","Scheduled"]]:[["unsched","Needs a date"],["sched","Scheduled"],["day","One day's route"],["active","All active"]];
   const list=mapJobs(), on=list.filter(hasLL), off=list.filter(j=>!hasLL(j));
   const sel=MAP.sel && S.jobs.get(MAP.sel) ? {id:MAP.sel,...S.jobs.get(MAP.sel)} : null;
-  let h=`<div class="bar"><h1 class="h-view grow">Map</h1><span class="count mono">${on.length} on map${off.length?` · ${off.length} not placed`:""}</span></div>
+  let h=`<div class="bar"><h1 class="h-view grow">Map</h1><span class="count mono">${on.length} on map${off.length?` · ${off.length} not placed`:""}${S.me.money&&MAP.prices?` · ${money0(on.reduce((t,j)=>t+(+((S.fin.get(j.id)||{}).price)||0),0))}`:""}</span>${S.me.money?`<button type="button" class="btn small ${MAP.prices?"amber":""}" data-act="map-prices">${MAP.prices?"Hide prices":"$ Show prices"}</button>`:""}</div>
     <div class="chips" role="group" aria-label="Show">${modes.map(([k,l])=>`<button type="button" class="chip" data-act="map-mode" data-v="${k}" aria-pressed="${MAP.mode===k}">${l}</button>`).join("")}</div>
     ${MAP.mode==="day"?`<div class="bar"><button type="button" class="btn icon" data-act="map-day" data-v="-1" aria-label="Previous day">‹</button><b class="sign" style="font-size:22px">${rel(MAP.day)?rel(MAP.day)+" · ":""}${fmtDay(MAP.day,{weekday:"short",month:"short",day:"numeric"})}</b><button type="button" class="btn icon" data-act="map-day" data-v="1" aria-label="Next day">›</button></div>`:""}
     <div class="bar">${teamSeg()}</div>
@@ -1418,8 +1420,9 @@ function drawMap(){
     const col=crewColor(j.crew), sel=j.id===MAP.sel, st=status(j);
     const m=L.circleMarker([j.lat,j.lng],{radius:sel?11:8,weight:sel?3:2,color:sel?tok("--ink"):(col?"#ffffff":tok("--ink-2")),fillColor:(st==="lit"&&effectiveDark())?bulbColors()[list.indexOf(j)%bulbColors().length]:(col||tok("--card")),fillOpacity:1,className:st==="lit"?"pin-lit":(st==="down"?"pin-down":"")}).addTo(LAYER);
     m.on("click",e=>{ L.DomEvent.stopPropagation(e); if(MAP.placing) return; MAP.sel=j.id; renderMain(); });
-    const lbl=(order&&order.get(j.id)?order.get(j.id)+". ":"")+(clientOf(j).name||"Customer");
-    m.bindTooltip(esc(lbl),{permanent:!!(sel||z>=15||order),direction:"right",offset:[10,0],className:"pin-tip"});
+    const pr=S.me.money&&MAP.prices?(+((S.fin.get(j.id)||{}).price)||0):null;
+    const lbl=(order&&order.get(j.id)?order.get(j.id)+". ":"")+(pr!=null&&z<14&&!sel?"":(clientOf(j).name||"Customer"))+(pr!=null?`${z<14&&!sel?"":" · "}${pr?money0(pr):"no price"}`:"");
+    m.bindTooltip(esc(lbl),{permanent:!!(sel||z>=15||order||pr!=null),direction:"right",offset:[10,0],className:"pin-tip"+(pr!=null?" pin-price":"")});
   }
   if(MAP.center){ LMAP.panTo(MAP.center); MAP.center=null; }
 }
@@ -4144,7 +4147,10 @@ function planFor(id, day){
 const nextPlan = id => ((S.payroll.rates||{})[id]?.plans||[]).filter(p=>p.from>monday(isoOf(new Date().toISOString()))).sort((a,b)=>a.from.localeCompare(b.from))[0]||null;
 // your % on a job: the management fee, or the self-install rate when you put it in yourself
 const SELF_PCT = 10;
-const feePct = (pl, j) => pl.mgmtPct>0 ? (((S.fin.get(j.id)||{}).selfInstall) ? (pl.selfPct||SELF_PCT) : pl.mgmtPct) : 0;
+// on the "Raul" crew counts as installed yourself, unless you switched it off on that job
+const onRaulCrew = j => { const jj=S.jobs.get(j.id)||j, ids=[jj.crew,...(jj.visits||[]).filter(v=>v.type==="install").map(v=>v.crew)].filter(Boolean).map(normCrew); return ids.some(id=>/\braul\b/i.test((crewsAll().find(c=>c.id===id)||{}).name||"")); };
+const isSelf = j => { const f=S.fin.get(j.id)||{}; return f.selfInstall===true || (f.selfInstall!==false && onRaulCrew(j)); };
+const feePct = (pl, j) => pl.mgmtPct>0 ? (isSelf(j) ? (pl.selfPct||SELF_PCT) : pl.mgmtPct) : 0;
 const jobBase = j => +((S.fin.get(j.id)||{}).price)||0; // full job price, TCL jobs included
 // who did the install: anyone clocked in on the job; if nobody, the crew on that visit
 function jobWorkers(j,v,day){
@@ -4385,9 +4391,9 @@ function myPayToday(d,st){
 function myFee(j){
   if(!isRaul()) return null;
   const id=S.me.id, price=+((S.fin.get(j.id)||{}).price)||0, inst=installedOn(j);
-  const pl=planFor(id, inst||"9999-12-31"), pct=feePct(pl,j), self=!!((S.fin.get(j.id)||{}).selfInstall);
+  const pl=planFor(id, inst||"9999-12-31"), pct=feePct(pl,j), self=isSelf(j), auto=onRaulCrew(j)&&(S.fin.get(j.id)||{}).selfInstall!==false;
   const sale=saleOf(j), comm=sale&&sale.by===id?sale.comm:0;
-  return {price, pct, mgmtPct:pl.mgmtPct||0, self, comm, fee:Math.round(price*pct)/100, earned:!!inst&&pct>0, inst, before:!!inst&&!pct};
+  return {price, pct, mgmtPct:pl.mgmtPct||0, self, auto, comm, fee:Math.round(price*pct)/100, earned:!!inst&&pct>0, inst, before:!!inst&&!pct};
 }
 const myFeeChip = j => { const f=myFee(j); if(!f||!f.price||(!f.pct&&!f.before)) return ""; return `<span class="fee-chip ${f.earned?"ok":""} ${f.self?"self":""}" title="${f.self?"You installed it":"Your management fee"}">${f.before?"before 3%":`${f.self?"🔧 ":""}${f.pct}% · ${money2(f.fee)}`}</span>`; };
 async function setSelfInstall(jid,on){
@@ -4400,7 +4406,7 @@ function myFeeBlock(j){
   return `<section class="blk fee-blk"><span class="eyebrow">Your pay on this job · only you see this</span>
     <div class="fee-row"><b>${f.before?"$0.00":money2(f.fee)}</b><span>${f.before?`Installed ${esc(fmtDay(f.inst))}, before your 3% started`:`${f.self?"Installed it yourself":"Management fee"} · ${f.pct}% of ${money2(f.price)} · ${f.earned?`earned ${esc(fmtDay(f.inst))}`:"you get it when the install is checked off"}`}</span></div>
     ${f.comm?`<div class="fee-row" style="margin-top:2px"><b style="font-size:18px">+ ${money2(f.comm)}</b><span>sales commission (you sold it) · total ${money2(f.fee+f.comm)}</span></div>`:""}
-    ${f.mgmtPct?`<label class="fee-self"><input type="checkbox" data-self-install="${esc(j.id)}" ${f.self?"checked":""}> I installed this job myself <small>(${SELF_PCT}% instead of ${f.mgmtPct}%)</small></label>`:""}</section>`;
+    ${f.mgmtPct?`<label class="fee-self"><input type="checkbox" data-self-install="${esc(j.id)}" ${f.self?"checked":""}> I installed this job myself <small>(${SELF_PCT}% instead of ${f.mgmtPct}%)${f.auto?" · on automatically, it's on the Raul crew":""}</small></label>`:""}</section>`;
 }
 function myFeeTotals(list){
   if(!isRaul()) return "";
@@ -4601,6 +4607,7 @@ document.addEventListener("click", async ev=>{
     case "mockup": await openMockup(id||"",v); break;
     case "plan-save": t.disabled=true; await savePlan(v); break;
     case "bk-get": await getBackup(v); break;
+    case "map-prices": MAP.prices=!MAP.prices; try{ localStorage.setItem("map-prices",MAP.prices?"1":""); }catch(e){} renderMain(); break;
     case "pins": await openPins(); break;
     case "act-filter": ACT.filter=v; ACT.rows=null; ACT.open.clear(); renderMain(); break;
     case "act-refresh": ACT.rows=null; ACT.health=null; renderMain(); break;
