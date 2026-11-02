@@ -456,7 +456,8 @@ async function sync(trigger, quick) {
       if (!d.crew) { const c = autoCrew(j); if (c) { d.crew = c; ch = true; res.assigned++; } }
       if (ch) { d.updatedAt = now; rows.push({ coll: "jobs", id: existing.id, data: d }); }
       const f = fin.get(existing.id);
-      if ((!f || !f.price) && price > 0) { rows.push({ coll: "fin", id: existing.id, data: { ...(f || { invoiceNo: "", collected: false, ssPaid: false }), price, privateNote: (f && f.privateNote) || "From Jobber #" + j.jobNumber } }); ch = true; }
+      if (f && f.price && k.washTotal && price > 0 && Math.abs(+f.price - (+j.total || 0)) < 0.01 && Math.abs(+f.price - price) >= 0.01) { rows.push({ coll: "fin", id: existing.id, data: { ...f, price } }); ch = true; }
+      else if ((!f || !f.price) && price > 0) { rows.push({ coll: "fin", id: existing.id, data: { ...(f || { invoiceNo: "", collected: false, ssPaid: false }), price, privateNote: (f && f.privateNote) || "From Jobber #" + j.jobNumber } }); ch = true; }
       if (j.completedAt && !done.has(existing.id)) { rows.push({ coll: "log", id: "jbdone-" + wid, data: { jobId: existing.id, visitId: (v && v.id) || "inst", kind: "done", by: "jobber", at: j.completedAt } }); ch = true; }
       if (ch) res.updated++;
       if (!(d.mockups || []).length && d.jobberMediaV !== 4) media.push([j, wid, existing.id, d]);
@@ -608,6 +609,34 @@ module.exports = async (req, res) => {
       }
       await putDocs(rows);
       return res.status(200).json({ out });
+    }
+    if (action === "prices") {
+      // ProLight-only price on jobs that also have ProWash work in Jobber. dry=1 to just look.
+      if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
+      const dry = !!req.query.dry, token = await accessToken();
+      const [jobs, fins] = await Promise.all([allDocs("jobs"), allDocs("fin")]);
+      const fin = new Map(fins.map((f) => [f.id, f.data]));
+      const list = jobs.filter((j) => j.data.source !== "tcl" && /work_orders\/(\d+)/.test(String(j.data.jobberUrl || "")));
+      const out = [], rows = [];
+      for (let i = 0; i < list.length; i += 10) {
+        const chunk = list.slice(i, i + 10);
+        const q = "{" + chunk.map((j, k) => `j${k}: job(id:"${gidJob(String(j.data.jobberUrl).match(/work_orders\/(\d+)/)[1])}"){ title total lineItems(first:20){ nodes{ name totalPrice } } }`).join(" ") + "}";
+        const d = await gql(token, q).catch((e) => ({ err: e.message }));
+        chunk.forEach((j, k) => {
+          const jb = d && d["j" + k]; if (!jb) return;
+          const k2 = classify({ ...jb, client: {} }), lines = (jb.lineItems && jb.lineItems.nodes) || [];
+          const light = Math.round((k2.lines || []).reduce((t, l) => t + (+l.totalPrice || 0), 0) * 100) / 100, total = +jb.total || lines.reduce((t, l) => t + (+l.totalPrice || 0), 0);
+          const f = fin.get(j.id) || {}, cur = +f.price || 0;
+          if (!k2.washTotal || !light || Math.abs(cur - light) < 0.01) return;
+          const r = { id: j.id, no: (j.data.jobberNo || ""), was: cur, light, jobberTotal: total, wash: Math.round(k2.washTotal * 100) / 100 };
+          // fix when the board shows the full Jobber total (or nothing); leave hand-typed prices alone
+          r.fix = !cur || Math.abs(cur - total) < 0.01;
+          out.push(r);
+          if (r.fix) rows.push({ coll: "fin", id: j.id, data: { ...f, price: light, privateNote: ((f.privateNote || "").replace(/\s*Jobber job also has .*?work \(not counted\)\./, "") + ` Jobber job also has ${money(k2.washTotal)} of ProWash work (not counted).`).trim() } });
+        });
+      }
+      if (!dry && rows.length) await putDocs(rows);
+      return res.status(200).json({ dry, checked: list.length, mixed: out.length, fixed: rows.length, out });
     }
     if (action === "schema") {
       if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
