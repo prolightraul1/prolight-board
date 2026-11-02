@@ -740,6 +740,11 @@ html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
 .ss-view .c-crew,.ss-view .jhead span:nth-child(2),.ss-view .jhead span:nth-child(3){visibility:hidden}
 .wday h4{flex-wrap:wrap;gap:0 6px}
 .lbl:empty{display:none}
+.cmoney{margin:14px 0 4px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+.cm-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--line)}.cm-row:first-of-type{border-top:0}
+.cm-row .dot,.wk-money .dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex:none}.cm-row .count{flex:1}
+.cm-v{font-weight:800;font-size:16px}.cm-me{color:var(--ok,#1f8a4c);font-weight:700;font-size:13px}.cm-tot{font-size:15px}
+.wk-money{margin-top:6px;padding-top:6px;border-top:1px dashed var(--line);font-size:12px;display:grid;gap:3px}.wk-money .dot{margin-right:5px}
 .pin-tip.pin-price{font-weight:800;font-variant-numeric:tabular-nums}
 .fee-self{display:flex;align-items:center;gap:8px;margin-top:10px;font-weight:600}.fee-self small{color:var(--ink-2);font-weight:500}.fee-chip.self{border-color:var(--ok,#1f8a4c)}
 .fee-chip{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:999px;border:1px solid var(--amber,#f5b83d);color:var(--amber-ink,#9a6200);font:600 12px/1.5 var(--mono,ui-monospace,monospace);vertical-align:middle;white-space:nowrap}
@@ -1024,7 +1029,7 @@ function vRoute(){
       <h3>No stops ${r?r.toLowerCase():"this day"}</h3>
       <p>${S.jobs.size? "Nothing is scheduled for this crew on this day. Use the arrows to check another day." : S.me.owner? "Start by adding a client and a job, then give the job an install date and a crew. It shows up here as a stop on that crew's route." : "Once the office schedules jobs for your crew, they show up here in route order."}</p>
       ${S.me.owner&&!S.jobs.size?`<div><button type="button" class="btn amber" data-act="new-job">Add the first job</button></div>`:""}</div>`;
-  } else list=`<div class="stops">${stops.map((s,i)=>stopCard(s,i,stops.length)+(S._eta&&S._eta.lunch&&S._eta.lunch.after===i?lunchCard(S._eta.lunch,d):"")).join("")}</div>`;
+  } else list=`<div class="stops">${stops.map((s,i)=>stopCard(s,i,stops.length)+(S._eta&&S._eta.lunch&&S._eta.lunch.after===i?lunchCard(S._eta.lunch,d):"")).join("")}</div>`+crewMoneyFoot(d,S.team);
   const side = S.me.owner ? `<div class="side-card"><span class="eyebrow">Night-before text</span><p class="lede" style="font-size:14px">Copy each crew's run sheet for ${esc(fmtDay(addDays(d,0),{weekday:"short",month:"short",day:"numeric"}))} into their group chat.</p><button type="button" class="btn ink" data-act="texts" data-v="${d}">Open texts for this day</button></div>` : "";
   h+= (wide()&&stops.length) ? `<div class="route-cols rc-map"><div>${list}</div><div class="route-side">${routeSide()}${side||""}</div></div>` : side ? `<div class="route-cols"><div>${list}</div>${side}</div>` : list;
   return h;
@@ -1120,7 +1125,7 @@ function vWeek(){
   h+=`<div class="week">${days.map(d=>{ const st=stopsFor(d,S.team);
     return `<section class="wday ${d===t?"today":""}" data-day="${d}"><h4>${fmtDay(d,{weekday:"short"})} ${parseISO(d).getDate()}<span>${st.length?st.length+" stop"+(st.length>1?"s":""):""}</span></h4>
       ${st.length?st.map((s,i)=>{ const dn=isDone(s.j.id,s.v.id); return `<button type="button" class="wstop" data-act="go-day" data-v="${d}" ${S.me.owner&&!dn?`draggable="true" data-dj="${esc(s.j.id)}" data-dv="${esc(s.v.id)}"`:""}><span class="bulb ${dn?"on":""}"></span><span class="x"><div><b class="mono">${i+1}</b> ${esc(clientOf(s.j).name||"Customer")}</div><small>${VTYPE[s.v.type]}${S.team==="all"?" · "+esc(teamName(crewOf(s.j,s.v))):""}${s.v.time?" · "+fmtTime(s.v.time):""}</small></span></button>`; }).join(""):`<span class="none">No stops</span>`}
-    </section>`; }).join("")}</div>`;
+    ${wkMoney(d)}</section>`; }).join("")}</div>`;
   const all=jobsArr().filter(j=>j.stage!=="cancelled");
   const needInstall=all.filter(j=>["lead","quoted","booked"].includes(status(j)) && j.stage==="booked");
   const needDown=all.filter(j=>status(j)==="lit" && !(j.visits||[]).some(v=>v.type==="takedown"&&v.date));
@@ -3063,7 +3068,7 @@ function vToday(){
     [noDown,pl(noDown,"lit job with no takedown date","lit jobs with no takedown date"),"today-jf","unsched"]].filter(x=>x[0]);
   h+=todayWork(d)+`<div class="dgrid">
     <section class="dcard dc-crews"><header><span class="eyebrow">Crews today</span><button type="button" class="linkbtn" data-act="go-day" data-v="${d}">Open route</button></header>
-      ${cs.length?cs.map(({c,st,dn,nx})=>`<button type="button" class="dcrew" data-act="today-crew" data-v="${esc(c.id)}"><span class="dot" style="background:${crewColor(c.id)||"var(--ink-2)"}"></span><span class="m"><b>${esc(c.name)}</b><small>${st.length?(nx?`Next: ${esc(clientOf(nx.j).name||"Customer")}`:"All done for today"):"No stops"}</small></span><span class="r"><span class="mono">${dn}/${st.length}</span><span class="track"><span style="width:${st.length?dn/st.length*100:0}%"></span></span></span></button>`).join(""):`<p class="count">No crews set up yet.</p>`}
+      ${cs.length?cs.map(({c,st,dn,nx})=>`<button type="button" class="dcrew" data-act="today-crew" data-v="${esc(c.id)}"><span class="dot" style="background:${crewColor(c.id)||"var(--ink-2)"}"></span><span class="m"><b>${esc(c.name)}</b><small>${st.length?(nx?`Next: ${esc(clientOf(nx.j).name||"Customer")}`:"All done for today"):"No stops"}</small>${S.me.money&&st.length?(()=>{ const m=crewDay(d,c.id); return m.rev?`<small class="mono">${money0(m.rev)} today${isRaul()?` · you ${money2(m.mine)}`:""}</small>`:""; })():""}</span><span class="r"><span class="mono">${dn}/${st.length}</span><span class="track"><span style="width:${st.length?dn/st.length*100:0}%"></span></span></span></button>`).join(""):`<p class="count">No crews set up yet.</p>`}
     </section>
     <section class="dcard"><header><span class="eyebrow">Needs attention</span></header>${items.length?`<div class="dlist">${items.map(([n,l,a,v])=>`<button type="button" class="ditem" data-act="${a}" data-v="${v}"><b class="mono">${n}</b><span>${l}</span><span class="go" aria-hidden="true">›</span></button>`).join("")}</div>`:`<p class="count">All caught up.</p>`}</section>
     <section class="dcard"><header><span class="eyebrow">On the clock now · ${on.length}</span></header>${on.length?`<div class="dlist">${on.map(e=>`<div class="ditem static">${avatar(e.by,"sm")}<span><b>${esc(staffName(e.by))}</b></span><span class="count">${e.general?(e.where==="shop"?"At the shop":"Driving"):esc(clientOf(S.jobs.get(e.jobId)||{}).name||"On a job")} · since ${tfmt(e.in)}</span></div>`).join("")}</div>`:`<p class="count">Nobody is clocked in right now.</p>`}</section>`;
@@ -4432,6 +4437,29 @@ async function loadBackups(){
 async function getBackup(name){
   try{ const r=await fetch("/api/backup?action=get&name="+encodeURIComponent(name),{headers:{Authorization:"Bearer "+(await PL.authToken())}}); const j=await r.json(); if(!r.ok) throw new Error(j.error); location.href=j.url; }
   catch(e){ toast("Couldn't download that backup."); }
+}
+/* ---------- each crew's money for a day (money people), and your cut (Raul only) ---------- */
+function crewDay(d,cid){
+  const st=stopsFor(d,cid).filter(s=>s.v.type==="install"), price=j=>+((S.fin.get(j.id)||{}).price)||0;
+  const pl=isRaul()?planFor(S.me.id,d):null;
+  let rev=0, done=0, mine=0;
+  for(const s of st){ const p=price(s.j); rev+=p; if(isDone(s.j.id,s.v.id)) done+=p; if(pl) mine+=p*feePct(pl,{id:s.j.id})/100; }
+  return {n:st.length, rev, done, mine};
+}
+function crewMoneyFoot(d,team){
+  if(!S.me.money) return "";
+  const cs=(team==="all"?crews():crews().filter(c=>c.id===team)).map(c=>({c,...crewDay(d,c.id)})).filter(x=>x.n);
+  if(!cs.length) return "";
+  const tot=cs.reduce((t,x)=>t+x.rev,0), me=cs.reduce((t,x)=>t+x.mine,0);
+  return `<div class="cmoney"><span class="eyebrow">Crew revenue · ${esc(fmtDay(d,{weekday:"short",month:"short",day:"numeric"}))}</span>
+    ${cs.map(x=>`<div class="cm-row"><span class="dot" style="background:${crewColor(x.c.id)||"var(--ink-2)"}"></span><b>${esc(x.c.name)}</b><span class="count">${x.n} install${x.n===1?"":"s"}${x.done?` · ${money0(x.done)} done`:""}</span><span class="cm-v mono">${money0(x.rev)}</span>${isRaul()?`<span class="cm-me mono" title="Your pay from this crew today">you ${money2(x.mine)}</span>`:""}</div>`).join("")}
+    ${cs.length>1?`<div class="cm-row cm-tot"><b>All crews</b><span class="count"></span><span class="cm-v mono">${money0(tot)}</span>${isRaul()?`<span class="cm-me mono">you ${money2(me)}</span>`:""}</div>`:""}</div>`;
+}
+function wkMoney(d){
+  if(!S.me.money) return "";
+  const cs=(S.team==="all"?crews():crews().filter(c=>c.id===S.team)).map(c=>({c,...crewDay(d,c.id)})).filter(x=>x.n);
+  if(!cs.length) return "";
+  return `<div class="wk-money">${cs.map(x=>`<div><span class="dot" style="background:${crewColor(x.c.id)||"var(--ink-2)"}"></span>${esc(x.c.name)} <b class="mono">${money0(x.rev)}</b>${isRaul()&&x.mine?` <span class="cm-me mono">you ${money0(x.mine)}</span>`:""}</div>`).join("")}</div>`;
 }
 
 /* ---------- render ---------- */
