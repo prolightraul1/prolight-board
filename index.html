@@ -740,6 +740,7 @@ html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
 .ss-view .c-crew,.ss-view .jhead span:nth-child(2),.ss-view .jhead span:nth-child(3){visibility:hidden}
 .wday h4{flex-wrap:wrap;gap:0 6px}
 .lbl:empty{display:none}
+.fee-self{display:flex;align-items:center;gap:8px;margin-top:10px;font-weight:600}.fee-self small{color:var(--ink-2);font-weight:500}.fee-chip.self{border-color:var(--ok,#1f8a4c)}
 .fee-chip{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:999px;border:1px solid var(--amber,#f5b83d);color:var(--amber-ink,#9a6200);font:600 12px/1.5 var(--mono,ui-monospace,monospace);vertical-align:middle;white-space:nowrap}
 .fee-chip.ok{border-color:var(--ok,#1f8a4c);color:var(--ok,#1f8a4c)}
 .fee-blk{border:1px solid var(--amber,#f5b83d);border-radius:14px;padding:10px 14px;margin-bottom:10px}.fee-row{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-top:4px}.fee-row b{font-size:24px}.fee-row span{color:var(--ink-2)}
@@ -4141,6 +4142,9 @@ function planFor(id, day){
   return ps.length?{...base,...ps[ps.length-1]}:base;
 }
 const nextPlan = id => ((S.payroll.rates||{})[id]?.plans||[]).filter(p=>p.from>monday(isoOf(new Date().toISOString()))).sort((a,b)=>a.from.localeCompare(b.from))[0]||null;
+// your % on a job: the management fee, or the self-install rate when you put it in yourself
+const SELF_PCT = 10;
+const feePct = (pl, j) => pl.mgmtPct>0 ? (((S.fin.get(j.id)||{}).selfInstall) ? (pl.selfPct||SELF_PCT) : pl.mgmtPct) : 0;
 const jobBase = j => +((S.fin.get(j.id)||{}).price)||0; // full job price, TCL jobs included
 // who did the install: anyone clocked in on the job; if nobody, the crew on that visit
 function jobWorkers(j,v,day){
@@ -4164,7 +4168,7 @@ function payWeek(){
   const staff=PL.staff().filter(p=>p.active);
   for(const x of done){
     for(const id of jobWorkers(x.j,x.v,x.day)){ const pl=planFor(id,x.day); if(pl.jobPct>0){ const p=touch(id), amt=Math.round(x.base*pl.jobPct)/100; p.jobPay+=amt; p.jobs.push({...x,pct:pl.jobPct,amt}); } }
-    for(const s of staff){ const pl=planFor(s.id,x.day); if(pl.mgmtPct>0){ const p=touch(s.id), amt=Math.round(x.base*pl.mgmtPct)/100; p.mgmt+=amt; p.mgmtJobs.push({...x,pct:pl.mgmtPct,amt}); } }
+    for(const s of staff){ const pl=planFor(s.id,x.day), pc=feePct(pl,x.j); if(pc>0){ const p=touch(s.id), amt=Math.round(x.base*pc)/100; p.mgmt+=amt; p.mgmtJobs.push({...x,pct:pc,amt,self:pc!==pl.mgmtPct}); } }
   }
   for(const id of Object.keys(S.payroll.rates||{})) if(planFor(id,days[6]).rate>0 && (PL.staff().find(x=>x.id===id)||{}).active) touch(id);
   const out=[...ppl.values()].map(p=>{
@@ -4221,7 +4225,7 @@ function payCsv(){
     ["Employee","Pay plan","Total hours","Overtime hours","Hourly pay","Job % pay","Jobs","Management fee","Sales commission","Total pay"],
     ...P.map(p=>[p.name,planText(p.plan),h1(p.hrs),h1(p.ot),f(p.regPay+p.otPay),f(p.jobPay),p.jobs.length,f(p.mgmt),f(p.comm),f(p.total)]),
     [],["Total","",h1(P.reduce((t,p)=>t+p.hrs,0)),h1(P.reduce((t,p)=>t+p.ot,0)),f(P.reduce((t,p)=>t+p.regPay+p.otPay,0)),f(P.reduce((t,p)=>t+p.jobPay,0)),"",f(P.reduce((t,p)=>t+p.mgmt,0)),f(P.reduce((t,p)=>t+p.comm,0)),f(P.reduce((t,p)=>t+p.total,0))]];
-  const jl=P.flatMap(p=>[...p.jobs.map(x=>[p.name,"Job %",clientOf(x.j).name||"",x.j.source==="tcl"?"TCL":"ProLight",x.day,f(x.base),x.pct,f(x.amt)]),...p.mgmtJobs.map(x=>[p.name,"Management fee",clientOf(x.j).name||"",x.j.source==="tcl"?"TCL":"ProLight",x.day,f(x.base),x.pct,f(x.amt)])]);
+  const jl=P.flatMap(p=>[...p.jobs.map(x=>[p.name,"Job %",clientOf(x.j).name||"",x.j.source==="tcl"?"TCL":"ProLight",x.day,f(x.base),x.pct,f(x.amt)]),...p.mgmtJobs.map(x=>[p.name,x.self?"Installed it myself":"Management fee",clientOf(x.j).name||"",x.j.source==="tcl"?"TCL":"ProLight",x.day,f(x.base),x.pct,f(x.amt)])]);
   if(jl.length) rows.push([],["Job pay detail"],["Employee","Type","Customer","Job","Finished","Job price","%","Pay"],...jl);
   const cs=P.flatMap(p=>p.sales.map(s=>[p.name,clientOf(s.job).name||"",leadLabel(s.type),f(s.base),s.pct,f(s.comm)]));
   if(cs.length) rows.push([],["Sales commissions"],["Employee","Customer","Lead","Job amount","%","Commission"],...cs);
@@ -4361,41 +4365,48 @@ function myPayToday(d,st){
   // installs whose first check-off is today
   const first=new Map(); for(const e of [...S.log.values()].filter(e=>e.kind==="done"&&e.at).sort((a,b)=>a.at.localeCompare(b.at))){ const j=S.jobs.get(e.jobId); if(!j) continue; const v=(j.visits||[]).find(x=>x.id===e.visitId)||{}; if(v.type==="takedown"||first.has(e.jobId)) continue; first.set(e.jobId,{j:{id:e.jobId,...j},v,day:isoOf(e.at)}); }
   const doneToday=[...first.values()].filter(x=>x.day===d);
-  const mgmt=doneToday.reduce((t,x)=>t+price(x.j)*pl.mgmtPct/100,0);
+  const mgmt=doneToday.reduce((t,x)=>t+price(x.j)*feePct(pl,x.j)/100,0), selfN=doneToday.filter(x=>feePct(pl,x.j)!==pl.mgmtPct).length;
   const jobPay=pl.jobPct?doneToday.filter(x=>jobWorkers(x.j,x.v,d).includes(id)).reduce((t,x)=>t+price(x.j)*pl.jobPct/100,0):0;
   const sales=allSales().filter(s=>s.by===id&&s.earnedOn===d);
   const comm=sales.reduce((t,s)=>t+s.comm,0);
   const earned=hourly+mgmt+jobPay+comm;
   // still possible today: installs on today's schedule that haven't been checked off before
   const open=st.filter(s=>s.v.type==="install"&&!isDone(s.j.id,s.v.id)&&!first.has(s.j.id));
-  const moreMgmt=open.reduce((t,s)=>t+price(s.j)*pl.mgmtPct/100,0);
+  const moreMgmt=open.reduce((t,s)=>t+price(s.j)*feePct(pl,{id:s.j.id})/100,0);
   const moreComm=open.map(s=>saleOf({id:s.j.id,...s.j})).filter(s=>s&&s.by===id&&commWhen()!=="sold").reduce((t,s)=>t+s.comm,0);
   const line=(l,v)=>v?`<div><small>${l}</small><b class="mono">${money2(v)}</b></div>`:"";
   return `<section class="dcard dc-wide tw-me"><header><span class="eyebrow">Your pay today · only you see this</span><button type="button" class="linkbtn" data-act="today-go" data-v="payroll">Payroll</button></header>
     <div class="tw-pay"><div class="tw-big"><small>Earned so far</small><b>${money2(earned)}</b></div><div class="tw-big"><small>If everything left today gets done</small><b>${money2(earned+moreMgmt+moreComm)}</b></div></div>
-    <div class="dmoney">${line(`Management fee · ${pl.mgmtPct}% of ${doneToday.length} install${doneToday.length===1?"":"s"} done`,mgmt)}${line(`Job % · ${pl.jobPct}%`,jobPay)}${line(`Hours · ${h1(ms/36e5)} hrs at $${pl.rate}/hr`,hourly)}${line(`Sales commission · ${sales.length} sale${sales.length===1?"":"s"}`,comm)}
-      ${line(`Still to earn · ${pl.mgmtPct}% of ${open.length} install${open.length===1?"":"s"} left`,moreMgmt)}${line("Commission on your sales still to install",moreComm)}</div>
+    <div class="dmoney">${line(`Management fee · ${pl.mgmtPct}% of ${doneToday.length} install${doneToday.length===1?"":"s"} done${selfN?` (${selfN} you installed at ${pl.selfPct||SELF_PCT}%)`:""}`,mgmt)}${line(`Job % · ${pl.jobPct}%`,jobPay)}${line(`Hours · ${h1(ms/36e5)} hrs at $${pl.rate}/hr`,hourly)}${line(`Sales commission · ${sales.length} sale${sales.length===1?"":"s"}`,comm)}
+      ${line(`Still to earn on ${open.length} install${open.length===1?"":"s"} left`,moreMgmt)}${line("Commission on your sales still to install",moreComm)}</div>
     ${!pl.rate&&!pl.mgmtPct&&!pl.jobPct?`<p class="count">Set your pay in Office → Payroll → Pay plans.</p>`:""}</section>`;
 }
 /* ---------- Raul only: his management fee on every job ---------- */
 function myFee(j){
   if(!isRaul()) return null;
   const id=S.me.id, price=+((S.fin.get(j.id)||{}).price)||0, inst=installedOn(j);
-  const pl=planFor(id, inst||"9999-12-31"), pct=pl.mgmtPct||0;
-  return {price, pct, fee:Math.round(price*pct)/100, earned:!!inst&&pct>0, inst, before:!!inst&&!pct};
+  const pl=planFor(id, inst||"9999-12-31"), pct=feePct(pl,j), self=!!((S.fin.get(j.id)||{}).selfInstall);
+  const sale=saleOf(j), comm=sale&&sale.by===id?sale.comm:0;
+  return {price, pct, mgmtPct:pl.mgmtPct||0, self, comm, fee:Math.round(price*pct)/100, earned:!!inst&&pct>0, inst, before:!!inst&&!pct};
 }
-const myFeeChip = j => { const f=myFee(j); if(!f||!f.price||(!f.pct&&!f.before)) return ""; return `<span class="fee-chip ${f.earned?"ok":""}" title="Your ${f.pct}% management fee">${f.before?"before 3%":`${f.pct}% · ${money2(f.fee)}`}</span>`; };
+const myFeeChip = j => { const f=myFee(j); if(!f||!f.price||(!f.pct&&!f.before)) return ""; return `<span class="fee-chip ${f.earned?"ok":""} ${f.self?"self":""}" title="${f.self?"You installed it":"Your management fee"}">${f.before?"before 3%":`${f.self?"🔧 ":""}${f.pct}% · ${money2(f.fee)}`}</span>`; };
+async function setSelfInstall(jid,on){
+  const f=S.fin.get(jid)||{};
+  try{ await S.db.doc("fin/"+jid).set({...f,selfInstall:!!on}); toast(on?`Marked as installed by you · ${SELF_PCT}%`:"Back to the management fee"); }catch(e){ fail(e,"save that"); }
+}
 function myFeeBlock(j){
   const f=myFee(j); if(!f) return "";
   if(!f.price) return `<section class="blk fee-blk"><span class="eyebrow">Your management fee · only you see this</span><p class="count">No price on this job yet.</p></section>`;
-  return `<section class="blk fee-blk"><span class="eyebrow">Your management fee · only you see this</span>
-    <div class="fee-row"><b>${f.before?"$0.00":money2(f.fee)}</b><span>${f.before?`Installed ${esc(fmtDay(f.inst))}, before your 3% started`:`${f.pct}% of ${money2(f.price)} · ${f.earned?`earned ${esc(fmtDay(f.inst))}`:"you get it when the install is checked off"}`}</span></div></section>`;
+  return `<section class="blk fee-blk"><span class="eyebrow">Your pay on this job · only you see this</span>
+    <div class="fee-row"><b>${f.before?"$0.00":money2(f.fee)}</b><span>${f.before?`Installed ${esc(fmtDay(f.inst))}, before your 3% started`:`${f.self?"Installed it yourself":"Management fee"} · ${f.pct}% of ${money2(f.price)} · ${f.earned?`earned ${esc(fmtDay(f.inst))}`:"you get it when the install is checked off"}`}</span></div>
+    ${f.comm?`<div class="fee-row" style="margin-top:2px"><b style="font-size:18px">+ ${money2(f.comm)}</b><span>sales commission (you sold it) · total ${money2(f.fee+f.comm)}</span></div>`:""}
+    ${f.mgmtPct?`<label class="fee-self"><input type="checkbox" data-self-install="${esc(j.id)}" ${f.self?"checked":""}> I installed this job myself <small>(${SELF_PCT}% instead of ${f.mgmtPct}%)</small></label>`:""}</section>`;
 }
 function myFeeTotals(list){
   if(!isRaul()) return "";
   let earned=0, coming=0; for(const j of list){ if(j.stage==="cancelled") continue; const f=myFee(j); if(!f||!f.pct) continue; f.earned?earned+=f.fee:coming+=f.fee; }
   if(!earned&&!coming) return "";
-  return `<div class="fee-sum"><span class="eyebrow">Your 3% · only you see this</span><span>Earned <b>${money2(earned)}</b></span><span>Still to come <b>${money2(coming)}</b></span><span class="count">on the jobs below</span></div>`;
+  return `<div class="fee-sum"><span class="eyebrow">Your management &amp; install pay · only you see this</span><span>Earned <b>${money2(earned)}</b></span><span>Still to come <b>${money2(coming)}</b></span><span class="count">on the jobs below</span></div>`;
 }
 /* ---------- backups card (managers): last nightly backups, download any of them ---------- */
 function backupCard(){
@@ -4759,6 +4770,7 @@ document.addEventListener("change", async ev=>{
   if(t.id==="meet-on"){ await saveMeet({on:t.checked}); return; }
   if(t.id==="meet-time"&&t.value){ await saveMeet({time:t.value}); return; }
   if(t.dataset&&t.dataset.meetDay!=null){ const d=+t.dataset.meetDay, c=meetCfg(); await saveMeet({days:t.checked?[...new Set([...c.days,d])].sort():c.days.filter(x=>x!==d)}); return; }
+  if(t.dataset&&t.dataset.selfInstall){ await setSelfInstall(t.dataset.selfInstall,t.checked); return; }
   if(t.id==="act-who"){ ACT.who=t.value; ACT.rows=null; renderMain(); return; }
   if(t.dataset&&t.dataset.otFor){ await saveOt(t.dataset.otFor,t.value==="1"); return; }
   if(t.dataset&&t.dataset.rateFor){ await saveRate(t.dataset.rateFor,t.value); return; }
