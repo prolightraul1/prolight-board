@@ -13,6 +13,31 @@ async function joinedSince(channel, sinceISO) {
   return new Set(rows.map((r) => r.key.split(":").slice(-2, -1)[0]));
 }
 
+async function docsOf(coll, extra = "") {
+  const out = [];
+  for (let from = 0; ; from += 1000) {
+    const page = await sb(`/rest/v1/docs?coll=eq.${coll}${extra}&select=id,data`, { headers: { Range: `${from}-${from + 999}` } });
+    out.push(...page); if (page.length < 1000) return out;
+  }
+}
+async function notDonePush(staff, crews, date) {
+  const [jobs, clients, done] = await Promise.all([docsOf("jobs"), docsOf("clients"), docsOf("log", "&data->>kind=eq.done")]);
+  const ok = new Set(done.map((d) => d.data.jobId + "|" + d.data.visitId));
+  const nc = (c) => (c === "prolight" ? "pl1" : c || ""), cname = (c) => (crews.find((x) => x.id === c) || {}).name || "No crew";
+  const left = [];
+  for (const j of jobs) {
+    if (j.data.stage === "cancelled") continue;
+    for (const v of j.data.visits || []) if (v.date === date && !ok.has(j.id + "|" + v.id)) left.push({ crew: cname(nc(v.crew || j.data.crew)), client: ((clients.find((c) => c.id === j.data.clientId) || {}).data || {}).name || "a job" });
+  }
+  const me = staff.filter((p) => p.active && /^raul\b/i.test(String(p.name || "").trim()));
+  const byCrew = {}; for (const l of left) (byCrew[l.crew] = byCrew[l.crew] || []).push(l.client);
+  const list = Object.entries(byCrew).map(([c, a]) => `${c}: ${a.join(", ")}`).join(" · ");
+  const clip = (t) => (t.length > 170 ? t.slice(0, 167) + "…" : t);
+  return pushTo(me, "notdone", (p) => !left.length
+    ? (lang(p) === "es" ? { title: "Todo listo hoy ✓", body: "Todas las paradas de hoy están marcadas como hechas.", url: "/?go=notdone", tag: "notdone" } : { title: "All done today ✓", body: "Every stop on today's schedule is checked off.", url: "/?go=notdone", tag: "notdone" })
+    : (lang(p) === "es" ? { title: `${left.length} sin marcar hoy`, body: clip(list), url: "/?go=notdone", tag: "notdone" } : { title: `${left.length} stop${left.length === 1 ? "" : "s"} not marked done today`, body: clip(list), url: "/?go=notdone", tag: "notdone" }));
+}
+
 module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(200).json({ skipped: "not set up" });
@@ -70,6 +95,10 @@ module.exports = async (req, res) => {
       out.did.push("payroll:" + await pushTo(money, "payroll", (p) => lang(p) === "es"
         ? { title: "Nómina lista", body: "La nómina de la semana pasada está lista en Oficina → Nómina.", url: "/?go=office:payroll-last", tag: "payroll" }
         : { title: "Payroll is ready", body: "Last week's payroll is ready. Tap to open it.", url: "/?go=office:payroll-last", tag: "payroll" }));
+    }
+    // 8 PM: today's stops nobody checked off (to Raul)
+    if (now.min >= 20 * 60 && now.min < 20 * 60 + 15 && (await firstTime("notdone:" + now.date))) {
+      try { out.did.push("notdone:" + await notDonePush(staff, crews, now.date)); } catch (e) { out.notdoneError = String(e.message || e).slice(0, 160); }
     }
     // board check-offs → Jobber (visit completed + notes, photos, videos)
     try { const jp = await require("./jobber.js").pushToJobber({ max: 3 }); if (jp && (jp.completed?.length || jp.notes || jp.errors?.length)) out.jobber = jp; } catch (e) { out.jobberError = String(e.message || e).slice(0, 160); }

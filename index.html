@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ProLight Season Board</title>
 <meta name="theme-color" content="#111916">
-<meta name="build" content="1793665525">
+<meta name="build" content="1793686301">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -741,6 +741,22 @@ html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
 .ss-view .c-crew,.ss-view .jhead span:nth-child(2),.ss-view .jhead span:nth-child(3){visibility:hidden}
 .wday h4{flex-wrap:wrap;gap:0 6px}
 .lbl:empty{display:none}
+html,body{max-width:100%}
+main.main{min-width:0;max-width:100vw;box-sizing:border-box}
+#view,#view>*,main.main>*,.dcard,.dcard>*,.rows,.rows>*,.route-tools,.route-tools>*,.pager>*,.tw,.tw-me,.wk-top>*{min-width:0}
+.bar>.chips,.bar>.grow,.bar>.seg,.dayhead>*{min-width:0}
+.chips{max-width:100%;flex-wrap:nowrap}
+.season,.season-strand{max-width:100%;min-width:0}
+.act-row{grid-template-columns:auto auto minmax(0,1fr)}
+.drawer,.d-body{max-width:100vw;box-sizing:border-box}.d-body>*{min-width:0}
+img,video,canvas,table{max-width:100%}
+.tbl{max-width:100%;overflow-x:auto}
+.dcard,.obody,.rows,.route-tools,.act-rows{grid-template-columns:minmax(0,1fr)}
+.act-row .m,.act-row .n,.act-row .s,.nd-row,.stop,.card{overflow-wrap:anywhere}
+@media (max-width:420px){.tw-tiles{gap:6px}.tw-tile{padding:10px}.tw-tile b{font-size:22px}.btn{padding-left:12px;padding-right:12px}}
+.nd-chip{display:block;width:100%;text-align:left;margin:0 0 12px;padding:10px 14px;border-radius:12px;border:1px solid var(--amber,#f5b83d);background:color-mix(in srgb,var(--amber,#f5b83d) 14%,transparent);color:var(--ink);font:inherit;font-weight:700;cursor:pointer}
+.nd-day{margin:14px 0}.nd-row{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;padding:10px 12px;margin-top:6px;border:1px solid var(--line);border-radius:12px;background:none;color:var(--ink);font:inherit;cursor:pointer}
+.nd-row span{color:var(--ink-2);font-size:14px}.nd-row em{color:var(--amber,#f5b83d);font-style:normal;font-weight:700}
 .vt.daytag{background:var(--amber,#f5b83d);color:#1a1300;font-weight:700}
 .wk-top{display:grid;gap:12px;margin:10px 0 14px}@media (min-width:960px){.wk-top{grid-template-columns:1fr 1fr}.wk-top .tw,.wk-top .tw-me{margin:0}}
 .wk-pay{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:4px 0 10px}
@@ -1023,7 +1039,7 @@ function teamSeg(){
 function vRoute(){
   const d=S.day, stops=stopsFor(d,S.team), done=stops.filter(s=>isDone(s.j.id,s.v.id)).length, r=rel(d);
   S._eta=estTimes(stops);
-  let h=annBanner()+(S.ready?seasonBar():"")+`<div class="dayhead">
+  let h=annBanner()+(S.ready?seasonBar():"")+notDoneChip()+`<div class="dayhead">
     <div class="pager">
       <button type="button" class="btn icon" data-act="day" data-v="-1" aria-label="Previous day">‹</button>
       <div class="d"><span class="eyebrow">${r?fmtDay(d,{weekday:"long",month:"short",day:"numeric"}):"Route"}</span><h1 class="h-view">${r||fmtDay(d,{weekday:"short",month:"short",day:"numeric"})}</h1></div>
@@ -1356,7 +1372,7 @@ function renderDrawer(){
   if(!D){ root.innerHTML=""; return; }
   const prev=$("#dbody"), top=prev?prev.scrollTop:0;
   const focusId=document.activeElement&&document.activeElement.id;
-  root.innerHTML = D.kind==="job"?dJob(D.id): D.kind==="client"?dClient(D.id): D.kind==="jobEdit"?dJobEdit(): D.kind==="truck"?dTruck(D.id): D.kind==="pins"?dPins(): D.kind==="jbhours"?dJbHours(): D.kind==="treq"?dTimeReq(D.id): D.kind==="sale"?dSale(D.id): D.kind==="salepick"?dSalePick(): D.kind==="clockedit"?dClockEdit(D.id): D.kind==="svc"?dService(D.id): D.kind==="issue"?dIssue(D.id): D.kind==="svcpick"?dSvcPick(): D.kind==="crewtruck"?dCrewTruck(D.id): D.kind==="partial"?dPartial(D.id): D.kind==="return"?dReturn(D.id): D.kind==="pay"?dPay(): D.kind==="assign"?dAssign(D.id): D.kind==="food"?dFood(D.id): D.kind==="account"?dAccount(): D.kind==="person"?dPerson(): dClientEdit();
+  root.innerHTML = D.kind==="notdone"?dNotDone(): D.kind==="job"?dJob(D.id): D.kind==="client"?dClient(D.id): D.kind==="jobEdit"?dJobEdit(): D.kind==="truck"?dTruck(D.id): D.kind==="pins"?dPins(): D.kind==="jbhours"?dJbHours(): D.kind==="treq"?dTimeReq(D.id): D.kind==="sale"?dSale(D.id): D.kind==="salepick"?dSalePick(): D.kind==="clockedit"?dClockEdit(D.id): D.kind==="svc"?dService(D.id): D.kind==="issue"?dIssue(D.id): D.kind==="svcpick"?dSvcPick(): D.kind==="crewtruck"?dCrewTruck(D.id): D.kind==="partial"?dPartial(D.id): D.kind==="return"?dReturn(D.id): D.kind==="pay"?dPay(): D.kind==="assign"?dAssign(D.id): D.kind==="food"?dFood(D.id): D.kind==="account"?dAccount(): D.kind==="person"?dPerson(): dClientEdit();
   const nb=$("#dbody"); if(nb && D.keep) nb.scrollTop=top;
   if(focusId){ const el=document.getElementById(focusId); if(el && el.id==="compose-text"){ el.focus(); el.setSelectionRange(el.value.length,el.value.length); } }
   D.keep=true;
@@ -3077,7 +3093,7 @@ function vToday(){
   const items=[[rq,pl(rq,"time fix to approve","time fixes to approve"),"today-go","people"],[sv,pl(sv,"service call to schedule","service calls to schedule"),"view","week"],
     [noCrew,pl(noCrew,"job with no crew","jobs with no crew"),"today-jf","unassigned"],[noDate,pl(noDate,"booked job with no install date","booked jobs with no install date"),"today-jf","unsched"],
     [noDown,pl(noDown,"lit job with no takedown date","lit jobs with no takedown date"),"today-jf","unsched"]].filter(x=>x[0]);
-  h+=todayWork(d)+`<div class="dgrid">
+  h+=notDoneChip()+todayWork(d)+`<div class="dgrid">
     <section class="dcard dc-crews"><header><span class="eyebrow">Crews today</span><button type="button" class="linkbtn" data-act="go-day" data-v="${d}">Open route</button></header>
       ${cs.length?cs.map(({c,st,dn,nx})=>`<button type="button" class="dcrew" data-act="today-crew" data-v="${esc(c.id)}"><span class="dot" style="background:${crewColor(c.id)||"var(--ink-2)"}"></span><span class="m"><b>${esc(c.name)}</b><small>${st.length?(nx?`Next: ${esc(clientOf(nx.j).name||"Customer")}`:"All done for today"):"No stops"}</small>${S.me.money&&st.length?(()=>{ const m=crewDay(d,c.id); return m.rev?`<small class="mono">${money0(m.rev)} today${isRaul()?` · you ${money2(m.mine)}`:""}</small>`:""; })():""}</span><span class="r"><span class="mono">${dn}/${st.length}</span><span class="track"><span style="width:${st.length?dn/st.length*100:0}%"></span></span></span></button>`).join(""):`<p class="count">No crews set up yet.</p>`}
     </section>
@@ -3475,7 +3491,7 @@ const PUSH = { reg:null, sub:null, key:null, err:"" };
 const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
-const NOTE_KINDS = () => [["chat",LANG_ES?"Mensajes de chat":"Chat messages"],["meeting",LANG_ES?"Videollamadas y reuniones":"Video calls and crew meetings"],["jobs",LANG_ES?"Trabajos nuevos y cambios de ruta":"New jobs and route changes"],["time",LANG_ES?"Correcciones de tiempo":"Time fixes"],
+const NOTE_KINDS = () => [...(typeof isRaul==="function"&&isRaul()?[["notdone",LANG_ES?"Paradas sin marcar (8 PM)":"Stops not marked done (8 PM)"]]:[]),["chat",LANG_ES?"Mensajes de chat":"Chat messages"],["meeting",LANG_ES?"Videollamadas y reuniones":"Video calls and crew meetings"],["jobs",LANG_ES?"Trabajos nuevos y cambios de ruta":"New jobs and route changes"],["time",LANG_ES?"Correcciones de tiempo":"Time fixes"],
   ...((S.me.manage)?[["problems",LANG_ES?"Problemas y trabajos parciales":"Problems and partly done jobs"],["sync",LANG_ES?"Trabajos nuevos de Jobber":"New jobs from Jobber"]]:[])];
 if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").then(r=>{ PUSH.reg=r; return r.pushManager&&r.pushManager.getSubscription(); }).then(s=>{ PUSH.sub=s||null; }).catch(()=>{});
 if("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message",e=>{ if(e.data&&e.data.go) goTo(e.data.go); });
@@ -3487,6 +3503,7 @@ function goTo(u){
     else if(k==="office"){ S.view="office"; let o=v; if(o==="payroll-last"){ S.week=addDays(monday(isoOf(new Date().toISOString())),-7); o="payroll"; } setOffice(o); renderMain(); }
     else if(k==="jobs"){ S.view="jobs"; renderMain(); }
     else if(k==="account"){ openDrawer("account"); }
+    else if(k==="notdone"){ openDrawer("notdone"); }
   }catch(e){}
 }
 function goFromUrl(){ if(goFromUrl.done||!S.ready) return; goFromUrl.done=true; const q=new URLSearchParams(location.search); if(q.get("go")){ const u=location.href; history.replaceState(null,"",location.pathname); setTimeout(()=>goTo(u),300); } }
@@ -4601,6 +4618,25 @@ const OPENBG = { ms:0, t:document.visibilityState==="hidden" ? 0 : null };
 document.addEventListener("visibilitychange",()=>{ if(LOADED_AT) return; const now=performance.now();
   if(document.hidden){ if(OPENBG.t==null) OPENBG.t=now; } else if(OPENBG.t!=null){ OPENBG.ms+=now-OPENBG.t; OPENBG.t=null; } });
 function openHiddenMs(at){ return Math.round(OPENBG.ms + (OPENBG.t!=null ? at-OPENBG.t : 0)); }
+/* ---------- Not marked done: past stops nobody checked off (owners) ---------- */
+function notDoneStops(days){
+  const t=todayISO(), from=isoOf(new Date(Date.now()-(days||14)*864e5).toISOString()), out=[];
+  for(const j of jobsArr()){ if(j.stage==="cancelled") continue;
+    for(const v of (j.visits||[])) if(v.date&&v.date<=t&&v.date>=from&&!isDone(j.id,v.id)) out.push({j,v,partial:partialMap.get(j.id+"|"+v.id)}); }
+  return out.sort((a,b)=>b.v.date.localeCompare(a.v.date)||String(teamName(crewOf(a.j,a.v))).localeCompare(String(teamName(crewOf(b.j,b.v)))));
+}
+const ND_VTYPE={install:"Install",takedown:"Takedown",service:"Service"};
+function notDoneChip(){
+  if(!S.me.owner||!S.ready) return ""; const n=notDoneStops().length; if(!n) return "";
+  return `<button type="button" class="nd-chip" data-act="notdone">⚠ ${n} stop${n===1?"":"s"} not marked done</button>`;
+}
+function dNotDone(){
+  const list=notDoneStops(), byDay=new Map(); for(const s of list){ if(!byDay.has(s.v.date)) byDay.set(s.v.date,[]); byDay.get(s.v.date).push(s); }
+  const body=list.length?[...byDay].map(([d,a])=>`<div class="nd-day"><span class="eyebrow">${esc(rel(d)||fmtDay(d,{weekday:"short",month:"short",day:"numeric"}))} · ${a.length}</span>
+    ${a.map(s=>`<button type="button" class="nd-row" data-act="job" data-id="${esc(s.j.id)}"><b>${esc(clientOf(s.j).name||"Job")}</b><span>${esc(ND_VTYPE[s.v.type]||s.v.type)}${s.v.time?" · "+esc(fmtTime(s.v.time)):""} · ${esc(visitCrews(s.j,s.v).map(teamName).join(" + ")||"No crew")}${s.partial?` · <em>partly done</em>`:""}</span></button>`).join("")}</div>`).join("")
+    :`<p class="lede">Every stop from the last two weeks is checked off. ✓</p>`;
+  return drawerShell("Last 14 days","Not marked done",`<p class="count">Stops on the schedule that nobody checked off. Tap one to open it, then check it off or move it to a new day.</p>${body}`);
+}
 
 /* ---------- render ---------- */
 function renderMain(){
@@ -4778,6 +4814,7 @@ document.addEventListener("click", async ev=>{
     case "map-prices": MAP.prices=!MAP.prices; try{ localStorage.setItem("map-prices",MAP.prices?"1":""); }catch(e){} renderMain(); break;
     case "extra-crew": t.disabled=true; await toggleExtraCrew(id,v); break;
     case "pins": await openPins(); break;
+    case "notdone": openDrawer("notdone"); break;
     case "act-filter": ACT.filter=v; ACT.rows=null; ACT.open.clear(); renderMain(); break;
     case "act-refresh": ACT.rows=null; ACT.health=null; renderMain(); break;
     case "act-more": loadActivity(false); renderMain(); break;
