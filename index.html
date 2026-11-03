@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ProLight Season Board</title>
 <meta name="theme-color" content="#111916">
-<meta name="build" content="1793686301">
+<meta name="build" content="1793715586">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -741,6 +741,8 @@ html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
 .ss-view .c-crew,.ss-view .jhead span:nth-child(2),.ss-view .jhead span:nth-child(3){visibility:hidden}
 .wday h4{flex-wrap:wrap;gap:0 6px}
 .lbl:empty{display:none}
+.tcl-hist{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0;display:grid;gap:6px}
+.th-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:baseline;font-size:14px}.th-row span{color:var(--ink-2);overflow-wrap:anywhere}.th-row small{color:var(--ink-2)}
 html,body{max-width:100%}
 main.main{min-width:0;max-width:100vw;box-sizing:border-box}
 #view,#view>*,main.main>*,.dcard,.dcard>*,.rows,.rows>*,.route-tools,.route-tools>*,.pager>*,.tw,.tw-me,.wk-top>*{min-width:0}
@@ -1267,7 +1269,7 @@ function dJob(id){
   <section class="blk blk-mock"><h3 class="h-sec">Mockups</h3>${(j.links||[]).length?`<div class="bar">${j.links.map((u,i)=>`<a class="btn small" href="${esc(u)}" target="_blank" rel="noopener">Mockup ${j.links.length>1?i+1+" ":""}↗</a>`).join("")}</div>`:""}${(j.mockups||[]).length?`<div class="gallery">${j.mockups.map(m=>`<div class="gal-item">${mediaTag(m)}${m.studio&&canMock()?`<button type="button" class="mk-edit" data-act="mockup" data-id="${esc(id)}" data-v="${esc(m.id)}">✎ Edit</button>`:""}${S.me.owner?`<button type="button" class="x" data-act="rm-mockup" data-id="${esc(m.id)}" aria-label="Remove mockup">×</button>`:""}</div>`).join("")}</div>`:((j.links||[]).length?"":`<p class="lede">No mockups yet.</p>`)}
     ${canMock()?`<div class="bar mk-cta"><button type="button" class="btn amber" data-act="mockup" data-id="${esc(id)}">✨ Light mockup</button><small>Draw lights on a photo of the house</small></div>`:""}${S.me.owner&&S.assets?`<div><label class="btn file-btn">+ Add mockup<input type="file" id="mockup-file" accept="image/*,application/pdf" multiple></label></div>`:""}</section>`;
   if(S.me.money){ const s=split(j,f);
-    b+=`<section class="blk blk-money"><h3 class="h-sec">Money</h3>${myFeeBlock(j)}${s.price?`<div class="calc">${calcLines(j,s.price,f.ssPct)}</div>
+    b+=`<section class="blk blk-money"><h3 class="h-sec">Money</h3>${myFeeBlock(j)}${tclHistory(j)}${s.price?`<div class="calc">${calcLines(j,s.price,f.ssPct)}</div>
       <div class="bar"><button type="button" class="tog" data-act="fin-tog" data-k="collected" data-id="${esc(id)}" aria-pressed="${!!f.collected}">${f.collected?"Collected":"Not collected"}</button>${s.ss?`<button type="button" class="tog" data-act="fin-tog" data-k="ssPaid" data-id="${esc(id)}" aria-pressed="${!!f.ssPaid}">${f.ssPaid?"ShipShape paid":"ShipShape owed"}</button>`:""}${f.invoiceNo?`<span class="mono count">Invoice ${esc(f.invoiceNo)}</span>`:""}</div>`:`<p class="lede">No price yet. Edit the job to add one.</p>`}
       ${f.privateNote?`<div class="note">${esc(f.privateNote)}</div>`:""}${j.source==="tcl"||extrasOf(f).length?extrasHTML(j,f):""}${saleLine(j)}</section>`; }
   b+=`<section class="blk"><h3 class="h-sec">Notes & photos</h3>`;
@@ -3491,7 +3493,7 @@ const PUSH = { reg:null, sub:null, key:null, err:"" };
 const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
-const NOTE_KINDS = () => [...(typeof isRaul==="function"&&isRaul()?[["notdone",LANG_ES?"Paradas sin marcar (8 PM)":"Stops not marked done (8 PM)"]]:[]),["chat",LANG_ES?"Mensajes de chat":"Chat messages"],["meeting",LANG_ES?"Videollamadas y reuniones":"Video calls and crew meetings"],["jobs",LANG_ES?"Trabajos nuevos y cambios de ruta":"New jobs and route changes"],["time",LANG_ES?"Correcciones de tiempo":"Time fixes"],
+const NOTE_KINDS = () => [...(typeof isRaul==="function"&&isRaul()?[["tcl",LANG_ES?"Cambios de TCL (colores, precios, trabajos nuevos)":"TCL changes (colors, prices, new jobs)"]]:[]),...(typeof isRaul==="function"&&isRaul()?[["notdone",LANG_ES?"Paradas sin marcar (8 PM)":"Stops not marked done (8 PM)"]]:[]),["chat",LANG_ES?"Mensajes de chat":"Chat messages"],["meeting",LANG_ES?"Videollamadas y reuniones":"Video calls and crew meetings"],["jobs",LANG_ES?"Trabajos nuevos y cambios de ruta":"New jobs and route changes"],["time",LANG_ES?"Correcciones de tiempo":"Time fixes"],
   ...((S.me.manage)?[["problems",LANG_ES?"Problemas y trabajos parciales":"Problems and partly done jobs"],["sync",LANG_ES?"Trabajos nuevos de Jobber":"New jobs from Jobber"]]:[])];
 if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").then(r=>{ PUSH.reg=r; return r.pushManager&&r.pushManager.getSubscription(); }).then(s=>{ PUSH.sub=s||null; }).catch(()=>{});
 if("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message",e=>{ if(e.data&&e.data.go) goTo(e.data.go); });
@@ -4636,6 +4638,15 @@ function dNotDone(){
     ${a.map(s=>`<button type="button" class="nd-row" data-act="job" data-id="${esc(s.j.id)}"><b>${esc(clientOf(s.j).name||"Job")}</b><span>${esc(ND_VTYPE[s.v.type]||s.v.type)}${s.v.time?" · "+esc(fmtTime(s.v.time)):""} · ${esc(visitCrews(s.j,s.v).map(teamName).join(" + ")||"No crew")}${s.partial?` · <em>partly done</em>`:""}</span></button>`).join("")}</div>`).join("")
     :`<p class="lede">Every stop from the last two weeks is checked off. ✓</p>`;
   return drawerShell("Last 14 days","Not marked done",`<p class="count">Stops on the schedule that nobody checked off. Tap one to open it, then check it off or move it to a new day.</p>${body}`);
+}
+/* ---------- TCL change history on a job (owners) ---------- */
+const TCL_K={scope:"Colors",price:"Price",tclWhen:"Timing",ready:"Checklist",priority:"Priority",tclStatus:"Status",notes:"Crew notes",privateNote:"Deposit/balance",media:"Photos"};
+function tclHistory(j){
+  if(j.source!=="tcl"||!S.me.owner) return "";
+  const f=S.fin.get(j.id)||{}, rows=[...(j.tclLog||[]),...((f.tclLog||[]))].sort((a,b)=>String(b.at).localeCompare(String(a.at))).slice(0,8);
+  const seen=j.tclSeenAt?`Last checked against TCL ${esc(fmtDay(isoOf(j.tclSeenAt),{month:"short",day:"numeric"}))} ${esc(new Date(j.tclSeenAt).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"}))}`:"Not synced with TCL yet";
+  const val=(h,v)=>h.k==="price"?money2(+v||0):esc(String(v||"—").slice(0,80));
+  return `<div class="tcl-hist"><span class="eyebrow">Changes from TCL</span>${rows.length?rows.map(h=>`<div class="th-row"><b>${esc(TCL_K[h.k]||h.k)}</b><span>${h.k==="notes"||h.k==="privateNote"||h.k==="media"?esc(h.to||"updated"):`${val(h,h.from)} → ${val(h,h.to)}`}</span><small>${esc(fmtDay(isoOf(h.at),{month:"short",day:"numeric"}))}</small></div>`).join(""):`<p class="count">No changes from TCL yet.</p>`}<small class="count">${seen}</small></div>`;
 }
 
 /* ---------- render ---------- */

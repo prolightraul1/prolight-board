@@ -100,6 +100,10 @@ module.exports = async (req, res) => {
     if (now.min >= 20 * 60 && now.min < 20 * 60 + 15 && (await firstTime("notdone:" + now.date))) {
       try { out.did.push("notdone:" + await notDonePush(staff, crews, now.date)); } catch (e) { out.notdoneError = String(e.message || e).slice(0, 160); }
     }
+    // TCL feed (once TCL gives us a read-only link): every 15 minutes
+    if (process.env.TCL_FEED_URL && now.min % 15 === 0) {
+      try { const t = await require("./tcl.js").pollFeed(); if (t && (t.changed || []).length) out.tcl = t.changed.length; } catch (e) { out.tclError = String(e.message || e).slice(0, 160); }
+    }
     // board check-offs → Jobber (visit completed + notes, photos, videos)
     try { const jp = await require("./jobber.js").pushToJobber({ max: 3 }); if (jp && (jp.completed?.length || jp.notes || jp.errors?.length)) out.jobber = jp; } catch (e) { out.jobberError = String(e.message || e).slice(0, 160); }
     return res.status(200).json(out);
