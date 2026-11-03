@@ -452,7 +452,7 @@ async function sync(trigger, quick) {
       // Only fill in what's still blank on the board. Never overwrite your edits.
       const d = JSON.parse(JSON.stringify(existing.data)); let ch = false;
       const v = (d.visits || []).find((x) => x.type === "install");
-      if (v && !v.date && date) { v.date = date; ch = true; }
+      if (v && !v.date && !v.unscheduledAt && date) { v.date = date; ch = true; }
       if (!d.crew) { const c = autoCrew(j); if (c) { d.crew = c; ch = true; res.assigned++; } }
       if (ch) { d.updatedAt = now; rows.push({ coll: "jobs", id: existing.id, data: d }); }
       const f = fin.get(existing.id);
@@ -588,6 +588,33 @@ module.exports = async (req, res) => {
       }
       if (!dry) await putDocs([{ coll: "fin", id: "payroll", data: { ...pay, rates } }]);
       return res.status(200).json({ dry, from: FROM, ...out });
+    }
+    if (action === "crewday") {
+      // a person's crew stops on a day; do=1 takes them off the schedule (the job stays, sync won't re-date it)
+      if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
+      const [who, date, doIt] = String(req.query.q || "").split("~");
+      const [staff, jobs, clients, settings] = await Promise.all([sb("/rest/v1/staff?select=id,name,crew,active"), allDocs("jobs"), allDocs("clients"), allDocs("settings")]);
+      const nc = (c) => (c === "prolight" ? "pl1" : c || "");
+      const p = staff.find((x) => x.active && String(x.name || "").toLowerCase().includes(String(who || "").toLowerCase()));
+      if (!p || !/^\d{4}-\d{2}-\d{2}$/.test(date || "")) return res.status(400).json({ error: "who~YYYY-MM-DD", found: !!p });
+      const crew = nc(p.crew), crews = ((settings.find((d) => d.id === "board") || {}).data || {}).crews || [];
+      const cn = (j) => ((clients.find((c) => c.id === j.data.clientId) || {}).data || {}).name || "";
+      const out = [], rows = [], now = new Date().toISOString();
+      for (const j of jobs) {
+        if (j.data.stage === "cancelled") continue;
+        let ch = false; const d = JSON.parse(JSON.stringify(j.data));
+        for (const v of d.visits || []) {
+          if (v.date !== date) continue;
+          const cs = [nc(v.crew || d.crew), ...(v.crews || []).map(nc)];
+          if (!cs.includes(crew)) continue;
+          out.push({ job: j.id, client: cn(j), type: v.type, time: v.time || "", crews: [...new Set(cs)].map((c) => (crews.find((x) => x.id === c) || {}).name || c) });
+          if (doIt === "1") { v.date = ""; v.time = ""; v.order = null; v.unscheduledAt = now; v.unscheduledFrom = date; ch = true; }
+        }
+        if (ch) { d.updatedAt = now; rows.push({ coll: "jobs", id: j.id, data: d }); }
+      }
+      if (rows.length) await putDocs(rows);
+      const mates = staff.filter((x) => x.active && nc(x.crew) === crew).map((x) => x.name);
+      return res.status(200).json({ person: p.name, crew: (crews.find((x) => x.id === crew) || {}).name || crew, crewMembers: mates, date, done: doIt === "1", stops: out });
     }
     if (action === "findjob" || action === "addsvc") {
       if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
