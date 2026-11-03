@@ -35,6 +35,14 @@ const srv=http.createServer((q,s)=>{ let p=decodeURIComponent(q.url.split('?')[0
         const out={tf:(document.querySelector('.tabs')||{style:{}}).style.transform||'', lag:EVQ.filter(e=>/keyboard shrink/.test(e.where||'')).length}; window.__ZOOM=1; window.__IH=null; dispatchEvent(new Event('resize')); return out; });
       if(z.tf||z.lag) errs.push('zoom: bar moved or lag logged '+JSON.stringify(z));
     }
+    { // time the app spends in the background while opening must not count as a slow open
+      const o=await p.evaluate(async()=>{ LOADED_AT=0; OPENBG.ms=0; OPENBG.t=null; EVQ.length=0; EVSEEN.clear(); let hid=true;
+        const dh=Object.getOwnPropertyDescriptor(Document.prototype,'hidden'), dv=Object.getOwnPropertyDescriptor(Document.prototype,'visibilityState');
+        Object.defineProperty(document,'hidden',{configurable:true,get:()=>hid}); Object.defineProperty(document,'visibilityState',{configurable:true,get:()=>hid?'hidden':'visible'});
+        document.dispatchEvent(new Event('visibilitychange')); OPENBG.t-=90000; await new Promise(r=>setTimeout(r,50)); hid=false; document.dispatchEvent(new Event('visibilitychange'));
+        delete document.hidden; delete document.visibilityState; noteLoad(); const e=EVQ.find(x=>x.type==='load'||x.type==='slow-load'); return e?{type:e.type,hiddenMs:e.hiddenMs}:null; });
+      if(!o||o.type!=='load'||!(o.hiddenMs>=90000)) errs.push('open time counted background time '+JSON.stringify(o));
+    }
     console.log(`${who.uid}${who.es?' es':''} ${who.w}px: ${errs.length?'ERRORS '+JSON.stringify(errs):'ok'}`); bad+=errs.length; await ctx.close();
   }
   await b.close(); srv.close(); process.exit(bad?1:0);
