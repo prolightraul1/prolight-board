@@ -14,7 +14,7 @@ const seed=[
   {coll:'fin',id:'payroll',data:{rates:{'u-raul':{plans:[{from:'2026-01-01',rate:0,jobPct:0,mgmtPct:3}]},'u-mike':{plans:[{from:'2026-01-01',rate:20,jobPct:4,mgmtPct:0}]}}}},
 ];
 const users=[{id:'u-raul',name:'Raul',pin:'111111',crew:'pl1',can_edit:true,can_money:true,can_manage:true,can_log:true,all_crews:true,active:true},{id:'u-mike',name:'Mike',pin:'222222',crew:'pl1',can_log:true,active:true}];
-const VIEWS=['today','route','week','jobs','clients','map','chat','office'], OFFICE=['money','payroll','hours','team','activity','sales','settings'];
+const VIEWS=['today','route','week','plan','jobs','clients','map','chat','office'], OFFICE=['money','payroll','hours','team','activity','sales','settings'];
 const srv=http.createServer((q,s)=>{ let p=decodeURIComponent(q.url.split('?')[0]); if(p==='/') p='/index.html'; const f=path.join(ROOT,p); if(!f.startsWith(ROOT)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){ s.writeHead(404); return s.end(); } s.writeHead(200,{'content-type':{'.html':'text/html','.js':'text/javascript','.png':'image/png','.svg':'image/svg+xml'}[path.extname(f)]||'application/octet-stream'}); fs.createReadStream(f).pipe(s); }).listen(8799);
 (async()=>{
   const b=await chromium.launch(); let bad=0;
