@@ -452,7 +452,7 @@ async function sync(trigger, quick) {
       // Only fill in what's still blank on the board. Never overwrite your edits.
       const d = JSON.parse(JSON.stringify(existing.data)); let ch = false;
       const v = (d.visits || []).find((x) => x.type === "install");
-      if (v && !v.date && !v.unscheduledAt && date) { v.date = date; ch = true; }
+      // install dates are set on the board, not taken from Jobber
       if (!d.crew) { const c = autoCrew(j); if (c) { d.crew = c; ch = true; res.assigned++; } }
       if (ch) { d.updatedAt = now; rows.push({ coll: "jobs", id: existing.id, data: d }); }
       const f = fin.get(existing.id);
@@ -478,7 +478,7 @@ async function sync(trigger, quick) {
       clientId: client.id, address: a && norm(a) !== norm(client.data.address) ? a : "", source: "prolight", stage: "booked", crew: autoCrew(j),
       scope: scopeOf(k.lines), notes, season: String(new Date().getFullYear()), rooflineFt: "", links: [], mockups: [], priority: "",
       importedFrom: "Jobber", jobberNo: String(j.jobNumber || ""), jobberUrl: j.jobberWebUri || "", createdAt: now, updatedAt: now, washTotal: Math.round((k.washTotal || 0) * 100) / 100,
-      visits: [{ id: "inst", type: "install", date, time: "", crew: "", note: "", order: null }] } });
+      visits: [{ id: "inst", type: "install", date: "", time: "", crew: "", note: "", order: null }], jobberStart: date || "" } });
     rows.push({ coll: "fin", id, data: { price, invoiceNo: "", privateNote: "From Jobber #" + j.jobNumber, collected: false, ssPaid: false } });
     if (j.completedAt) rows.push({ coll: "log", id: "jbdone-" + wid, data: { jobId: id, visitId: "inst", kind: "done", by: "jobber", at: j.completedAt } });
     byWeb.set(wid, { id, data: {} });
