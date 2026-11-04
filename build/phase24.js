@@ -22,7 +22,7 @@ function myPayToday(d,st){
   const first=finishedInstalls();
   const doneToday=[...first.values()].filter(x=>x.day===d);
   const mgmt=doneToday.reduce((t,x)=>t+price(x.j)*feePct(pl,x.j)/100,0), selfN=doneToday.filter(x=>feePct(pl,x.j)!==pl.mgmtPct).length;
-  const jobPay=pl.jobPct?doneToday.filter(x=>jobWorkers(x.j,x.v,d).includes(id)).reduce((t,x)=>t+price(x.j)*pl.jobPct/100,0):0;
+  const jobPay=pl.jobPct?doneToday.reduce((t,x)=>t+price(x.j)*techPct(id,x.j,x.v,d)/100,0):0;
   const sales=allSales().filter(s=>s.by===id&&s.earnedOn===d);
   const comm=sales.reduce((t,s)=>t+s.comm,0);
   const earned=hourly+mgmt+jobPay+comm;
@@ -33,7 +33,7 @@ function myPayToday(d,st){
   const line=(l,v)=>v?`<div><small>${l}</small><b class="mono">${money2(v)}</b></div>`:"";
   return `<section class="dcard dc-wide tw-me"><header><span class="eyebrow">Your pay today · only you see this</span><button type="button" class="linkbtn" data-act="today-go" data-v="payroll">Payroll</button></header>
     <div class="tw-pay"><div class="tw-big"><small>Earned so far</small><b>${money2(earned)}</b></div><div class="tw-big"><small>If everything left today gets done</small><b>${money2(earned+moreMgmt+moreComm)}</b></div></div>
-    <div class="dmoney">${line(`Management fee · ${pl.mgmtPct}% of ${doneToday.length} install${doneToday.length===1?"":"s"} done${selfN?` (${selfN} you installed at ${pl.selfPct||SELF_PCT}%)`:""}`,mgmt)}${line(`Job % · ${pl.jobPct}%`,jobPay)}${line(`Hours · ${h1(ms/36e5)} hrs at $${pl.rate}/hr`,hourly)}${line(`Sales commission · ${sales.length} sale${sales.length===1?"":"s"}`,comm)}
+    <div class="dmoney">${line(`Management fee · ${pl.mgmtPct}% of ${doneToday.length} install${doneToday.length===1?"":"s"} done${selfN?` (${selfN} you installed on)`:""}`,mgmt)}${line(`Job % · ${pl.jobPct}%`,jobPay)}${line(`Hours · ${h1(ms/36e5)} hrs at $${pl.rate}/hr`,hourly)}${line(`Sales commission · ${sales.length} sale${sales.length===1?"":"s"}`,comm)}
       ${line(`Still to earn on ${open.length} install${open.length===1?"":"s"} left`,moreMgmt)}${line("Commission on your sales still to install",moreComm)}</div>
     ${!pl.rate&&!pl.mgmtPct&&!pl.jobPct?`<p class="count">Set your pay in Office → Payroll → Pay plans.</p>`:""}</section>`;
 }

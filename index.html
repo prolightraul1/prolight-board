@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ProLight Season Board</title>
 <meta name="theme-color" content="#111916">
-<meta name="build" content="1793834056">
+<meta name="build" content="1793835223">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -4195,7 +4195,14 @@ const SELF_PCT = 10;
 // on the "Raul" crew counts as installed yourself, unless you switched it off on that job
 const onRaulCrew = j => { const jj={id:j.id,...(S.jobs.get(j.id)||j)}, ins=(jj.visits||[]).filter(v=>v.type==="install"), ids=[normCrew(jj.crew),...ins.flatMap(v=>visitCrews(jj,v))].filter(Boolean); return ids.some(id=>/\braul\b/i.test((crewsAll().find(c=>c.id===id)||{}).name||"")); };
 const isSelf = j => { const f=S.fin.get(j.id)||{}; return f.selfInstall===true || (f.selfInstall!==false && onRaulCrew(j)); };
-const feePct = (pl, j) => pl.mgmtPct>0 ? (isSelf(j) ? (pl.selfPct||SELF_PCT) : pl.mgmtPct) : 0;
+/* Raul: 3% management on every job. Installing it himself: 10%. Sharing the install with other crews: the 3% stays,
+   the extra 7% for the labor is split by the number of crews on the job (2 crews → 6.5%, 3 crews → 5.33%). */
+const jobCrews = j => { const jj={id:j.id,...(S.jobs.get(j.id)||j)}, ins=(jj.visits||[]).filter(v=>v.type==="install"); return [...new Set((ins.length?ins.flatMap(v=>visitCrews(jj,v)):[normCrew(jj.crew)]).filter(Boolean))]; };
+const feePct = (pl, j) => { if(!(pl.mgmtPct>0)) return 0; const f=S.fin.get(j.id)||{}, self=pl.selfPct||SELF_PCT;
+  if(f.selfInstall===true) return self; if(!isSelf(j)) return pl.mgmtPct;
+  const n=Math.max(1,jobCrews(j).length); return n===1 ? self : Math.round((pl.mgmtPct+(self-pl.mgmtPct)/n)*100)/100; };
+/* techs: the job's 4% is split evenly across every tech who worked it (any crew) */
+function techPct(id,j,v,day){ const pl=planFor(id,day); if(!(pl.jobPct>0)) return 0; const w=jobWorkers(j,v,day).filter(x=>planFor(x,day).jobPct>0); return w.includes(id) ? pl.jobPct/w.length : 0; }
 /* multi-day installs: the job's value is split across its install days, and it pays once, when the last day is checked off */
 const instVisits = j => (j.visits||[]).filter(v=>v.type==="install"&&!v.returnOf);
 const dayShare = (j,v) => (v&&v.type==="install"&&!v.returnOf) ? 1/Math.max(1,instVisits(j).length) : 0;
@@ -4218,7 +4225,7 @@ const jobBase = j => +((S.fin.get(j.id)||{}).price)||0; // full job price, TCL j
 function jobWorkers(j,v,day){
   const clocked=new Set(); for(const e of S.log.values()) if(e.kind==="clock"&&!e.general&&e.jobId===j.id&&e.by) clocked.add(e.by);
   if(clocked.size) return [...clocked];
-  const cs=visitCrews(j,v||{}); if(!cs.length) return [];
+  const ins=(j.visits||[]).filter(x=>x.type==="install"), cs=[...new Set((ins.length?ins:[v||{}]).flatMap(x=>visitCrews(j,x)))]; if(!cs.length) return [];
   return PL.staff().filter(p=>p.active&&cs.includes(normCrew(p.crew))).map(p=>p.id);
 }
 function payWeek(){
@@ -4231,7 +4238,7 @@ function payWeek(){
   const done=[...finishedInstalls().values()].filter(x=>set.has(x.day)).map(x=>({...x,base:jobBase(x.j)}));
   const staff=PL.staff().filter(p=>p.active);
   for(const x of done){
-    for(const id of jobWorkers(x.j,x.v,x.day)){ const pl=planFor(id,x.day); if(pl.jobPct>0){ const p=touch(id), amt=Math.round(x.base*pl.jobPct)/100; p.jobPay+=amt; p.jobs.push({...x,pct:pl.jobPct,amt}); } }
+    for(const id of jobWorkers(x.j,x.v,x.day)){ const pc=techPct(id,x.j,x.v,x.day); if(pc>0){ const p=touch(id), amt=Math.round(x.base*pc)/100; p.jobPay+=amt; p.jobs.push({...x,pct:Math.round(pc*100)/100,amt}); } }
     for(const s of staff){ const pl=planFor(s.id,x.day), pc=feePct(pl,x.j); if(pc>0){ const p=touch(s.id), amt=Math.round(x.base*pc)/100; p.mgmt+=amt; p.mgmtJobs.push({...x,pct:pc,amt,self:pc!==pl.mgmtPct}); } }
   }
   for(const id of Object.keys(S.payroll.rates||{})) if(planFor(id,days[6]).rate>0 && (PL.staff().find(x=>x.id===id)||{}).active) touch(id);
@@ -4430,7 +4437,7 @@ function myPayToday(d,st){
   const first=finishedInstalls();
   const doneToday=[...first.values()].filter(x=>x.day===d);
   const mgmt=doneToday.reduce((t,x)=>t+price(x.j)*feePct(pl,x.j)/100,0), selfN=doneToday.filter(x=>feePct(pl,x.j)!==pl.mgmtPct).length;
-  const jobPay=pl.jobPct?doneToday.filter(x=>jobWorkers(x.j,x.v,d).includes(id)).reduce((t,x)=>t+price(x.j)*pl.jobPct/100,0):0;
+  const jobPay=pl.jobPct?doneToday.reduce((t,x)=>t+price(x.j)*techPct(id,x.j,x.v,d)/100,0):0;
   const sales=allSales().filter(s=>s.by===id&&s.earnedOn===d);
   const comm=sales.reduce((t,s)=>t+s.comm,0);
   const earned=hourly+mgmt+jobPay+comm;
@@ -4441,7 +4448,7 @@ function myPayToday(d,st){
   const line=(l,v)=>v?`<div><small>${l}</small><b class="mono">${money2(v)}</b></div>`:"";
   return `<section class="dcard dc-wide tw-me"><header><span class="eyebrow">Your pay today · only you see this</span><button type="button" class="linkbtn" data-act="today-go" data-v="payroll">Payroll</button></header>
     <div class="tw-pay"><div class="tw-big"><small>Earned so far</small><b>${money2(earned)}</b></div><div class="tw-big"><small>If everything left today gets done</small><b>${money2(earned+moreMgmt+moreComm)}</b></div></div>
-    <div class="dmoney">${line(`Management fee · ${pl.mgmtPct}% of ${doneToday.length} install${doneToday.length===1?"":"s"} done${selfN?` (${selfN} you installed at ${pl.selfPct||SELF_PCT}%)`:""}`,mgmt)}${line(`Job % · ${pl.jobPct}%`,jobPay)}${line(`Hours · ${h1(ms/36e5)} hrs at $${pl.rate}/hr`,hourly)}${line(`Sales commission · ${sales.length} sale${sales.length===1?"":"s"}`,comm)}
+    <div class="dmoney">${line(`Management fee · ${pl.mgmtPct}% of ${doneToday.length} install${doneToday.length===1?"":"s"} done${selfN?` (${selfN} you installed on)`:""}`,mgmt)}${line(`Job % · ${pl.jobPct}%`,jobPay)}${line(`Hours · ${h1(ms/36e5)} hrs at $${pl.rate}/hr`,hourly)}${line(`Sales commission · ${sales.length} sale${sales.length===1?"":"s"}`,comm)}
       ${line(`Still to earn on ${open.length} install${open.length===1?"":"s"} left`,moreMgmt)}${line("Commission on your sales still to install",moreComm)}</div>
     ${!pl.rate&&!pl.mgmtPct&&!pl.jobPct?`<p class="count">Set your pay in Office → Payroll → Pay plans.</p>`:""}</section>`;
 }
@@ -4456,15 +4463,15 @@ function myFee(j){
 const myFeeChip = j => { const f=myFee(j); if(!f||!f.price||(!f.pct&&!f.before)) return ""; return `<span class="fee-chip ${f.earned?"ok":""} ${f.self?"self":""}" title="${f.self?"You installed it":"Your management fee"}">${f.before?"before 3%":`${f.self?"🔧 ":""}${f.pct}% · ${money2(f.fee)}`}</span>`; };
 async function setSelfInstall(jid,on){
   const f=S.fin.get(jid)||{};
-  try{ await S.db.doc("fin/"+jid).set({...f,selfInstall:!!on}); toast(on?`Marked as installed by you · ${SELF_PCT}%`:"Back to the management fee"); }catch(e){ fail(e,"save that"); }
+  try{ await S.db.doc("fin/"+jid).set({...f,selfInstall:!!on}); toast(on?`Marked as installed by you alone · ${SELF_PCT}%`:"Back to the management fee"); }catch(e){ fail(e,"save that"); }
 }
 function myFeeBlock(j){
   const f=myFee(j); if(!f) return "";
   if(!f.price) return `<section class="blk fee-blk"><span class="eyebrow">Your management fee · only you see this</span><p class="count">No price on this job yet.</p></section>`;
   return `<section class="blk fee-blk"><span class="eyebrow">Your pay on this job · only you see this</span>
-    <div class="fee-row"><b>${f.before?"$0.00":money2(f.fee)}</b><span>${f.before?`Installed ${esc(fmtDay(f.inst))}, before your 3% started`:`${f.self?"Installed it yourself":"Management fee"} · ${f.pct}% of ${money2(f.price)} · ${f.earned?`earned ${esc(fmtDay(f.inst))}`:"you get it when the install is checked off"}`}</span></div>
+    <div class="fee-row"><b>${f.before?"$0.00":money2(f.fee)}</b><span>${f.before?`Installed ${esc(fmtDay(f.inst))}, before your 3% started`:`${f.self?(f.pct<(SELF_PCT)?`Installed with ${jobCrews(j).length-1} other crew${jobCrews(j).length>2?"s":""} (3% + your share of 7%)`:"Installed it yourself"):"Management fee"} · ${f.pct}% of ${money2(f.price)} · ${f.earned?`earned ${esc(fmtDay(f.inst))}`:"you get it when the install is checked off"}`}</span></div>
     ${f.comm?`<div class="fee-row" style="margin-top:2px"><b style="font-size:18px">+ ${money2(f.comm)}</b><span>sales commission (you sold it) · total ${money2(f.fee+f.comm)}</span></div>`:""}
-    ${f.mgmtPct?`<label class="fee-self"><input type="checkbox" data-self-install="${esc(j.id)}" ${f.self?"checked":""}> I installed this job myself <small>(${SELF_PCT}% instead of ${f.mgmtPct}%)${f.auto?" · on automatically, it's on the Raul crew":""}</small></label>`:""}</section>`;
+    ${f.mgmtPct?`<label class="fee-self"><input type="checkbox" data-self-install="${esc(j.id)}" ${f.self?"checked":""}> I installed this job myself <small>(${SELF_PCT}% when you're the only crew; with other crews it's 3% + your share of 7%)${f.auto?" · on automatically, it's on the Raul crew":""}</small></label>`:""}</section>`;
 }
 function myFeeTotals(list){
   if(!isRaul()) return "";
@@ -4562,7 +4569,7 @@ function myPayWeek(days,st){
   let ms=0, hourly=0; for(const e of S.log.values()) if(e.kind==="clock"&&e.by===id&&e.in&&set.has(isoOf(e.in))){ const x=clockMs(e); ms+=x; hourly+=(x/36e5)*planFor(id,isoOf(e.in)).rate; }
   const first=finishedInstalls();
   const doneWk=[...first.values()].filter(x=>set.has(x.day));
-  let mgmt=0, selfN=0, jobPay=0; for(const x of doneWk){ const pl=planFor(id,x.day), pc=feePct(pl,x.j); mgmt+=price(x.j)*pc/100; if(pc&&pc!==pl.mgmtPct) selfN++; if(pl.jobPct&&jobWorkers(x.j,x.v,x.day).includes(id)) jobPay+=price(x.j)*pl.jobPct/100; }
+  let mgmt=0, selfN=0, jobPay=0; for(const x of doneWk){ const pl=planFor(id,x.day), pc=feePct(pl,x.j); mgmt+=price(x.j)*pc/100; if(pc&&pc!==pl.mgmtPct) selfN++; if(pl.jobPct) jobPay+=price(x.j)*techPct(id,x.j,x.v,x.day)/100; }
   const sales=allSales().filter(s=>s.by===id&&set.has(s.earnedOn)), comm=sales.reduce((t,s)=>t+s.comm,0);
   const earned=hourly+mgmt+jobPay+comm;
   const open=st.filter(s=>s.v.type==="install"&&!s.v.returnOf&&!isDone(s.j.id,s.v.id)&&!first.has(s.j.id));
@@ -4575,7 +4582,7 @@ function myPayWeek(days,st){
   return `<section class="dcard tw-me"><header><span class="eyebrow">Your pay this week · only you see this</span><button type="button" class="linkbtn" data-act="today-go" data-v="payroll">Payroll</button></header>
     <div class="tw-pay"><div class="tw-big"><small>Earned so far this week</small><b>${money2(earned)}</b></div><div class="tw-big"><small>If everything left this week gets done</small><b>${money2(earned+moreMgmt+moreComm)}</b></div></div>
     <div class="wk-pay">${byDay.map(x=>`<button type="button" class="wkp" data-act="go-day" data-v="${x.d}"><span class="bars"><i class="done" style="height:${x.dd/mx*100}%"></i><i class="left" style="height:${x.od/mx*100}%"></i></span><small>${esc(fmtDay(x.d,{weekday:"short"}))}</small><b class="mono">${x.dd+x.od?money0(x.dd+x.od):"–"}</b></button>`).join("")}</div>
-    <div class="dmoney">${line(`Management fee · ${doneWk.length} install${doneWk.length===1?"":"s"} done${selfN?` (${selfN} you installed at 10%)`:""}`,mgmt)}${line("Job %",jobPay)}${line(`Hours · ${h1(ms/36e5)} hrs`,hourly)}${line(`Sales commission · ${sales.length} sale${sales.length===1?"":"s"}`,comm)}${line(`Still to earn · ${open.length} install${open.length===1?"":"s"} left this week`,moreMgmt)}${line("Commission on your sales still to install",moreComm)}</div></section>`;
+    <div class="dmoney">${line(`Management fee · ${doneWk.length} install${doneWk.length===1?"":"s"} done${selfN?` (${selfN} you installed on)`:""}`,mgmt)}${line("Job %",jobPay)}${line(`Hours · ${h1(ms/36e5)} hrs`,hourly)}${line(`Sales commission · ${sales.length} sale${sales.length===1?"":"s"}`,comm)}${line(`Still to earn · ${open.length} install${open.length===1?"":"s"} left this week`,moreMgmt)}${line("Commission on your sales still to install",moreComm)}</div></section>`;
 }
 /* ---------- multi-day installs ---------- */
 /* A job with 2+ install visits is one install spread over several days: the board shows "Day 1 of 2",

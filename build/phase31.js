@@ -14,7 +14,7 @@ function myPayWeek(days,st){
   let ms=0, hourly=0; for(const e of S.log.values()) if(e.kind==="clock"&&e.by===id&&e.in&&set.has(isoOf(e.in))){ const x=clockMs(e); ms+=x; hourly+=(x/36e5)*planFor(id,isoOf(e.in)).rate; }
   const first=finishedInstalls();
   const doneWk=[...first.values()].filter(x=>set.has(x.day));
-  let mgmt=0, selfN=0, jobPay=0; for(const x of doneWk){ const pl=planFor(id,x.day), pc=feePct(pl,x.j); mgmt+=price(x.j)*pc/100; if(pc&&pc!==pl.mgmtPct) selfN++; if(pl.jobPct&&jobWorkers(x.j,x.v,x.day).includes(id)) jobPay+=price(x.j)*pl.jobPct/100; }
+  let mgmt=0, selfN=0, jobPay=0; for(const x of doneWk){ const pl=planFor(id,x.day), pc=feePct(pl,x.j); mgmt+=price(x.j)*pc/100; if(pc&&pc!==pl.mgmtPct) selfN++; if(pl.jobPct) jobPay+=price(x.j)*techPct(id,x.j,x.v,x.day)/100; }
   const sales=allSales().filter(s=>s.by===id&&set.has(s.earnedOn)), comm=sales.reduce((t,s)=>t+s.comm,0);
   const earned=hourly+mgmt+jobPay+comm;
   const open=st.filter(s=>s.v.type==="install"&&!s.v.returnOf&&!isDone(s.j.id,s.v.id)&&!first.has(s.j.id));
@@ -27,5 +27,5 @@ function myPayWeek(days,st){
   return `<section class="dcard tw-me"><header><span class="eyebrow">Your pay this week · only you see this</span><button type="button" class="linkbtn" data-act="today-go" data-v="payroll">Payroll</button></header>
     <div class="tw-pay"><div class="tw-big"><small>Earned so far this week</small><b>${money2(earned)}</b></div><div class="tw-big"><small>If everything left this week gets done</small><b>${money2(earned+moreMgmt+moreComm)}</b></div></div>
     <div class="wk-pay">${byDay.map(x=>`<button type="button" class="wkp" data-act="go-day" data-v="${x.d}"><span class="bars"><i class="done" style="height:${x.dd/mx*100}%"></i><i class="left" style="height:${x.od/mx*100}%"></i></span><small>${esc(fmtDay(x.d,{weekday:"short"}))}</small><b class="mono">${x.dd+x.od?money0(x.dd+x.od):"–"}</b></button>`).join("")}</div>
-    <div class="dmoney">${line(`Management fee · ${doneWk.length} install${doneWk.length===1?"":"s"} done${selfN?` (${selfN} you installed at 10%)`:""}`,mgmt)}${line("Job %",jobPay)}${line(`Hours · ${h1(ms/36e5)} hrs`,hourly)}${line(`Sales commission · ${sales.length} sale${sales.length===1?"":"s"}`,comm)}${line(`Still to earn · ${open.length} install${open.length===1?"":"s"} left this week`,moreMgmt)}${line("Commission on your sales still to install",moreComm)}</div></section>`;
+    <div class="dmoney">${line(`Management fee · ${doneWk.length} install${doneWk.length===1?"":"s"} done${selfN?` (${selfN} you installed on)`:""}`,mgmt)}${line("Job %",jobPay)}${line(`Hours · ${h1(ms/36e5)} hrs`,hourly)}${line(`Sales commission · ${sales.length} sale${sales.length===1?"":"s"}`,comm)}${line(`Still to earn · ${open.length} install${open.length===1?"":"s"} left this week`,moreMgmt)}${line("Commission on your sales still to install",moreComm)}</div></section>`;
 }

@@ -9,15 +9,15 @@ function myFee(j){
 const myFeeChip = j => { const f=myFee(j); if(!f||!f.price||(!f.pct&&!f.before)) return ""; return `<span class="fee-chip ${f.earned?"ok":""} ${f.self?"self":""}" title="${f.self?"You installed it":"Your management fee"}">${f.before?"before 3%":`${f.self?"🔧 ":""}${f.pct}% · ${money2(f.fee)}`}</span>`; };
 async function setSelfInstall(jid,on){
   const f=S.fin.get(jid)||{};
-  try{ await S.db.doc("fin/"+jid).set({...f,selfInstall:!!on}); toast(on?`Marked as installed by you · ${SELF_PCT}%`:"Back to the management fee"); }catch(e){ fail(e,"save that"); }
+  try{ await S.db.doc("fin/"+jid).set({...f,selfInstall:!!on}); toast(on?`Marked as installed by you alone · ${SELF_PCT}%`:"Back to the management fee"); }catch(e){ fail(e,"save that"); }
 }
 function myFeeBlock(j){
   const f=myFee(j); if(!f) return "";
   if(!f.price) return `<section class="blk fee-blk"><span class="eyebrow">Your management fee · only you see this</span><p class="count">No price on this job yet.</p></section>`;
   return `<section class="blk fee-blk"><span class="eyebrow">Your pay on this job · only you see this</span>
-    <div class="fee-row"><b>${f.before?"$0.00":money2(f.fee)}</b><span>${f.before?`Installed ${esc(fmtDay(f.inst))}, before your 3% started`:`${f.self?"Installed it yourself":"Management fee"} · ${f.pct}% of ${money2(f.price)} · ${f.earned?`earned ${esc(fmtDay(f.inst))}`:"you get it when the install is checked off"}`}</span></div>
+    <div class="fee-row"><b>${f.before?"$0.00":money2(f.fee)}</b><span>${f.before?`Installed ${esc(fmtDay(f.inst))}, before your 3% started`:`${f.self?(f.pct<(SELF_PCT)?`Installed with ${jobCrews(j).length-1} other crew${jobCrews(j).length>2?"s":""} (3% + your share of 7%)`:"Installed it yourself"):"Management fee"} · ${f.pct}% of ${money2(f.price)} · ${f.earned?`earned ${esc(fmtDay(f.inst))}`:"you get it when the install is checked off"}`}</span></div>
     ${f.comm?`<div class="fee-row" style="margin-top:2px"><b style="font-size:18px">+ ${money2(f.comm)}</b><span>sales commission (you sold it) · total ${money2(f.fee+f.comm)}</span></div>`:""}
-    ${f.mgmtPct?`<label class="fee-self"><input type="checkbox" data-self-install="${esc(j.id)}" ${f.self?"checked":""}> I installed this job myself <small>(${SELF_PCT}% instead of ${f.mgmtPct}%)${f.auto?" · on automatically, it's on the Raul crew":""}</small></label>`:""}</section>`;
+    ${f.mgmtPct?`<label class="fee-self"><input type="checkbox" data-self-install="${esc(j.id)}" ${f.self?"checked":""}> I installed this job myself <small>(${SELF_PCT}% when you're the only crew; with other crews it's 3% + your share of 7%)${f.auto?" · on automatically, it's on the Raul crew":""}</small></label>`:""}</section>`;
 }
 function myFeeTotals(list){
   if(!isRaul()) return "";

@@ -11,7 +11,14 @@ const SELF_PCT = 10;
 // on the "Raul" crew counts as installed yourself, unless you switched it off on that job
 const onRaulCrew = j => { const jj={id:j.id,...(S.jobs.get(j.id)||j)}, ins=(jj.visits||[]).filter(v=>v.type==="install"), ids=[normCrew(jj.crew),...ins.flatMap(v=>visitCrews(jj,v))].filter(Boolean); return ids.some(id=>/\braul\b/i.test((crewsAll().find(c=>c.id===id)||{}).name||"")); };
 const isSelf = j => { const f=S.fin.get(j.id)||{}; return f.selfInstall===true || (f.selfInstall!==false && onRaulCrew(j)); };
-const feePct = (pl, j) => pl.mgmtPct>0 ? (isSelf(j) ? (pl.selfPct||SELF_PCT) : pl.mgmtPct) : 0;
+/* Raul: 3% management on every job. Installing it himself: 10%. Sharing the install with other crews: the 3% stays,
+   the extra 7% for the labor is split by the number of crews on the job (2 crews → 6.5%, 3 crews → 5.33%). */
+const jobCrews = j => { const jj={id:j.id,...(S.jobs.get(j.id)||j)}, ins=(jj.visits||[]).filter(v=>v.type==="install"); return [...new Set((ins.length?ins.flatMap(v=>visitCrews(jj,v)):[normCrew(jj.crew)]).filter(Boolean))]; };
+const feePct = (pl, j) => { if(!(pl.mgmtPct>0)) return 0; const f=S.fin.get(j.id)||{}, self=pl.selfPct||SELF_PCT;
+  if(f.selfInstall===true) return self; if(!isSelf(j)) return pl.mgmtPct;
+  const n=Math.max(1,jobCrews(j).length); return n===1 ? self : Math.round((pl.mgmtPct+(self-pl.mgmtPct)/n)*100)/100; };
+/* techs: the job's 4% is split evenly across every tech who worked it (any crew) */
+function techPct(id,j,v,day){ const pl=planFor(id,day); if(!(pl.jobPct>0)) return 0; const w=jobWorkers(j,v,day).filter(x=>planFor(x,day).jobPct>0); return w.includes(id) ? pl.jobPct/w.length : 0; }
 /* multi-day installs: the job's value is split across its install days, and it pays once, when the last day is checked off */
 const instVisits = j => (j.visits||[]).filter(v=>v.type==="install"&&!v.returnOf);
 const dayShare = (j,v) => (v&&v.type==="install"&&!v.returnOf) ? 1/Math.max(1,instVisits(j).length) : 0;
@@ -34,7 +41,7 @@ const jobBase = j => +((S.fin.get(j.id)||{}).price)||0; // full job price, TCL j
 function jobWorkers(j,v,day){
   const clocked=new Set(); for(const e of S.log.values()) if(e.kind==="clock"&&!e.general&&e.jobId===j.id&&e.by) clocked.add(e.by);
   if(clocked.size) return [...clocked];
-  const cs=visitCrews(j,v||{}); if(!cs.length) return [];
+  const ins=(j.visits||[]).filter(x=>x.type==="install"), cs=[...new Set((ins.length?ins:[v||{}]).flatMap(x=>visitCrews(j,x)))]; if(!cs.length) return [];
   return PL.staff().filter(p=>p.active&&cs.includes(normCrew(p.crew))).map(p=>p.id);
 }
 function payWeek(){
@@ -47,7 +54,7 @@ function payWeek(){
   const done=[...finishedInstalls().values()].filter(x=>set.has(x.day)).map(x=>({...x,base:jobBase(x.j)}));
   const staff=PL.staff().filter(p=>p.active);
   for(const x of done){
-    for(const id of jobWorkers(x.j,x.v,x.day)){ const pl=planFor(id,x.day); if(pl.jobPct>0){ const p=touch(id), amt=Math.round(x.base*pl.jobPct)/100; p.jobPay+=amt; p.jobs.push({...x,pct:pl.jobPct,amt}); } }
+    for(const id of jobWorkers(x.j,x.v,x.day)){ const pc=techPct(id,x.j,x.v,x.day); if(pc>0){ const p=touch(id), amt=Math.round(x.base*pc)/100; p.jobPay+=amt; p.jobs.push({...x,pct:Math.round(pc*100)/100,amt}); } }
     for(const s of staff){ const pl=planFor(s.id,x.day), pc=feePct(pl,x.j); if(pc>0){ const p=touch(s.id), amt=Math.round(x.base*pc)/100; p.mgmt+=amt; p.mgmtJobs.push({...x,pct:pc,amt,self:pc!==pl.mgmtPct}); } }
   }
   for(const id of Object.keys(S.payroll.rates||{})) if(planFor(id,days[6]).rate>0 && (PL.staff().find(x=>x.id===id)||{}).active) touch(id);
