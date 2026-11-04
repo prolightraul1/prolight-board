@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ProLight Season Board</title>
 <meta name="theme-color" content="#111916">
-<meta name="build" content="1793715586">
+<meta name="build" content="1793832678">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -3134,7 +3134,7 @@ function vOffice(){
   let h=`<h1 class="h-view">Office</h1>${G.length>1?`<div class="seg ogroups" role="group" aria-label="Office">${G.map(([k,l])=>`<button type="button" data-act="ogroup" data-v="${k}" aria-pressed="${cur[0]===k}">${l}${k==="people"&&rc?` <i class="cnt">${rc}</i>`:""}</button>`).join("")}</div>`:""}
     ${cur[2].length>1?`<div class="chips" role="group" aria-label="${esc(cur[1])}">${cur[2].map(([k,l])=>`<button type="button" class="chip" data-act="office" data-v="${k}" aria-pressed="${okey()===k}">${l}</button>`).join("")}</div>`:""}`;
   const o=S.office;
-  h+=`<div class="obody">`+(o==="money"?vMoney(): o==="texts"?vTexts(): o==="team"?vTeam(): o==="hours"?vHours(): o==="statement"?vStatement(): o==="sales"?vSales(): o==="payroll"?vPayroll(): o==="activity"?vActivity(): vSettings()+backupCard())+`</div>`;
+  h+=`<div class="obody">`+(o==="money"?vMoney(): o==="texts"?vTexts(): o==="team"?vTeam(): o==="hours"?vHours(): o==="statement"?vStatement(): o==="sales"?vSales(): o==="payroll"?vPayroll(): o==="activity"?vActivity(): vSettings()+backupCard()+hqCard())+`</div>`;
   return h;
 }
 
@@ -4647,6 +4647,20 @@ function tclHistory(j){
   const seen=j.tclSeenAt?`Last checked against TCL ${esc(fmtDay(isoOf(j.tclSeenAt),{month:"short",day:"numeric"}))} ${esc(new Date(j.tclSeenAt).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"}))}`:"Not synced with TCL yet";
   const val=(h,v)=>h.k==="price"?money2(+v||0):esc(String(v||"—").slice(0,80));
   return `<div class="tcl-hist"><span class="eyebrow">Changes from TCL</span>${rows.length?rows.map(h=>`<div class="th-row"><b>${esc(TCL_K[h.k]||h.k)}</b><span>${h.k==="notes"||h.k==="privateNote"||h.k==="media"?esc(h.to||"updated"):`${val(h,h.from)} → ${val(h,h.to)}`}</span><small>${esc(fmtDay(isoOf(h.at),{month:"short",day:"numeric"}))}</small></div>`).join(""):`<p class="count">No changes from TCL yet.</p>`}<small class="count">${seen}</small></div>`;
+}
+/* ---------- ProWash HQ install export: status + log (money people) ---------- */
+function hqCard(){
+  if(!S.me.money) return "";
+  const st=S.fin.get("hq-export")||null, log=(st&&st.log)||[];
+  const head=!st?`Waiting for Brayden's key. Once <span class="mono">INSTALL_INGEST_KEY</span> is added in Vercel, the first completed install of the day is sent as a test.`
+    :st.blocked?`<b style="color:var(--red)">Stopped:</b> HQ rejected the key. Brayden needs to check <span class="mono">INSTALL_INGEST_KEY</span>.`
+    :st.live?`<b style="color:var(--ok,#1f8a4c)">Live</b> since ${esc(fmtDay(isoOf(st.liveAt),{month:"short",day:"numeric"}))}. New check-offs go out within 2 minutes, and the last 14 days are re-sent every night at 9 PM.`
+    :`Key is in. The test runs on the next completed install today.`;
+  const line=e=>{ const t=new Date(e.at).toLocaleString([], {month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});
+    const what=e.mode==="test"?(e.ok?"Test passed: sent twice, no double count":`Test failed (HQ answered ${e.status})`)
+      :e.status?`${e.note} · ${e.sent} row${e.sent===1?"":"s"}`:e.note&&!e.sent?e.note:`${e.mode==="full"?"Nightly resend":"Sent"} ${e.sent} row${e.sent===1?"":"s"} · ${e.inserted||0} new · ${e.updated||0} updated${(e.errors||[]).length?` · ${(e.errors||[]).length} rejected`:""}`;
+    return `<div class="th-row"><small>${esc(t)}</small><span>${esc(what)}</span><span></span></div>`; };
+  return `<div class="dcard"><header><span class="eyebrow">ProWash HQ install export</span></header><p class="count" style="margin:0">${head}</p>${log.length?`<div class="tcl-hist" style="margin:0">${log.slice(0,10).map(line).join("")}</div>`:""}</div>`;
 }
 
 /* ---------- render ---------- */

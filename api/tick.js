@@ -104,6 +104,14 @@ module.exports = async (req, res) => {
     if (process.env.TCL_FEED_URL && now.min % 15 === 0) {
       try { const t = await require("./tcl.js").pollFeed(); if (t && (t.changed || []).length) out.tcl = t.changed.length; } catch (e) { out.tclError = String(e.message || e).slice(0, 160); }
     }
+    // installs → ProWash HQ: changes every 2 minutes, full 14-day resend at 9 PM
+    if (process.env.INSTALL_INGEST_KEY) {
+      try {
+        const hq = require("./_lib/hq");
+        const full = now.min >= 21 * 60 && now.min < 21 * 60 + 10 && (await firstTime("hq-full:" + now.date));
+        if (full || now.min % 2 === 0) { const h = await hq.run(full ? "full" : "changes"); if (h && (h.sent || h.error || h.retry || h.test !== undefined)) out.hq = h; }
+      } catch (e) { out.hqError = String(e.message || e).slice(0, 160); }
+    }
     // board check-offs → Jobber (visit completed + notes, photos, videos)
     try { const jp = await require("./jobber.js").pushToJobber({ max: 3 }); if (jp && (jp.completed?.length || jp.notes || jp.errors?.length)) out.jobber = jp; } catch (e) { out.jobberError = String(e.message || e).slice(0, 160); }
     return res.status(200).json(out);

@@ -589,6 +589,15 @@ module.exports = async (req, res) => {
       if (!dry) await putDocs([{ coll: "fin", id: "payroll", data: { ...pay, rates } }]);
       return res.status(200).json({ dry, from: FROM, ...out });
     }
+    if (action === "hqrows") {
+      // dry look at the HQ install export: counts and checks only, no names or dollars (logs are public)
+      if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
+      const { rows } = await require("./_lib/hq").buildRows(+req.query.q || 14);
+      const st = (await sb("/rest/v1/docs?coll=eq.fin&id=eq.hq-export&select=data"))[0];
+      const byJob = {}; for (const r of rows) (byJob[r.install_id.split("-20")[0]] = byJob[r.install_id.split("-20")[0]] || []).push(r);
+      const dupIds = rows.length - new Set(rows.map((r) => r.install_id)).size;
+      return res.status(200).json({ rows: rows.length, statuses: rows.reduce((t, r) => ((t[r.status] = (t[r.status] || 0) + 1), t), {}), days: [...new Set(rows.map((r) => r.date))].sort(), installers: new Set(rows.map((r) => r.installer)).size, withJobberNo: rows.filter((r) => r.jobber_job_number).length, withHours: rows.filter((r) => r.hours).length, duplicateIds: dupIds, keySet: !!process.env.INSTALL_INGEST_KEY, live: !!(st && st.data.live), lastLog: st && (st.data.log || []).slice(0, 3) });
+    }
     if (action === "crewday") {
       // a person's crew stops on a day; do=1 takes them off the schedule (the job stays, sync won't re-date it)
       if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
