@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ProLight Season Board</title>
 <meta name="theme-color" content="#111916">
-<meta name="build" content="1793835223">
+<meta name="build" content="1793835472">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -4201,8 +4201,8 @@ const jobCrews = j => { const jj={id:j.id,...(S.jobs.get(j.id)||j)}, ins=(jj.vis
 const feePct = (pl, j) => { if(!(pl.mgmtPct>0)) return 0; const f=S.fin.get(j.id)||{}, self=pl.selfPct||SELF_PCT;
   if(f.selfInstall===true) return self; if(!isSelf(j)) return pl.mgmtPct;
   const n=Math.max(1,jobCrews(j).length); return n===1 ? self : Math.round((pl.mgmtPct+(self-pl.mgmtPct)/n)*100)/100; };
-/* techs: the job's 4% is split evenly across every tech who worked it (any crew) */
-function techPct(id,j,v,day){ const pl=planFor(id,day); if(!(pl.jobPct>0)) return 0; const w=jobWorkers(j,v,day).filter(x=>planFor(x,day).jobPct>0); return w.includes(id) ? pl.jobPct/w.length : 0; }
+/* techs: every tech who worked a job gets the full 4% of it, however many techs or crews were on it */
+function techPct(id,j,v,day){ const pl=planFor(id,day); if(!(pl.jobPct>0)) return 0; return jobWorkers(j,v,day).includes(id) ? pl.jobPct : 0; }
 /* multi-day installs: the job's value is split across its install days, and it pays once, when the last day is checked off */
 const instVisits = j => (j.visits||[]).filter(v=>v.type==="install"&&!v.returnOf);
 const dayShare = (j,v) => (v&&v.type==="install"&&!v.returnOf) ? 1/Math.max(1,instVisits(j).length) : 0;
