@@ -45,7 +45,9 @@
     if (!none(kv.Address)) j.addr = kv.Address;
     const cols = [...hero.querySelectorAll(".cols .col")].map(txt).filter((v) => v && !/^Color not set$/i.test(v));
     if (cols.length) j.color = cols.join(", ");
-    j.price = num(txt(hero.querySelector(".amt")));
+    // .amt can carry trailing text ("$1,150.00 · Wed–Sat only", dates); take only the first dollar amount
+    const amtM = txt(hero.querySelector(".amt")).match(/\$?\s*([\d,]+(?:\.\d+)?)/);
+    j.price = amtM ? num(amtM[1]) : 0;
     const sel = hero.querySelector("#quickWeek"), day = hero.querySelector("#quickDay");
     const wk = sel ? fmtWeek(sel.value) : ""; // installed jobs have no week picker
     const subParts = c.sub.split(" · ").map((s) => s.trim()).filter(Boolean);
