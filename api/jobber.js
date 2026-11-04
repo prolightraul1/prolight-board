@@ -598,6 +598,19 @@ module.exports = async (req, res) => {
       const dupIds = rows.length - new Set(rows.map((r) => r.install_id)).size;
       return res.status(200).json({ rows: rows.length, statuses: rows.reduce((t, r) => ((t[r.status] = (t[r.status] || 0) + 1), t), {}), days: [...new Set(rows.map((r) => r.date))].sort(), installers: new Set(rows.map((r) => r.installer)).size, withJobberNo: rows.filter((r) => r.jobber_job_number).length, withHours: rows.filter((r) => r.hours).length, duplicateIds: dupIds, keySet: !!process.env.INSTALL_INGEST_KEY, live: !!(st && st.data.live), lastLog: st && (st.data.log || []).slice(0, 3) });
     }
+    if (action === "undate") {
+      // clear Jobber-imported install dates on the given board jobs (q = id,id); only undone install visits
+      if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
+      const ids = String(req.query.q || "").split(",").filter(Boolean), out = [], rows = [], now = new Date().toISOString();
+      const done = new Set((await sb("/rest/v1/docs?coll=eq.log&data->>kind=eq.done&select=data")).map((l) => l.data.jobId + "|" + l.data.visitId));
+      for (const id of ids) {
+        const r = (await sb(`/rest/v1/docs?coll=eq.jobs&id=eq.${encodeURIComponent(id)}&select=data`))[0]; if (!r) { out.push({ id, error: "not found" }); continue; }
+        const d = r.data; let n = 0;
+        for (const v of d.visits || []) if (v.type === "install" && v.date && !done.has(id + "|" + v.id)) { v.date = ""; v.time = ""; v.order = null; v.unscheduledAt = now; n++; }
+        if (n) { d.updatedAt = now; rows.push({ coll: "jobs", id, data: d }); } out.push({ id, cleared: n });
+      }
+      await putDocs(rows); return res.status(200).json({ out });
+    }
     if (action === "crewday") {
       // a person's crew stops on a day; do=1 takes them off the schedule (the job stays, sync won't re-date it)
       if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
