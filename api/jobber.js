@@ -621,6 +621,13 @@ module.exports = async (req, res) => {
       const ds = ((await sb("/rest/v1/docs?coll=eq.fin&id=eq.jb-dates&select=data"))[0] || {}).data || {};
       return res.status(200).json({ scope: claims.scope || claims.scopes || Object.keys(claims), dateSync: { seeded: !!ds.seeded, seededAt: ds.seededAt, jobs: Object.keys(ds.jobs || {}).length }, ...(req.query.q === "full" ? { visitMutations: fields, visitEditInput: inp } : {}) });
     }
+    if (action === "staffplans") {
+      // staff names, crews and pay plans (names only; plans are rates/percentages)
+      if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
+      const [staff, pay, settings] = await Promise.all([sb("/rest/v1/staff?select=id,name,crew,active,partner,can_manage"), sb("/rest/v1/docs?coll=eq.fin&id=eq.payroll&select=data"), allDocs("settings")]);
+      const crews = ((settings.find((d) => d.id === "board") || {}).data || {}).crews || [], rates = (((pay[0] || {}).data || {}).rates) || {};
+      return res.status(200).json({ crews: crews.map((c) => ({ id: c.id, name: c.name, co: c.co })), staff: staff.filter((p) => p.active).map((p) => ({ id: p.id.slice(0, 8), name: p.name, crew: p.crew, partner: p.partner || "", plans: (rates[p.id] || {}).plans || [], rate: (rates[p.id] || {}).rate })) });
+    }
     if (action === "crewday") {
       // a person's crew stops on a day; do=1 takes them off the schedule (the job stays, sync won't re-date it)
       if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
