@@ -76,7 +76,7 @@ function vPayroll(){
     ${warn.length?`<div class="note">${warn.map(esc).join("<br>")}<br><small>Fix times in Office → Hours (tap a row) before sending.</small></div>`:""}
     <div class="mhero" style="margin-top:12px"><span class="eyebrow">Payroll this week</span><div class="mhero-v">${money2(tot)}</div><span>${h1(sum("hrs"))} hours · ${W.done.length} install${W.done.length===1?"":"s"} finished · ${P.length} people</span></div>`;
   if(!P.length) return h+`<div class="empty"><h3>Nothing to pay this week</h3><p>Hours come from clock-ins. Job pay and management fees come from installs checked off this week.</p></div>`+rateList();
-  h+=`<div class="tbl" style="margin-top:12px"><table><thead><tr><th>Person</th><th class="r">Hours</th><th class="r">OT</th><th class="r">Hourly pay</th><th class="r">Job %</th><th class="r">Mgmt fee</th><th class="r">Sales</th><th class="r">Total</th></tr></thead><tbody>
+  h+=`<div class="tbl" style="margin-top:12px"><table><thead><tr><th>Person</th><th class="r">Hours</th><th class="r">OT</th><th class="r">Hourly pay</th><th class="r">Job %</th><th class="r">Mgmt &amp; install</th><th class="r">Sales</th><th class="r">Total</th></tr></thead><tbody>
     ${P.map(p=>`<tr><td><b>${esc(p.name)}</b><br><small class="count">${esc(planText(p.plan))}</small></td>
       <td class="r">${h1(p.hrs)}</td><td class="r">${p.ot?h1(p.ot):"–"}</td><td class="r">${p.regPay+p.otPay?money2(p.regPay+p.otPay):"–"}</td>
       <td class="r">${p.jobPay?`${money2(p.jobPay)}<br><small class="count">${p.jobs.length} job${p.jobs.length>1?"s":""}</small>`:"–"}</td><td class="r">${p.mgmt?`${money2(p.mgmt)}<br><small class="count">${p.mgmtJobs.length} job${p.mgmtJobs.length>1?"s":""}</small>`:"–"}</td>

@@ -33,7 +33,7 @@ function myPayToday(d,st){
   const line=(l,v)=>v?`<div><small>${l}</small><b class="mono">${money2(v)}</b></div>`:"";
   return `<section class="dcard dc-wide tw-me"><header><span class="eyebrow">Your pay today · only you see this</span><button type="button" class="linkbtn" data-act="today-go" data-v="payroll">Payroll</button></header>
     <div class="tw-pay"><div class="tw-big"><small>Earned so far</small><b>${money2(earned)}</b></div><div class="tw-big"><small>If everything left today gets done</small><b>${money2(earned+moreMgmt+moreComm)}</b></div></div>
-    <div class="dmoney">${line(`Management fee · ${pl.mgmtPct}% of ${doneToday.length} install${doneToday.length===1?"":"s"} done${selfN?` (${selfN} you installed on)`:""}`,mgmt)}${line(`Job % · ${pl.jobPct}%`,jobPay)}${line(`Hours · ${h1(ms/36e5)} hrs at $${pl.rate}/hr`,hourly)}${line(`Sales commission · ${sales.length} sale${sales.length===1?"":"s"}`,comm)}
+    <div class="dmoney">${line(`Management &amp; install fee · ${doneToday.length} install${doneToday.length===1?"":"s"} done${selfN?` (${selfN} you were on: 10%, or 3% + your share of 7%)`:` at ${pl.mgmtPct}%`}`,mgmt)}${line(`Job % · ${pl.jobPct}%`,jobPay)}${line(`Hours · ${h1(ms/36e5)} hrs at $${pl.rate}/hr`,hourly)}${line(`Sales commission · ${sales.length} sale${sales.length===1?"":"s"}`,comm)}
       ${line(`Still to earn on ${open.length} install${open.length===1?"":"s"} left`,moreMgmt)}${line("Commission on your sales still to install",moreComm)}</div>
     ${!pl.rate&&!pl.mgmtPct&&!pl.jobPct?`<p class="count">Set your pay in Office → Payroll → Pay plans.</p>`:""}</section>`;
 }

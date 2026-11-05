@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ProLight Season Board</title>
 <meta name="theme-color" content="#111916">
-<meta name="build" content="1793836517">
+<meta name="build" content="1793852776">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -4264,7 +4264,7 @@ function vPayroll(){
     ${warn.length?`<div class="note">${warn.map(esc).join("<br>")}<br><small>Fix times in Office → Hours (tap a row) before sending.</small></div>`:""}
     <div class="mhero" style="margin-top:12px"><span class="eyebrow">Payroll this week</span><div class="mhero-v">${money2(tot)}</div><span>${h1(sum("hrs"))} hours · ${W.done.length} install${W.done.length===1?"":"s"} finished · ${P.length} people</span></div>`;
   if(!P.length) return h+`<div class="empty"><h3>Nothing to pay this week</h3><p>Hours come from clock-ins. Job pay and management fees come from installs checked off this week.</p></div>`+rateList();
-  h+=`<div class="tbl" style="margin-top:12px"><table><thead><tr><th>Person</th><th class="r">Hours</th><th class="r">OT</th><th class="r">Hourly pay</th><th class="r">Job %</th><th class="r">Mgmt fee</th><th class="r">Sales</th><th class="r">Total</th></tr></thead><tbody>
+  h+=`<div class="tbl" style="margin-top:12px"><table><thead><tr><th>Person</th><th class="r">Hours</th><th class="r">OT</th><th class="r">Hourly pay</th><th class="r">Job %</th><th class="r">Mgmt &amp; install</th><th class="r">Sales</th><th class="r">Total</th></tr></thead><tbody>
     ${P.map(p=>`<tr><td><b>${esc(p.name)}</b><br><small class="count">${esc(planText(p.plan))}</small></td>
       <td class="r">${h1(p.hrs)}</td><td class="r">${p.ot?h1(p.ot):"–"}</td><td class="r">${p.regPay+p.otPay?money2(p.regPay+p.otPay):"–"}</td>
       <td class="r">${p.jobPay?`${money2(p.jobPay)}<br><small class="count">${p.jobs.length} job${p.jobs.length>1?"s":""}</small>`:"–"}</td><td class="r">${p.mgmt?`${money2(p.mgmt)}<br><small class="count">${p.mgmtJobs.length} job${p.mgmtJobs.length>1?"s":""}</small>`:"–"}</td>
@@ -4452,7 +4452,7 @@ function myPayToday(d,st){
   const line=(l,v)=>v?`<div><small>${l}</small><b class="mono">${money2(v)}</b></div>`:"";
   return `<section class="dcard dc-wide tw-me"><header><span class="eyebrow">Your pay today · only you see this</span><button type="button" class="linkbtn" data-act="today-go" data-v="payroll">Payroll</button></header>
     <div class="tw-pay"><div class="tw-big"><small>Earned so far</small><b>${money2(earned)}</b></div><div class="tw-big"><small>If everything left today gets done</small><b>${money2(earned+moreMgmt+moreComm)}</b></div></div>
-    <div class="dmoney">${line(`Management fee · ${pl.mgmtPct}% of ${doneToday.length} install${doneToday.length===1?"":"s"} done${selfN?` (${selfN} you installed on)`:""}`,mgmt)}${line(`Job % · ${pl.jobPct}%`,jobPay)}${line(`Hours · ${h1(ms/36e5)} hrs at $${pl.rate}/hr`,hourly)}${line(`Sales commission · ${sales.length} sale${sales.length===1?"":"s"}`,comm)}
+    <div class="dmoney">${line(`Management &amp; install fee · ${doneToday.length} install${doneToday.length===1?"":"s"} done${selfN?` (${selfN} you were on: 10%, or 3% + your share of 7%)`:` at ${pl.mgmtPct}%`}`,mgmt)}${line(`Job % · ${pl.jobPct}%`,jobPay)}${line(`Hours · ${h1(ms/36e5)} hrs at $${pl.rate}/hr`,hourly)}${line(`Sales commission · ${sales.length} sale${sales.length===1?"":"s"}`,comm)}
       ${line(`Still to earn on ${open.length} install${open.length===1?"":"s"} left`,moreMgmt)}${line("Commission on your sales still to install",moreComm)}</div>
     ${!pl.rate&&!pl.mgmtPct&&!pl.jobPct?`<p class="count">Set your pay in Office → Payroll → Pay plans.</p>`:""}</section>`;
 }
@@ -4586,7 +4586,7 @@ function myPayWeek(days,st){
   return `<section class="dcard tw-me"><header><span class="eyebrow">Your pay this week · only you see this</span><button type="button" class="linkbtn" data-act="today-go" data-v="payroll">Payroll</button></header>
     <div class="tw-pay"><div class="tw-big"><small>Earned so far this week</small><b>${money2(earned)}</b></div><div class="tw-big"><small>If everything left this week gets done</small><b>${money2(earned+moreMgmt+moreComm)}</b></div></div>
     <div class="wk-pay">${byDay.map(x=>`<button type="button" class="wkp" data-act="go-day" data-v="${x.d}"><span class="bars"><i class="done" style="height:${x.dd/mx*100}%"></i><i class="left" style="height:${x.od/mx*100}%"></i></span><small>${esc(fmtDay(x.d,{weekday:"short"}))}</small><b class="mono">${x.dd+x.od?money0(x.dd+x.od):"–"}</b></button>`).join("")}</div>
-    <div class="dmoney">${line(`Management fee · ${doneWk.length} install${doneWk.length===1?"":"s"} done${selfN?` (${selfN} you installed on)`:""}`,mgmt)}${line("Job %",jobPay)}${line(`Hours · ${h1(ms/36e5)} hrs`,hourly)}${line(`Sales commission · ${sales.length} sale${sales.length===1?"":"s"}`,comm)}${line(`Still to earn · ${open.length} install${open.length===1?"":"s"} left this week`,moreMgmt)}${line("Commission on your sales still to install",moreComm)}</div></section>`;
+    <div class="dmoney">${line(`Management &amp; install fee · ${doneWk.length} install${doneWk.length===1?"":"s"} done${selfN?` (${selfN} you were on: 10%, or 3% + your share of 7%)`:""}`,mgmt)}${line("Job %",jobPay)}${line(`Hours · ${h1(ms/36e5)} hrs`,hourly)}${line(`Sales commission · ${sales.length} sale${sales.length===1?"":"s"}`,comm)}${line(`Still to earn · ${open.length} install${open.length===1?"":"s"} left this week`,moreMgmt)}${line("Commission on your sales still to install",moreComm)}</div></section>`;
 }
 /* ---------- multi-day installs ---------- */
 /* A job with 2+ install visits is one install spread over several days: the board shows "Day 1 of 2",
