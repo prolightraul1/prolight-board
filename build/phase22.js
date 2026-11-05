@@ -7,18 +7,23 @@ function planFor(id, day){
 }
 const nextPlan = id => ((S.payroll.rates||{})[id]?.plans||[]).filter(p=>p.from>monday(isoOf(new Date().toISOString()))).sort((a,b)=>a.from.localeCompare(b.from))[0]||null;
 // your % on a job: the management fee, or the self-install rate when you put it in yourself
-const SELF_PCT = 10;
+const SELF_LABOR = 10; // on top of the management fee when Raul installs a job himself
+const selfTotal = pl => (+pl.mgmtPct||0) + (pl.selfLabor!=null ? +pl.selfLabor : SELF_LABOR);
+const SELF_PCT = 13; // shown in labels: 3% + 10%
 // on the "Raul" crew counts as installed yourself, unless you switched it off on that job
 const onRaulCrew = j => { const jj={id:j.id,...(S.jobs.get(j.id)||j)}, ins=(jj.visits||[]).filter(v=>v.type==="install"), ids=[normCrew(jj.crew),...ins.flatMap(v=>visitCrews(jj,v))].filter(Boolean); return ids.some(id=>/\braul\b/i.test((crewsAll().find(c=>c.id===id)||{}).name||"")); };
 const isSelf = j => { const f=S.fin.get(j.id)||{}; return f.selfInstall===true || (f.selfInstall!==false && onRaulCrew(j)); };
-/* Raul: 3% management on every job. Installing it himself: 10%. Sharing the install with other crews: the 3% stays,
-   the extra 7% for the labor is split by the number of crews on the job (2 crews → 6.5%, 3 crews → 5.33%). */
+/* Raul: 3% management on every job. Installing it himself: +10% on top (13%). Sharing the install with other crews:
+   the 3% stays and the 10% for the labor is split by the number of crews on the job (2 crews → 3% + 5% = 8%, 3 crews → 3% + 3.33%). */
 const jobCrews = j => { const jj={id:j.id,...(S.jobs.get(j.id)||j)}, ins=(jj.visits||[]).filter(v=>v.type==="install"); return [...new Set((ins.length?ins.flatMap(v=>visitCrews(jj,v)):[normCrew(jj.crew)]).filter(Boolean))]; };
-const feePct = (pl, j) => { if(!(pl.mgmtPct>0)) return 0; const f=S.fin.get(j.id)||{}, self=pl.selfPct||SELF_PCT;
+const feePct = (pl, j) => { if(!(pl.mgmtPct>0)) return 0; const f=S.fin.get(j.id)||{}, self=selfTotal(pl);
   if(f.selfInstall===true) return self; if(!isSelf(j)) return pl.mgmtPct;
   const n=Math.max(1,jobCrews(j).length); return n===1 ? self : Math.round((pl.mgmtPct+(self-pl.mgmtPct)/n)*100)/100; };
-/* techs: the job's 4% is split evenly across every tech who worked it (any crew) */
-function techPct(id,j,v,day){ const pl=planFor(id,day); if(!(pl.jobPct>0)) return 0; const w=jobWorkers(j,v,day).filter(x=>planFor(x,day).jobPct>0); return w.includes(id) ? pl.jobPct/w.length : 0; }
+/* job %: "pool" plans (techs on 4%) split their % evenly across every pool tech who worked the job;
+   "crew" plans (e.g. Sam's 10% of installs he does) split by the number of crews on the job. */
+function techPct(id,j,v,day){ const pl=planFor(id,day); if(!(pl.jobPct>0)) return 0; const ws=jobWorkers(j,v,day); if(!ws.includes(id)) return 0;
+  if(pl.pctSplit==="crew") return pl.jobPct/Math.max(1,jobCrews(j).length);
+  const w=ws.filter(x=>{ const q=planFor(x,day); return q.jobPct>0&&q.pctSplit!=="crew"; }); return pl.jobPct/Math.max(1,w.length); }
 /* multi-day installs: the job's value is split across its install days, and it pays once, when the last day is checked off */
 const instVisits = j => (j.visits||[]).filter(v=>v.type==="install"&&!v.returnOf);
 const dayShare = (j,v) => (v&&v.type==="install"&&!v.returnOf) ? 1/Math.max(1,instVisits(j).length) : 0;
@@ -68,7 +73,7 @@ function payWeek(){
     .sort((a,b)=>a.name.localeCompare(b.name));
   return {days, rows, people:out, done};
 }
-const planText = pl => [pl.rate>0?`$${pl.rate}/hr`:"", pl.jobPct>0?`${pl.jobPct}% of jobs they complete`:"", pl.mgmtPct>0?`${pl.mgmtPct}% management fee`:""].filter(Boolean).join(" + ")||"No pay set";
+const planText = pl => [pl.rate>0?`$${pl.rate}/hr`:"", pl.jobPct>0?`${pl.jobPct}% of jobs they install${pl.pctSplit==="crew"?" (split by crew when shared)":" (split with other techs)"}`:"", pl.mgmtPct>0?`${pl.mgmtPct}% management fee + ${pl.selfLabor!=null?pl.selfLabor:SELF_LABOR}% on jobs installed himself`:""].filter(Boolean).join(" + ")||"No pay set";
 function vPayroll(){
   const W=payWeek(), P=W.people, end=W.days[6], tot=P.reduce((t,p)=>t+p.total,0), sum=k=>P.reduce((t,p)=>t+p[k],0);
   const warn=[...P.filter(p=>p.open).map(p=>`${p.name} has ${p.open} open clock-in${p.open>1?"s":""} (never clocked out)`), ...P.filter(p=>!p.plan.rate&&!p.plan.jobPct&&!p.plan.mgmtPct&&p.hrs).map(p=>`${p.name} has no pay set`)];
