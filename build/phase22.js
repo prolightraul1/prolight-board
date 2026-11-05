@@ -16,12 +16,17 @@ const isSelf = j => { const f=S.fin.get(j.id)||{}; return f.selfInstall===true |
 /* Raul: 3% management on every job. Installing it himself: +10% on top (13%). Sharing the install with other crews:
    the 3% stays and the 10% for the labor is split by the number of crews on the job (2 crews → 3% + 5% = 8%, 3 crews → 3% + 3.33%). */
 const jobCrews = j => { const jj={id:j.id,...(S.jobs.get(j.id)||j)}, ins=(jj.visits||[]).filter(v=>v.type==="install"); return [...new Set((ins.length?ins.flatMap(v=>visitCrews(jj,v)):[normCrew(jj.crew)]).filter(Boolean))]; };
-const feePct = (pl, j) => { if(!(pl.mgmtPct>0)) return 0; const f=S.fin.get(j.id)||{}, self=selfTotal(pl);
+/* a job can carry a custom split: fin.custom.shares = { staffId: fraction of the job's work they did }.
+   Then each listed person's % plan applies to their fraction (no other splitting), and anyone not listed gets no job % on it. */
+const customShares = j => { const c=(S.fin.get(j.id)||{}).custom; return c&&c.shares&&Object.keys(c.shares).length?c.shares:null; };
+const feePct = (pl, j, who) => { if(!(pl.mgmtPct>0)) return 0; const f=S.fin.get(j.id)||{}, self=selfTotal(pl);
+  const cs=customShares(j); if(cs){ const sh=+cs[who||S.me.id]||0; return pl.mgmtPct+(self-pl.mgmtPct)*sh; }
   if(f.selfInstall===true) return self; if(!isSelf(j)) return pl.mgmtPct;
   const n=Math.max(1,jobCrews(j).length); return n===1 ? self : Math.round((pl.mgmtPct+(self-pl.mgmtPct)/n)*100)/100; };
 /* job %: "pool" plans (techs on 4%) split their % evenly across every pool tech who worked the job;
    "crew" plans (e.g. Sam's 10% of installs he does) split by the number of crews on the job. */
-function techPct(id,j,v,day){ const pl=planFor(id,day); if(!(pl.jobPct>0)) return 0; const ws=jobWorkers(j,v,day); if(!ws.includes(id)) return 0;
+function techPct(id,j,v,day){ const pl=planFor(id,day); if(!(pl.jobPct>0)) return 0; const cs=customShares(j); if(cs) return pl.jobPct*(+cs[id]||0);
+  const ws=jobWorkers(j,v,day); if(!ws.includes(id)) return 0;
   if(pl.pctSplit==="crew") return pl.jobPct/Math.max(1,jobCrews(j).length);
   const w=ws.filter(x=>{ const q=planFor(x,day); return q.jobPct>0&&q.pctSplit!=="crew"; }); return pl.jobPct/Math.max(1,w.length); }
 /* multi-day installs: the job's value is split across its install days, and it pays once, when the last day is checked off */
@@ -59,8 +64,8 @@ function payWeek(){
   const done=[...finishedInstalls().values()].filter(x=>set.has(x.day)).map(x=>({...x,base:jobBase(x.j)}));
   const staff=PL.staff().filter(p=>p.active);
   for(const x of done){
-    for(const id of jobWorkers(x.j,x.v,x.day)){ const pc=techPct(id,x.j,x.v,x.day); if(pc>0){ const p=touch(id), amt=Math.round(x.base*pc)/100; p.jobPay+=amt; p.jobs.push({...x,pct:Math.round(pc*100)/100,amt}); } }
-    for(const s of staff){ const pl=planFor(s.id,x.day), pc=feePct(pl,x.j); if(pc>0){ const p=touch(s.id), amt=Math.round(x.base*pc)/100; p.mgmt+=amt; p.mgmtJobs.push({...x,pct:pc,amt,self:pc!==pl.mgmtPct}); } }
+    for(const id of (customShares(x.j)?Object.keys(customShares(x.j)):jobWorkers(x.j,x.v,x.day))){ const pc=techPct(id,x.j,x.v,x.day); if(pc>0){ const p=touch(id), amt=Math.round(x.base*pc)/100; p.jobPay+=amt; p.jobs.push({...x,pct:Math.round(pc*100)/100,amt}); } }
+    for(const s of staff){ const pl=planFor(s.id,x.day), pc=feePct(pl,x.j,s.id); if(pc>0){ const p=touch(s.id), amt=Math.round(x.base*pc)/100; p.mgmt+=amt; p.mgmtJobs.push({...x,pct:pc,amt,self:pc!==pl.mgmtPct}); } }
   }
   for(const id of Object.keys(S.payroll.rates||{})) if(planFor(id,days[6]).rate>0 && (PL.staff().find(x=>x.id===id)||{}).active) touch(id);
   const out=[...ppl.values()].map(p=>{

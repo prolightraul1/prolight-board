@@ -641,6 +641,22 @@ module.exports = async (req, res) => {
       if (!dry) await putDocs([{ coll: "fin", id: "payroll", data: { ...pay, rates } }]);
       return res.status(200).json({ dry, from: FROM, out });
     }
+    if (action === "custompay") {
+      // q = jobId~Name:fraction,Name:fraction[~YYYY-MM-DD:CrewName]  → custom pay split on the job, optionally add an install day for a crew
+      if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
+      const [jid, sharesTxt, dayTxt] = String(req.query.q || "").split("~");
+      const [staff, jr, fr, settings] = await Promise.all([sb("/rest/v1/staff?select=id,name,active"), sb(`/rest/v1/docs?coll=eq.jobs&id=eq.${encodeURIComponent(jid)}&select=data`), sb(`/rest/v1/docs?coll=eq.fin&id=eq.${encodeURIComponent(jid)}&select=data`), allDocs("settings")]);
+      if (!jr[0]) return res.status(404).json({ error: "no job" });
+      const frac = (s) => { const m = String(s).match(/^(\d+)\/(\d+)$/); return m ? +m[1] / +m[2] : +s; };
+      const shares = {}, named = [];
+      for (const part of String(sharesTxt || "").split(",").filter(Boolean)) { const [n, f] = part.split(":"); const p = staff.find((x) => x.active && String(x.name || "").toLowerCase().startsWith(n.toLowerCase())); if (!p) return res.status(400).json({ error: "who is " + n }); shares[p.id] = Math.round(frac(f) * 1e6) / 1e6; named.push(p.name + " " + f); }
+      const job = jr[0].data, rows = [], now = new Date().toISOString(); let added = null;
+      if (dayTxt) { const [d, cn] = dayTxt.split(":"); const crews = ((settings.find((x) => x.id === "board") || {}).data || {}).crews || []; const c = crews.find((x) => String(x.name).toLowerCase() === String(cn || "").toLowerCase());
+        if (!(job.visits || []).some((v) => v.type === "install" && v.date === d)) { job.visits = [...(job.visits || []), { id: "d" + Date.now().toString(36), type: "install", date: d, time: "", crew: c ? c.id : "", crews: [], note: "", order: null }]; job.updatedAt = now; rows.push({ coll: "jobs", id: jid, data: job }); added = { date: d, crew: c ? c.name : "" }; } }
+      rows.push({ coll: "fin", id: jid, data: { ...((fr[0] || {}).data || {}), custom: { shares, at: now, by: "office" } } });
+      await putDocs(rows);
+      return res.status(200).json({ job: jid, shares: named, addedDay: added, installDays: (job.visits || []).filter((v) => v.type === "install").map((v) => v.date || "-") });
+    }
     if (action === "crewday") {
       // a person's crew stops on a day; do=1 takes them off the schedule (the job stays, sync won't re-date it)
       if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
