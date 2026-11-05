@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ProLight Season Board</title>
 <meta name="theme-color" content="#111916">
-<meta name="build" content="1793914194">
+<meta name="build" content="1793916351">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -741,6 +741,9 @@ html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
 .ss-view .c-crew,.ss-view .jhead span:nth-child(2),.ss-view .jhead span:nth-child(3){visibility:hidden}
 .wday h4{flex-wrap:wrap;gap:0 6px}
 .lbl:empty{display:none}
+.plan-map-wrap{display:grid;gap:4px}.plan-map{height:210px;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:var(--sunk)}.plan-map .lmap{width:100%;height:100%}
+.pm-dot{display:block;width:14px;height:14px;border-radius:50%;background:var(--c);border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.35)}
+.pm-legend{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12px;color:var(--ink-2)}.pm-legend i{display:inline-block;width:14px;height:4px;border-radius:2px;margin-right:5px;vertical-align:middle}
 .truck-ic{display:inline-block;vertical-align:-1px;flex:none}
 .drv{display:inline-flex;align-items:center;margin-left:8px;color:var(--ink-2)}.drv.nd{font-size:12px;font-weight:600;color:var(--amber,#f5b83d)}
 .roster{display:flex;flex-wrap:wrap;gap:4px 10px;flex-basis:100%;font-size:13px;color:var(--ink-2)}.roster .rp{display:inline-flex;align-items:center;gap:4px}.roster .rp.nd{color:var(--amber,#f5b83d)}.roster .rp.nd::after{content:"· needs a ride";font-size:12px}
@@ -4808,7 +4811,7 @@ function vPlan(){
       r.opts.map((o,i)=>{ const per=o.rev/r.n, ok=o.rev>=r.min&&o.rev<=r.max*1.08;
         return `<div class="plan-opt ${(PLAN.pick[c.id]||0)===i?"on":""}"><div class="po-head"><b>Option ${i+1}</b><span class="po-rev ${ok?"ok":"off"}">${money0(o.rev)}</span><span class="count">${money0(per)}/tech · ${o.stops.length} stop${o.stops.length===1?"":"s"} · ${o.ride?`${o.moves?o.moves+" move · ":"one spot · "}+${o.drive} min for ${esc(teamName(o.ride.by))}`:`${o.drive} min driving`}${o.big?` · big job, about ${o.days} days`:""}</span></div>
           <ol class="po-stops">${o.stops.map(s=>{ const also=[...(seen.get(s.j.id)||[])].filter(x=>x!==c.id);
-            return `<li><button type="button" class="po-name" data-act="job" data-id="${esc(s.j.id)}">${esc(clientOf(s.j).name||"Job")}</button><span class="count">${money0(s.p)}${s.j.source==="tcl"?" · TCL":""}${s.j.tclWhen?" · "+esc(s.j.tclWhen):""}${s.j.priority==="HIGH"?` · <b style="color:var(--amber)">high</b>`:""}${also.length?` · also in ${esc(also.map(teamName).join(", "))}`:""}</span><button type="button" class="po-x" data-act="plan-skip" data-id="${esc(s.j.id)}" title="Leave this job out of suggestions" aria-label="Leave out">×</button></li>`; }).join("")}</ol>
+            return `<li><button type="button" class="po-name" data-act="job" data-id="${esc(s.j.id)}">${esc(clientOf(s.j).name||"Job")}</button><span class="count">${money0(s.p)}${s.j.source==="tcl"?" · TCL":""}${s.j.tclWhen?" · "+esc(s.j.tclWhen):""}${s.j.priority==="HIGH"?` · <b style="color:var(--amber)">high</b>`:""}${also.length?` · also in ${esc(also.map(teamName).join(", "))}`:""}</span><button type="button" class="po-x" data-act="plan-skip" data-id="${esc(s.j.id)}" title="Leave this job out of suggestions" aria-label="Leave out">×</button></li>`; }).join("")}</ol>${planMapSlot(r,o,i)}
           <div class="bar"><button type="button" class="btn amber small" data-act="plan-use" data-id="${esc(c.id)}" data-v="${i}">Schedule this for ${esc(c.name)}</button>${(PLAN.pick[c.id]||0)!==i?`<button type="button" class="btn small" data-act="plan-pick" data-id="${esc(c.id)}" data-v="${i}">Hold for this crew</button>`:""}</div></div>`; }).join("")}
     </section>`;
   }
@@ -4973,7 +4976,7 @@ function rideCost(dStops, sites){
     if(best) pts=best;
   }
   const extra=Math.max(0,pathLen(pts)-baseLen);
-  return { miles:extra, min:Math.round(extra/MPH*60) };
+  return { miles:extra, min:Math.round(extra/MPH*60), pts };
 }
 function walkCluster(seed, pool, used, room){
   const site=[seed]; let tot=seed.p;
@@ -5058,7 +5061,7 @@ planAll = function(){
   for(const r of res.filter(x=>x.ride)){
     const ch=r.opts[PLAN.pick[r.c.id]||0]||r.opts[0], ride=ch?ch.ride:r.fullRide; if(!ride||!ride.by) continue;
     const d=res.find(x=>x.c.id===ride.by); if(!d) continue;
-    (d.carries=d.carries||[]).push({c:r.c, min:ride.min, sites:ch?ch.sites.map(s=>s.map(x=>x.j||x)):[r.have.map(s=>s.j)]});
+    (d.carries=d.carries||[]).push({c:r.c, min:ride.min, pts:ride.pts, sites:ch?ch.sites.map(s=>s.map(x=>x.j||x)):[r.have.map(s=>s.j)]});
   }
   res.sort((a,b)=>crews().indexOf(a.c)-crews().indexOf(b.c));
   const seen=new Map(); res.forEach(r=>r.opts.forEach(o=>o.stops.forEach(s=>{ if(!seen.has(s.j.id)) seen.set(s.j.id,new Set()); seen.get(s.j.id).add(r.c.id); })));
@@ -5128,6 +5131,59 @@ async function saveCanDrive(pid, yes){
   if(yes) set.delete(pid); else set.add(pid);
   await S.db.doc("settings/board").set({...S.settings,noDrive:[...set]});
 }
+/* ---------- Plan a day: a small map on every route suggestion (riders also show their driver's day) ---------- */
+const PMAPS=new Map(); let PMAP_DATA=new Map(); const PMAP_MAX=14;
+const ll = p => [p.lat,p.lng];
+function planMapSlot(r, o, i){
+  const c=r.c, col=crewColor(c.id)||"#ffb83d", S0=shop(), d={lines:[],pins:[],legend:[]};
+  const mine=[...r.have.map(s=>s.j),...o.stops.map(s=>s.j)].filter(hasLL);
+  const pin=(j,n,color,kind)=>d.pins.push({lat:j.lat,lng:j.lng,n,color,kind,name:clientOf(j).name||"Job"});
+  if(o.ride&&o.ride.by&&o.ride.pts){
+    const dc=crewColor(o.ride.by)||"#3c7de0", ids=new Set(mine.map(j=>j.id));
+    d.lines.push({pts:o.ride.pts.filter(hasLL).map(ll),color:dc,dash:"6 6",w:3});
+    o.sites.forEach(s=>{ const js=s.map(x=>x.j||x).filter(hasLL); if(js.length>1) d.lines.push({pts:js.map(ll),color:col,dash:"",w:4}); });
+    let n=0; for(const p of o.ride.pts){ if(!p.id||!hasLL(p)||ids.has(p.id)) continue; pin(p,"",dc,"drv"); }
+    mine.forEach(j=>pin(j,++n,col,"me"));
+    d.legend=[[col,`${c.name} (${riderNames(c)})`],[dc,`${teamName(o.ride.by)}'s day with drop-off and pickup`]];
+  } else {
+    const held=(PLAN.pick[c.id]||0)===i, k=held&&r.carries&&r.carries[0];
+    const path=k&&k.pts?k.pts:[S0,...mine,S0];
+    d.lines.push({pts:path.filter(hasLL).map(ll),color:col,dash:"6 6",w:3});
+    let n=0; r.have.forEach(s=>hasLL(s.j)&&pin(s.j,++n,"#9aa3a0","have")); o.stops.forEach(s=>hasLL(s.j)&&pin(s.j,++n,col,"me"));
+    if(k){ const rc=crewColor(k.c.id)||"#ffb83d"; k.sites.flat().filter(hasLL).forEach(j=>pin(j,"",rc,"ride")); d.legend=[[col,c.name],[rc,`Drop off / pick up ${riderNames(k.c)}`]]; }
+  }
+  const key=c.id+"|"+i, sig=JSON.stringify([d.lines.map(l=>[l.pts,l.color]),d.pins.map(p=>[p.lat,p.lng,p.n,p.color])]);
+  PMAP_DATA.set(key,{...d,sig});
+  return `<div class="plan-map-wrap"><div class="plan-map ${effectiveDark()?"night-map":""}" data-pm="${esc(key)}"></div>${d.legend.length?`<div class="pm-legend">${d.legend.map(([cl,t])=>`<span><i style="background:${cl}"></i>${esc(t)}</span>`).join("")}</div>`:""}</div>`;
+}
+function mountPlanMaps(){
+  const slots=[...document.querySelectorAll(".plan-map[data-pm]")]; if(!slots.length) return;
+  if(!window.L){ loadLeaflet().then(()=>{ if(window.L&&S.view==="plan") mountPlanMaps(); }).catch(()=>slots.forEach(s=>s.innerHTML=`<p class="count" style="padding:10px">The map couldn't load.</p>`)); return; }
+  for(const slot of slots){
+    const key=slot.dataset.pm, d=PMAP_DATA.get(key); if(!d) continue;
+    let m=PMAPS.get(key);
+    if(!m){ const hold=document.createElement("div"); hold.className="lmap";
+      const map=L.map(hold,{zoomControl:false,scrollWheelZoom:false,attributionControl:false,dragging:!L.Browser.mobile,tap:false}).setView([30.46,-84.27],11);
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19}).addTo(map);
+      m={hold,map,layer:L.layerGroup().addTo(map),sig:""}; PMAPS.set(key,m);
+      if(PMAPS.size>PMAP_MAX){ const [k0,o0]=PMAPS.entries().next().value; o0.map.remove(); PMAPS.delete(k0); } }
+    slot.appendChild(m.hold);
+    if(m.sig!==d.sig){ m.sig=d.sig; drawPlanMap(m,d); }
+    requestAnimationFrame(()=>{ m.map.invalidateSize(); if(m.bounds) m.map.fitBounds(m.bounds,{maxZoom:15,animate:false}); });
+  }
+}
+function drawPlanMap(m, d){
+  const SH=shop(); m.layer.clearLayers(); const pts=[ll(SH)];
+  for(const l of d.lines) if(l.pts.length>1){ L.polyline(l.pts,{color:l.color,weight:l.w,opacity:.9,dashArray:l.dash||null,interactive:false}).addTo(m.layer); pts.push(...l.pts); }
+  L.circleMarker(ll(SH),{radius:7,weight:3,color:"#fff",fillColor:"#111916",fillOpacity:1}).bindTooltip("Shop",{direction:"right",offset:[8,0],className:"pin-tip"}).addTo(m.layer);
+  for(const p of d.pins){
+    const small=p.kind==="drv"||p.kind==="ride";
+    const html=small?`<span class="pm-dot" style="--c:${p.color}"></span>`:`<span class="rpin" style="--c:${p.color}">${p.n}</span>`, sz=small?14:26;
+    L.marker([p.lat,p.lng],{icon:L.divIcon({className:"rpin-wrap",html,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]}),keyboard:false}).bindTooltip(esc(p.name),{direction:"top",offset:[0,-12],className:"pin-tip"}).addTo(m.layer);
+    pts.push([p.lat,p.lng]);
+  }
+  m.bounds=L.latLngBounds(pts).pad(0.12);
+}
 
 /* ---------- render ---------- */
 function renderMain(){
@@ -5141,6 +5197,7 @@ function renderMain(){
   if(S.view==="chat") scrollChat();
   if(S.view==="map") mountMap();
   if(S.view==="route") mountRouteMap();
+  if(S.view==="plan") mountPlanMaps();
   if(fid){ const el=document.getElementById(fid); if(el){ el.focus(); try{el.setSelectionRange(pos,pos);}catch(e){} } }
   lagCheck("screen: "+S.view, performance.now()-__t0); noteLoad(); seasonalLookCheck(); goFromUrl();
 }

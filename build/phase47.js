@@ -27,7 +27,7 @@ function rideCost(dStops, sites){
     if(best) pts=best;
   }
   const extra=Math.max(0,pathLen(pts)-baseLen);
-  return { miles:extra, min:Math.round(extra/MPH*60) };
+  return { miles:extra, min:Math.round(extra/MPH*60), pts };
 }
 function walkCluster(seed, pool, used, room){
   const site=[seed]; let tot=seed.p;
@@ -112,7 +112,7 @@ planAll = function(){
   for(const r of res.filter(x=>x.ride)){
     const ch=r.opts[PLAN.pick[r.c.id]||0]||r.opts[0], ride=ch?ch.ride:r.fullRide; if(!ride||!ride.by) continue;
     const d=res.find(x=>x.c.id===ride.by); if(!d) continue;
-    (d.carries=d.carries||[]).push({c:r.c, min:ride.min, sites:ch?ch.sites.map(s=>s.map(x=>x.j||x)):[r.have.map(s=>s.j)]});
+    (d.carries=d.carries||[]).push({c:r.c, min:ride.min, pts:ride.pts, sites:ch?ch.sites.map(s=>s.map(x=>x.j||x)):[r.have.map(s=>s.j)]});
   }
   res.sort((a,b)=>crews().indexOf(a.c)-crews().indexOf(b.c));
   const seen=new Map(); res.forEach(r=>r.opts.forEach(o=>o.stops.forEach(s=>{ if(!seen.has(s.j.id)) seen.set(s.j.id,new Set()); seen.get(s.j.id).add(r.c.id); })));
