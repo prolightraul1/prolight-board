@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ProLight Season Board</title>
 <meta name="theme-color" content="#111916">
-<meta name="build" content="1793916351">
+<meta name="build" content="1793918222">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -741,6 +741,8 @@ html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
 .ss-view .c-crew,.ss-view .jhead span:nth-child(2),.ss-view .jhead span:nth-child(3){visibility:hidden}
 .wday h4{flex-wrap:wrap;gap:0 6px}
 .lbl:empty{display:none}
+.wday h4 .wk-total{display:block;text-align:right;font-size:14px;font-weight:800;color:var(--ink);letter-spacing:0}
+.wk-daytot{display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:3px;margin-top:1px;font-weight:600}
 .plan-map-wrap{display:grid;gap:4px}.plan-map{height:210px;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:var(--sunk)}.plan-map .lmap{width:100%;height:100%}
 .pm-dot{display:block;width:14px;height:14px;border-radius:50%;background:var(--c);border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.35)}
 .pm-legend{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12px;color:var(--ink-2)}.pm-legend i{display:inline-block;width:14px;height:4px;border-radius:2px;margin-right:5px;vertical-align:middle}
@@ -1178,7 +1180,7 @@ function vWeek(){
   if(!S.ready) return h+skel(5);
   h+=`<div class="wk-top">${weekWork(days)}</div>`+wkTray();
   h+=`<div class="week">${days.map(d=>{ const st=stopsFor(d,S.team);
-    return `<section class="wday ${d===t?"today":""}" data-day="${d}"><h4>${fmtDay(d,{weekday:"short"})} ${parseISO(d).getDate()}<span>${st.length?st.length+" stop"+(st.length>1?"s":""):""}</span></h4>
+    return `<section class="wday ${d===t?"today":""}" data-day="${d}"><h4>${fmtDay(d,{weekday:"short"})} ${parseISO(d).getDate()}<span>${st.length?st.length+" stop"+(st.length>1?"s":""):""}${wkDayTotal(d)}</span></h4>
       ${st.length?st.map((s,i)=>{ const dn=isDone(s.j.id,s.v.id); return `<button type="button" class="wstop" data-act="go-day" data-v="${d}" ${S.me.owner&&!dn?`draggable="true" data-dj="${esc(s.j.id)}" data-dv="${esc(s.v.id)}"`:""}><span class="bulb ${dn?"on":""}"></span><span class="x"><div><b class="mono">${i+1}</b> ${esc(clientOf(s.j).name||"Customer")}</div><small>${VTYPE[s.v.type]}${S.team==="all"?" · "+esc(teamName(crewOf(s.j,s.v))):""}${s.v.time?" · "+fmtTime(s.v.time):""}</small></span></button>`; }).join(""):`<span class="none">No stops</span>`}
     ${wkMoney(d)}</section>`; }).join("")}</div>`;
   const all=jobsArr().filter(j=>j.stage!=="cancelled");
@@ -5184,6 +5186,18 @@ function drawPlanMap(m, d){
   }
   m.bounds=L.latLngBounds(pts).pad(0.12);
 }
+/* ---------- Week: revenue total for each day ---------- */
+function wkDayRev(d){
+  if(!S.me.money) return null;
+  const cs=(S.team==="all"?crews():crews().filter(c=>c.id===S.team)).map(c=>crewDay(d,c.id)).filter(x=>x.n);
+  return cs.length?{rev:cs.reduce((t,x)=>t+x.rev,0), done:cs.reduce((t,x)=>t+x.done,0), crews:cs.length}:null;
+}
+const wkDayTotal = d => { const r=wkDayRev(d); return r?`<b class="wk-total mono" title="Install revenue scheduled this day${r.done?` · ${money0(r.done)} done`:""}">${money0(r.rev)}</b>`:""; };
+const _wkMoney0 = wkMoney;
+wkMoney = function(d){
+  const h=_wkMoney0(d), r=wkDayRev(d); if(!h||!r||r.crews<2) return h;
+  return h.replace(/<\/div>$/, `<div class="wk-daytot">Day total <b class="mono">${money0(r.rev)}</b></div></div>`);
+};
 
 /* ---------- render ---------- */
 function renderMain(){
