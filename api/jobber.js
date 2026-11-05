@@ -618,7 +618,8 @@ module.exports = async (req, res) => {
       const m = await gql(token, `{ __type(name:"Mutation"){ fields{ name args{ name type{ name ofType{ name } } } } } }`).catch((e) => ({ err: e.message }));
       const fields = ((m.__type || {}).fields || []).filter((f) => /visit/i.test(f.name)).map((f) => f.name + "(" + f.args.map((a) => a.name + ":" + (a.type.name || (a.type.ofType || {}).name)).join(",") + ")");
       const inp = await gql(token, `{ a:__type(name:"VisitEditInput"){ inputFields{ name type{ name kind ofType{ name } } } } b:__type(name:"VisitEditScheduleInput"){ inputFields{ name type{ name ofType{ name } } } } c:__type(name:"LocalDateTimeAttributes"){ inputFields{ name type{ name kind ofType{ name } } } } d:__type(name:"VisitEditSchedulePayload"){ fields{ name } } }`).catch((e) => ({ err: e.message }));
-      return res.status(200).json({ scope: claims.scope || claims.scopes || Object.keys(claims), visitMutations: fields, visitEditInput: inp });
+      const ds = ((await sb("/rest/v1/docs?coll=eq.fin&id=eq.jb-dates&select=data"))[0] || {}).data || {};
+      return res.status(200).json({ scope: claims.scope || claims.scopes || Object.keys(claims), dateSync: { seeded: !!ds.seeded, seededAt: ds.seededAt, jobs: Object.keys(ds.jobs || {}).length }, ...(req.query.q === "full" ? { visitMutations: fields, visitEditInput: inp } : {}) });
     }
     if (action === "crewday") {
       // a person's crew stops on a day; do=1 takes them off the schedule (the job stays, sync won't re-date it)
