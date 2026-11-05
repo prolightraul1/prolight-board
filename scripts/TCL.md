@@ -3,7 +3,7 @@
 How the ProLight board stays in step with the TCL reinstall board at https://tcl-reinstalls.vercel.app. That site belongs to TCL's owner.
 
 ## Rules
-- The TCL site is **read only**. Never click save, edit, delete or any button that changes anything there.
+- The TCL site is **read only**, with one exception: marking jobs installed or not installed so they match our board (step 5). Never click save, edit, delete, or any other button that changes anything there.
 - Don't call TCL's database API directly. Read only what the signed-in page shows.
 - Never put customer names, addresses, prices or notes in commits, workflow inputs or logs. This repo is public.
 
@@ -28,11 +28,18 @@ How the ProLight board stays in step with the TCL reinstall board at https://tcl
    - Do a `dry:true` run first and check it. If more than about 15 jobs would change, or prices change by more than 50%, the page was probably misread. Stop and report.
    - Otherwise send it again without `dry`.
    - Media goes in separate POSTs, at most 8 items each: `{key, media:[...]}`. Skip items already copied; the endpoint answers "already there".
-5. The board compares against what TCL showed last time:
+5. **Completion follows our board, in both directions.** Raul asked for this; it is the one thing the sync may change on TCL's site. The real (not dry) POST answers with:
+   - **`markOnTcl`**: jobs where every install day is checked off on our board but TCL doesn't show them installed. Open each job's detail sheet and click **Mark installed** (`button[data-a="stage"][data-v="installed"]`).
+   - **`unmarkOnTcl`**: jobs TCL shows as installed that are not complete on our board. Open each one and click **Undo** in the stage area of the detail sheet. Then confirm the pill no longer says "Installed".
+   - Before clicking, set `window.confirm = () => true`, and put it back afterward.
+   - Never touch priority, week, checklist, upload, or any other control.
+   - If either list has more than 8 jobs, stop and report instead, because the data is probably being misread.
+   - Then run the POST once more. It removes any old check-offs the sync itself had copied from TCL for jobs that are now unmarked.
+6. The board compares against what TCL showed last time:
    - It only changes a field when TCL changed it, so edits made on the board are kept.
    - It records each change in the job's "Changes from TCL" history.
    - It sends Raul one push.
-6. Save the extraction script you used as `scripts/tcl-extract.js`, without the key, so the next run can reuse it. If the TCL page layout changed, update the script.
+7. Save the extraction script you used as `scripts/tcl-extract.js`, without the key, so the next run can reuse it. If the TCL page layout changed, update the script.
 
 ## Feed version (when TCL provides one)
 Set `TCL_FEED_URL` in Vercel, plus `TCL_FEED_TOKEN` if the feed needs one. The board then pulls it every 15 minutes, with no computer needed. The feed should return a JSON array of jobs in the shape above. It may also include `media: [url, …]` on each job.
