@@ -112,6 +112,8 @@ module.exports = async (req, res) => {
         if (full || now.min % 2 === 0) { const h = await hq.run(full ? "full" : "changes"); if (h && (h.sent || h.error || h.retry || h.test !== undefined)) out.hq = h; }
       } catch (e) { out.hqError = String(e.message || e).slice(0, 160); }
     }
+    // board install dates → Jobber visits
+    try { const jd = await require("./jobber.js").pushDates({ max: 4 }); if (jd && ((jd.moved || []).length || (jd.errors || []).length || jd.seeded)) out.jobberDates = jd; } catch (e) { out.jobberDatesError = String(e.message || e).slice(0, 160); }
     // board check-offs → Jobber (visit completed + notes, photos, videos)
     try { const jp = await require("./jobber.js").pushToJobber({ max: 3 }); if (jp && (jp.completed?.length || jp.notes || jp.errors?.length)) out.jobber = jp; } catch (e) { out.jobberError = String(e.message || e).slice(0, 160); }
     return res.status(200).json(out);

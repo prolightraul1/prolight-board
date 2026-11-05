@@ -65,7 +65,7 @@ function describe(k, from, to) {
 async function apply(list, opts = {}) {
   const dry = !!opts.dry, now = new Date().toISOString();
   const [clients, jobs, fins, logs] = await Promise.all([all("clients"), all("jobs"), all("fin"), sb("/rest/v1/docs?coll=eq.log&data->>kind=eq.done&select=id,data")]);
-  const out = [], seen = new Set(), news = [];
+  const out = [], seen = new Set(), news = [], markOnTcl = [];
   for (const t of (Array.isArray(list) ? list : []).slice(0, 200)) {
     const name = clean(t.name || t.n); if (!name) continue;
     const r = { name, changes: [] }; const s = shape(t);
@@ -101,6 +101,10 @@ async function apply(list, opts = {}) {
       // address: fill in or lengthen, never shorten
       const c = cl.find((x) => x.id === j.clientId) || cl[0];
       if (c && s.addr && s.addr !== (c.data.address || "") && (!c.data.address || (snap && snap.addr !== s.addr))) { r.changes.push("address updated"); if (!dry) await putDoc("clients", c.id, { ...c.data, address: s.addr }); }
+      // checked off on our board (every install day) but not marked installed on TCL's board yet → the sync marks it there
+      { const base = (j.visits || []).filter((v) => v.type === "install" && !v.returnOf);
+        const ok = (v) => [v, ...(j.visits || []).filter((x) => x.returnOf === v.id)].some((x) => logs.some((l) => l.data.jobId === job.id && l.data.visitId === x.id && l.data.note !== "Installed per TCL board"));
+        if (!s.installed && base.length && base.every(ok)) markOnTcl.push({ name, id: t.id || t.slug || "" }); }
       if (s.installed && !logs.some((l) => l.data.jobId === job.id)) {
         const v = ((j.visits || []).find((x) => x.type === "install") || (j.visits || [])[0] || { id: "inst" }).id;
         r.changes.push("marked installed on TCL");
@@ -112,7 +116,7 @@ async function apply(list, opts = {}) {
   const gone = jobs.filter((x) => x.data.source === "tcl" && x.data.stage !== "cancelled" && !seen.has(x.id) && (list || []).length > 20).map((x) => (clients.find((c) => c.id === x.data.clientId) || { data: {} }).data.name || x.id);
   const changed = out.filter((r) => r.changes.length || r.added);
   if (!dry && changed.length) await tellRaul(changed, gone).catch(() => {});
-  return { dry, checked: out.length, changed: changed.map((r) => ({ name: r.name, added: !!r.added, changes: r.changes })), errors: out.filter((r) => r.error).map((r) => ({ name: r.name, error: r.error })), notOnTcl: gone };
+  return { dry, checked: out.length, changed: changed.map((r) => ({ name: r.name, added: !!r.added, changes: r.changes })), errors: out.filter((r) => r.error).map((r) => ({ name: r.name, error: r.error })), notOnTcl: gone, markOnTcl };
 }
 
 async function tellRaul(changed, gone) {

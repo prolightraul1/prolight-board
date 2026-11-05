@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ProLight Season Board</title>
 <meta name="theme-color" content="#111916">
-<meta name="build" content="1793852922">
+<meta name="build" content="1793893871">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1282,7 +1282,7 @@ function dJob(id){
   <section class="blk blk-mock"><h3 class="h-sec">Mockups</h3>${(j.links||[]).length?`<div class="bar">${j.links.map((u,i)=>`<a class="btn small" href="${esc(u)}" target="_blank" rel="noopener">Mockup ${j.links.length>1?i+1+" ":""}↗</a>`).join("")}</div>`:""}${(j.mockups||[]).length?`<div class="gallery">${j.mockups.map(m=>`<div class="gal-item">${mediaTag(m)}${m.studio&&canMock()?`<button type="button" class="mk-edit" data-act="mockup" data-id="${esc(id)}" data-v="${esc(m.id)}">✎ Edit</button>`:""}${S.me.owner?`<button type="button" class="x" data-act="rm-mockup" data-id="${esc(m.id)}" aria-label="Remove mockup">×</button>`:""}</div>`).join("")}</div>`:((j.links||[]).length?"":`<p class="lede">No mockups yet.</p>`)}
     ${canMock()?`<div class="bar mk-cta"><button type="button" class="btn amber" data-act="mockup" data-id="${esc(id)}">✨ Light mockup</button><small>Draw lights on a photo of the house</small></div>`:""}${S.me.owner&&S.assets?`<div><label class="btn file-btn">+ Add mockup<input type="file" id="mockup-file" accept="image/*,application/pdf" multiple></label></div>`:""}</section>`;
   if(S.me.money){ const s=split(j,f);
-    b+=`<section class="blk blk-money"><h3 class="h-sec">Money</h3>${myFeeBlock(j)}${tclHistory(j)}${s.price?`<div class="calc">${calcLines(j,s.price,f.ssPct)}</div>
+    b+=`<section class="blk blk-money"><h3 class="h-sec">Money</h3>${myFeeBlock(j)}${tclHistory(j)}${jbSyncLine(j)}${s.price?`<div class="calc">${calcLines(j,s.price,f.ssPct)}</div>
       <div class="bar"><button type="button" class="tog" data-act="fin-tog" data-k="collected" data-id="${esc(id)}" aria-pressed="${!!f.collected}">${f.collected?"Collected":"Not collected"}</button>${s.ss?`<button type="button" class="tog" data-act="fin-tog" data-k="ssPaid" data-id="${esc(id)}" aria-pressed="${!!f.ssPaid}">${f.ssPaid?"ShipShape paid":"ShipShape owed"}</button>`:""}${f.invoiceNo?`<span class="mono count">Invoice ${esc(f.invoiceNo)}</span>`:""}</div>`:`<p class="lede">No price yet. Edit the job to add one.</p>`}
       ${f.privateNote?`<div class="note">${esc(f.privateNote)}</div>`:""}${j.source==="tcl"||extrasOf(f).length?extrasHTML(j,f):""}${saleLine(j)}</section>`; }
   b+=`<section class="blk"><h3 class="h-sec">Notes & photos</h3>`;
@@ -4669,6 +4669,9 @@ function tclHistory(j){
   const val=(h,v)=>h.k==="price"?money2(+v||0):esc(String(v||"—").slice(0,80));
   return `<div class="tcl-hist"><span class="eyebrow">Changes from TCL</span>${rows.length?rows.map(h=>`<div class="th-row"><b>${esc(TCL_K[h.k]||h.k)}</b><span>${h.k==="notes"||h.k==="privateNote"||h.k==="media"?esc(h.to||"updated"):`${val(h,h.from)} → ${val(h,h.to)}`}</span><small>${esc(fmtDay(isoOf(h.at),{month:"short",day:"numeric"}))}</small></div>`).join(""):`<p class="count">No changes from TCL yet.</p>`}<small class="count">${seen}</small></div>`;
 }
+
+/* Jobber date sync note (owners) */
+function jbSyncLine(j){ const x=j.jobberDateSync; if(!S.me.owner||!x||!x.at) return ""; return `<p class="count" style="margin:4px 0">✓ Jobber visit moved to ${esc(fmtDay(x.date,{weekday:"short",month:"short",day:"numeric"}))} · ${esc(new Date(x.at).toLocaleString([], {month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}))}</p>`; }
 /* ---------- ProWash HQ install export: status + log (money people) ---------- */
 function hqCard(){
   if(!S.me.money) return "";

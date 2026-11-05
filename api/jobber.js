@@ -783,4 +783,49 @@ module.exports = async (req, res) => {
 };
 module.exports.config = { maxDuration: 60 };
 module.exports.pushToJobber = pushToJobber;
+
+/* Board → Jobber install dates: when an install day is moved on the board, move the matching Jobber visit.
+   The first run only records where every job stands (no edits). Clearing a date on the board leaves Jobber alone. */
+async function pushDates(opts = {}) {
+  const conn = await getInt("jobber"); if (!conn || !conn.refresh_token) return { skipped: "Jobber not connected" };
+  const [jobs, logs, stateRows] = await Promise.all([allDocs("jobs"), sb("/rest/v1/docs?coll=eq.log&data->>kind=eq.done&select=data"), sb("/rest/v1/docs?coll=eq.fin&id=eq.jb-dates&select=data")]);
+  const done = new Set(logs.map((l) => l.data.jobId + "|" + l.data.visitId));
+  const st = (stateRows[0] && stateRows[0].data) || { jobs: {} }, seed = !st.seeded, out = { moved: [], errors: [] };
+  const dates = (jid, d) => Object.fromEntries((d.visits || []).filter((v) => v.type === "install" && !v.returnOf).map((v) => [v.id, v.date || ""]));
+  const work = [];
+  for (const { id: jid, data: d } of jobs) {
+    const wid = (String(d.jobberUrl || "").match(/work_orders\/(\d+)/) || [])[1]; if (!wid || d.stage === "cancelled") continue;
+    const now = dates(jid, d), was = st.jobs[jid];
+    if (seed || !was) { st.jobs[jid] = now; continue; }
+    const changed = Object.keys(now).filter((vid) => now[vid] && now[vid] !== (was[vid] || "") && !done.has(jid + "|" + vid));
+    // a cleared or done date just updates what we remember
+    for (const vid of Object.keys(now)) if (!changed.includes(vid)) was[vid] = now[vid];
+    if (changed.length) work.push({ jid, d, wid, now, was, changed });
+  }
+  if (seed) { st.seeded = true; st.seededAt = new Date().toISOString(); await putDocs([{ coll: "fin", id: "jb-dates", data: st }]); return { seeded: Object.keys(st.jobs).length }; }
+  if (work.length) {
+    const token = await accessToken();
+    for (const w of work.slice(0, opts.max || 5)) {
+      try {
+        const jd = await gql(token, `query($id:EncodedId!){ job(id:$id){ visits(first:30){ nodes{ id startAt endAt completedAt } } } }`, { id: gidJob(w.wid) });
+        const open = ((jd.job && jd.job.visits.nodes) || []).filter((v) => !v.completedAt).sort((a, b) => String(a.startAt || "9").localeCompare(String(b.startAt || "9")));
+        const mine = (w.d.visits || []).filter((v) => v.type === "install" && !v.returnOf && !done.has(w.jid + "|" + v.id)).sort((a, b) => String(a.date || "9").localeCompare(String(b.date || "9")));
+        for (const vid of w.changed) {
+          const v = mine.find((x) => x.id === vid), jv = open[mine.indexOf(v)];
+          if (!v || !jv) { w.was[vid] = w.now[vid]; out.errors.push({ job: w.jid, msg: "no matching Jobber visit" }); continue; }
+          const at = { date: v.date, timezone: TZ, ...(v.time ? { time: v.time + ":00" } : {}) };
+          const r = await gql(token, `mutation($id:EncodedId!,$in:VisitEditScheduleInput!){ visitEditSchedule(id:$id, input:$in){ visit{ id startAt } userErrors{ message path } } }`, { id: jv.id, in: { startAt: at, endAt: { date: v.date, timezone: TZ, ...(v.time ? { time: (() => { const [h, m] = v.time.split(":").map(Number), e = Math.min(23 * 60 + 59, h * 60 + m + 180); return String(Math.floor(e / 60)).padStart(2, "0") + ":" + String(e % 60).padStart(2, "0") + ":00"; })() } : {}) } } });
+          const ue = (r.visitEditSchedule && r.visitEditSchedule.userErrors) || [];
+          if (ue.length) { out.errors.push({ job: w.jid, msg: ue.map((e) => e.message).join("; ").slice(0, 160) }); w.tries = (w.was.__tries || 0) + 1; if (w.tries >= 3) w.was[vid] = w.now[vid]; else w.was.__tries = w.tries; continue; }
+          w.was[vid] = w.now[vid]; delete w.was.__tries; out.moved.push({ job: w.jid, date: v.date });
+          { const fresh = (await sb(`/rest/v1/docs?coll=eq.jobs&id=eq.${encodeURIComponent(w.jid)}&select=data`))[0]; if (fresh) await putDocs([{ coll: "jobs", id: w.jid, data: { ...fresh.data, jobberDateSync: { at: new Date().toISOString(), date: v.date, ok: true } } }]); }
+        }
+      } catch (e) { out.errors.push({ job: w.jid, msg: String(e.message || e).slice(0, 160) }); }
+      st.jobs[w.jid] = w.was;
+    }
+  }
+  if (work.length || out.errors.length) await putDocs([{ coll: "fin", id: "jb-dates", data: st }]);
+  return out;
+}
+module.exports.pushDates = pushDates;
 module.exports._test = { completions, tclName, classify, scopeOf, localDate, addr, webId, assigneesOf, crewFinder, AUTO_CREW };
