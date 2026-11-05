@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ProLight Season Board</title>
 <meta name="theme-color" content="#111916">
-<meta name="build" content="1793852776">
+<meta name="build" content="1793852922">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -4271,7 +4271,7 @@ function vPayroll(){
       <td class="r">${p.comm?money2(p.comm):"–"}</td><td class="r"><b>${money2(p.total)}</b></td></tr>`).join("")}</tbody>
     <tfoot><tr><td>Total</td><td class="r"><b>${h1(sum("hrs"))}</b></td><td class="r">${h1(sum("ot"))}</td><td class="r">${money2(P.reduce((t,p)=>t+p.regPay+p.otPay,0))}</td><td class="r">${money2(sum("jobPay"))}</td><td class="r">${money2(sum("mgmt"))}</td><td class="r">${money2(sum("comm"))}</td><td class="r"><b>${money2(tot)}</b></td></tr></tfoot></table></div>
     ${W.done.length?`<details style="margin-top:10px"><summary class="count" style="cursor:pointer">Installs finished this week (${W.done.length})</summary><div class="tbl"><table><thead><tr><th>Customer</th><th>Done</th><th class="r">Job price</th><th>Paid to</th></tr></thead><tbody>${W.done.map(x=>{ const to=P.filter(p=>p.jobs.some(y=>y.j.id===x.j.id)).map(p=>p.name); return `<tr><td>${esc(clientOf(x.j).name||"")} ${label(x.j)?`<small class="count">${esc(label(x.j))}</small>`:""}</td><td>${esc(fmtDay(x.day))}</td><td class="r">${money2(x.base)}</td><td>${to.length?esc(to.join(", ")):`<small class="count">No technician on it${normCrew(x.v.crew||x.j.crew)?"":" (no crew)"}</small>`}</td></tr>`; }).join("")}</tbody></table></div></details>`:""}
-    <div class="bar" style="margin-top:10px"><button type="button" class="btn amber" data-act="pay-csv">Download weekly payroll (CSV)</button><button type="button" class="btn" data-act="pay-print">Print / save PDF</button><button type="button" class="btn" data-act="pay-detail">Time detail (CSV)</button>
+    <div class="bar" style="margin-top:10px"><button type="button" class="btn amber" data-act="pay-csv">Download weekly payroll (CSV)</button><button type="button" class="btn" data-act="pay-print">Print / save PDF</button><button type="button" class="btn" data-act="pay-detail">Time detail (CSV)</button>${isRaul()?`<button type="button" class="btn amber" data-act="my-statement">My pay statement (PDF)</button><button type="button" class="btn" data-act="my-statement-csv">My pay statement (CSV)</button>`:""}
       ${P.some(p=>p.comm)?`<button type="button" class="btn" data-act="pay-commpaid">Mark this week's sales commissions paid</button>`:""}</div>
     <p class="count" style="font-size:13px">Job % and management fees count in the week the install is checked off, on the full job price (TCL jobs too, not just ProLight's share). Job % goes to everyone clocked in on the job, or the crew on it if nobody clocked in. Sales commission shows in the week the job was ${commWhen()==="sold"?"sold":"installed"}, until marked paid.</p>`;
   return h+rateList();
@@ -4583,7 +4583,7 @@ function myPayWeek(days,st){
   const byDay=days.map(d=>{ const dd=doneWk.filter(x=>x.day===d).reduce((t,x)=>t+price(x.j)*feePct(planFor(id,d),x.j)/100,0)+sales.filter(s=>s.earnedOn===d).reduce((t,s)=>t+s.comm,0); const od=open.filter(s=>s.d===d).reduce((t,s)=>t+price(s.j)*payShare(s.j,s.v)*feePct(planFor(id,d),{id:s.j.id})/100,0); return {d,dd,od}; });
   const mx=Math.max(1,...byDay.map(x=>x.dd+x.od));
   const line=(l,v)=>v?`<div><small>${l}</small><b class="mono">${money2(v)}</b></div>`:"";
-  return `<section class="dcard tw-me"><header><span class="eyebrow">Your pay this week · only you see this</span><button type="button" class="linkbtn" data-act="today-go" data-v="payroll">Payroll</button></header>
+  return `<section class="dcard tw-me"><header><span class="eyebrow">Your pay this week · only you see this</span><span><button type="button" class="linkbtn" data-act="my-statement">Pay statement</button> · <button type="button" class="linkbtn" data-act="today-go" data-v="payroll">Payroll</button></span></header>
     <div class="tw-pay"><div class="tw-big"><small>Earned so far this week</small><b>${money2(earned)}</b></div><div class="tw-big"><small>If everything left this week gets done</small><b>${money2(earned+moreMgmt+moreComm)}</b></div></div>
     <div class="wk-pay">${byDay.map(x=>`<button type="button" class="wkp" data-act="go-day" data-v="${x.d}"><span class="bars"><i class="done" style="height:${x.dd/mx*100}%"></i><i class="left" style="height:${x.od/mx*100}%"></i></span><small>${esc(fmtDay(x.d,{weekday:"short"}))}</small><b class="mono">${x.dd+x.od?money0(x.dd+x.od):"–"}</b></button>`).join("")}</div>
     <div class="dmoney">${line(`Management &amp; install fee · ${doneWk.length} install${doneWk.length===1?"":"s"} done${selfN?` (${selfN} you were on: 10%, or 3% + your share of 7%)`:""}`,mgmt)}${line("Job %",jobPay)}${line(`Hours · ${h1(ms/36e5)} hrs`,hourly)}${line(`Sales commission · ${sales.length} sale${sales.length===1?"":"s"}`,comm)}${line(`Still to earn · ${open.length} install${open.length===1?"":"s"} left this week`,moreMgmt)}${line("Commission on your sales still to install",moreComm)}</div></section>`;
@@ -4824,6 +4824,41 @@ toggleExtraCrew = async function(id,cid){
     return x; });
   try{ await S.db.doc("jobs/"+id).update({visits,updatedAt:new Date().toISOString()}); toast(add?`${teamName(cid)} added to this job`:`${teamName(cid)} taken off this job`); }catch(e){ fail(e,"change the crews"); }
 };
+/* ---------- My pay statement (Raul): per-job breakdown to send with payroll ---------- */
+function myStatementData(){
+  const W=payWeek(), id=S.me.id, p=W.people.find(x=>x.id===id)||{mgmtJobs:[],sales:[],mgmt:0,comm:0,jobPay:0,regPay:0,otPay:0,hrs:0,jobs:[]};
+  const pl=planFor(id,W.days[0]);
+  const why=x=>{ const cs=jobCrews(x.j).map(teamName), f=S.fin.get(x.j.id)||{};
+    if(!x.self) return "Management fee"+(cs.length?` (installed by ${cs.join(" + ")})`:"");
+    if(f.selfInstall===true) return "Installed it myself (marked on the job)";
+    return cs.length>1?`Installed with ${cs.filter(c=>!/^raul\b/i.test(c)).join(" + ")}: ${pl.mgmtPct||3}% + 7% ÷ ${cs.length} crews`:"Installed it myself (Raul crew only)"; };
+  const fees=p.mgmtJobs.slice().sort((a,b)=>String(a.day).localeCompare(String(b.day))).map(x=>({day:x.day,client:clientOf(x.j).name||"",kind:x.j.source==="tcl"?"TCL":"ProLight",price:x.base,pct:x.pct,why:why(x),amt:x.amt}));
+  const sales=p.sales.slice().sort((a,b)=>String(a.earnedOn).localeCompare(String(b.earnedOn))).map(s=>({day:s.earnedOn,client:clientOf(s.job).name||"",lead:leadLabel(s.type),base:s.base,pct:s.pct,amt:s.comm}));
+  const hourly=(p.regPay||0)+(p.otPay||0);
+  return {W,name:staffName(id),plan:planText(pl),fees,sales,feeTot:p.mgmt||0,commTot:p.comm||0,jobPay:p.jobPay||0,hourly,hrs:p.hrs||0,total:(p.mgmt||0)+(p.comm||0)+(p.jobPay||0)+hourly};
+}
+function myStatementPrint(){
+  const D=myStatementData(), w=window.open("","_blank"); if(!w){ toast("Allow pop-ups to print"); return; }
+  const wk=`${fmtDay(D.W.days[0],{month:"long",day:"numeric"})} – ${fmtDay(D.W.days[6],{month:"long",day:"numeric",year:"numeric"})}`;
+  w.document.write(`<!doctype html><meta charset="utf-8"><title>Pay statement ${esc(D.name)} ${esc(D.W.days[0])}</title><style>body{font:13px system-ui,sans-serif;margin:32px;color:#111}h1{margin:0 0 2px;font-size:22px}h2{margin:24px 0 0;font-size:15px}table{border-collapse:collapse;width:100%;margin-top:8px}th,td{border-bottom:1px solid #ddd;padding:6px 8px;text-align:left;vertical-align:top}th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#555}td.r,th.r{text-align:right}tfoot td{font-weight:700;border-top:2px solid #111}.sum{display:grid;grid-template-columns:repeat(4,auto);gap:4px 24px;justify-content:start;margin-top:14px}.sum b{font-size:18px}small{color:#555}</style>
+    <h1>Pay statement · ${esc(D.name)}</h1><div>ProLight Tallahassee · pay week ${esc(wk)}</div><div><small>Pay plan: ${esc(D.plan)} · 10% on jobs I install alone; with other crews 3% + 7% split by crew · sales commission 10% inbound / 14% outbound</small></div>
+    <div class="sum"><span>Management &amp; install<br><b>${money2(D.feeTot)}</b></span><span>Sales commission<br><b>${money2(D.commTot)}</b></span>${D.hourly||D.jobPay?`<span>Other<br><b>${money2(D.hourly+D.jobPay)}</b></span>`:""}<span>Total owed<br><b>${money2(D.total)}</b></span></div>
+    <h2>Management &amp; install fees · installs finished this week</h2>
+    ${D.fees.length?`<table><thead><tr><th>Finished</th><th>Customer</th><th>Job</th><th class="r">Job price</th><th class="r">%</th><th>How it's figured</th><th class="r">Pay</th></tr></thead><tbody>${D.fees.map(f=>`<tr><td>${esc(fmtDay(f.day,{month:"short",day:"numeric"}))}</td><td>${esc(f.client)}</td><td>${f.kind}</td><td class="r">${money2(f.price)}</td><td class="r">${f.pct}%</td><td>${esc(f.why)}</td><td class="r">${money2(f.amt)}</td></tr>`).join("")}</tbody><tfoot><tr><td colspan="6">Total</td><td class="r">${money2(D.feeTot)}</td></tr></tfoot></table>`:`<p><small>No installs finished this week.</small></p>`}
+    <h2>Sales commission · earned this week</h2>
+    ${D.sales.length?`<table><thead><tr><th>Earned</th><th>Customer</th><th>Lead</th><th class="r">Job amount</th><th class="r">%</th><th class="r">Commission</th></tr></thead><tbody>${D.sales.map(s=>`<tr><td>${esc(fmtDay(s.day,{month:"short",day:"numeric"}))}</td><td>${esc(s.client)}</td><td>${esc(s.lead)}</td><td class="r">${money2(s.base)}</td><td class="r">${s.pct}%</td><td class="r">${money2(s.amt)}</td></tr>`).join("")}</tbody><tfoot><tr><td colspan="5">Total</td><td class="r">${money2(D.commTot)}</td></tr></tfoot></table>`:`<p><small>No commission earned this week. A sale counts when it's recorded on the job with me as the seller and the install is checked off.</small></p>`}
+    ${D.hourly||D.jobPay?`<h2>Other</h2><p>${D.hourly?`Hourly: ${h1(D.hrs)} h · ${money2(D.hourly)}<br>`:""}${D.jobPay?`Job %: ${money2(D.jobPay)}`:""}</p>`:""}
+    <p><small>Percentages are figured on the full job price (TCL jobs included). A job counts in the week its last install day was checked off on the ProLight board. Prepared ${esc(new Date().toLocaleString("en-US"))}.</small></p><script>setTimeout(()=>print(),300)<\/script>`);
+  w.document.close();
+}
+function myStatementCsv(){
+  const D=myStatementData(), f=n=>(+n||0).toFixed(2);
+  const rows=[["Pay statement",D.name],["Pay week",`${D.W.days[0]} to ${D.W.days[6]}`],["Pay plan",D.plan],[],
+    ["Management & install fees"],["Finished","Customer","Job","Job price","%","How it's figured","Pay"],...D.fees.map(x=>[x.day,x.client,x.kind,f(x.price),x.pct,x.why,f(x.amt)]),["Total","","","","","",f(D.feeTot)],[],
+    ["Sales commission"],["Earned","Customer","Lead","Job amount","%","Commission"],...D.sales.map(s=>[s.day,s.client,s.lead,f(s.base),s.pct,f(s.amt)]),["Total","","","","",f(D.commTot)],[],
+    ...(D.hourly||D.jobPay?[["Hourly",f(D.hourly)],["Job %",f(D.jobPay)]]:[]),["Total owed",f(D.total)]];
+  download(`Pay-statement-${D.name.split(" ")[0]}-${D.W.days[0]}.csv`, rows);
+}
 
 /* ---------- render ---------- */
 function renderMain(){
@@ -5001,6 +5036,8 @@ document.addEventListener("click", async ev=>{
     case "map-prices": MAP.prices=!MAP.prices; try{ localStorage.setItem("map-prices",MAP.prices?"1":""); }catch(e){} renderMain(); break;
     case "extra-crew": t.disabled=true; await toggleExtraCrew(id,v); break;
     case "pins": await openPins(); break;
+    case "my-statement": myStatementPrint(); break;
+    case "my-statement-csv": myStatementCsv(); break;
     case "plan-open": PLAN.day=PLAN.day||addDays(todayISO(),1); S.view="plan"; closeDrawer(); renderMain(); window.scrollTo(0,0); break;
     case "plan-day": PLAN.day=addDays(PLAN.day||todayISO(),+v); PLAN.pick={}; renderMain(); break;
     case "plan-shuffle": PLAN.seed=(PLAN.seed+0.37)%1; PLAN.pick={}; renderMain(); break;
