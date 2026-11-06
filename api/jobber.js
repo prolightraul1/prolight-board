@@ -657,6 +657,21 @@ module.exports = async (req, res) => {
       await putDocs(rows);
       return res.status(200).json({ job: jid, shares: named, addedDay: added, installDays: (job.visits || []).filter((v) => v.type === "install").map((v) => v.date || "-") });
     }
+    if (action === "stats") {
+      // job value stats, encrypted to the caller's public key (q = base64url of an RSA public key PEM) so nothing readable lands in public logs
+      if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
+      const pem = Buffer.from(String(req.query.q || ""), "base64url").toString();
+      const [jobs, fins] = await Promise.all([allDocs("jobs"), allDocs("fin")]);
+      const fin = new Map(fins.map((f) => [f.id, f.data])), rows = [];
+      for (const j of jobs) { if (j.data.stage === "cancelled") continue; const p = +((fin.get(j.id) || {}).price) || 0; rows.push({ src: j.data.source === "tcl" ? "tcl" : "prolight", p, stage: j.data.stage || "", combo: +((fin.get(j.id) || {}).washTotal) > 0 }); }
+      const sum = (a) => a.reduce((t, r) => t + r.p, 0), med = (a) => { const v = a.map((r) => r.p).sort((x, y) => x - y); return v.length ? (v.length % 2 ? v[(v.length - 1) / 2] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2) : 0; };
+      const grp = (a) => ({ n: a.length, total: Math.round(sum(a) * 100) / 100, avg: a.length ? Math.round(sum(a) / a.length * 100) / 100 : 0, median: med(a), min: a.length ? Math.min(...a.map((r) => r.p)) : 0, max: a.length ? Math.max(...a.map((r) => r.p)) : 0 });
+      const priced = rows.filter((r) => r.p > 0);
+      const data = JSON.stringify({ at: new Date().toISOString(), all: grp(priced), prolight: grp(priced.filter((r) => r.src === "prolight")), tcl: grp(priced.filter((r) => r.src === "tcl")), zeroPriced: rows.filter((r) => !(r.p > 0)).length, jobsTotal: rows.length });
+      const key = crypto.randomBytes(32), iv = crypto.randomBytes(12), c = crypto.createCipheriv("aes-256-gcm", key, iv), enc = Buffer.concat([c.update(data, "utf8"), c.final()]);
+      const ek = crypto.publicEncrypt({ key: pem, padding: crypto.constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" }, key);
+      return res.status(200).json({ ek: ek.toString("base64"), iv: iv.toString("base64"), tag: c.getAuthTag().toString("base64"), d: enc.toString("base64") });
+    }
     if (action === "crewday") {
       // a person's crew stops on a day; do=1 takes them off the schedule (the job stays, sync won't re-date it)
       if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
