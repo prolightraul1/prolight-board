@@ -8,7 +8,8 @@ gh api -X POST $R/actions/workflows/health-check.yml/dispatches -f ref=main -f "
 for i in $(seq 1 30); do sleep 5; id=$(gh api "$R/actions/workflows/health-check.yml/runs?per_page=1" -q '.workflow_runs[0].id'); [ "$id" != "$before" ] && break; done
 for i in $(seq 1 40); do [ "$(gh api $R/actions/runs/$id -q .status)" = completed ] && break; sleep 5; done
 gh api $R/actions/runs/$id/logs > $T/l.zip; (cd $T && unzip -qo l.zip)
-f=$(find $T -name '*Problems*.txt' | head -1)
+f=$(grep -rl --include='*.txt' -e '----BEGIN----' $T | head -1)  # log file names vary by GitHub zip layout
+[ -n "$f" ] || { echo "ERROR no problems output in run $id logs"; exit 1; }
 python3 - "$f" <<'PY'
 import sys,json,re
 t=open(sys.argv[1]).read(); body=t.split('----BEGIN----')[-1].split('----END----')[0]
