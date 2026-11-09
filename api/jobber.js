@@ -672,6 +672,17 @@ module.exports = async (req, res) => {
       const ek = crypto.publicEncrypt({ key: pem, padding: crypto.constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" }, key);
       return res.status(200).json({ ek: ek.toString("base64"), iv: iv.toString("base64"), tag: c.getAuthTag().toString("base64"), d: enc.toString("base64") });
     }
+    if (action === "jobhours") {
+      // clocked hours per person on one job, encrypted to the caller (q = jobId~base64url public key)
+      if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
+      const [jid, k64] = String(req.query.q || "").split("~"), pem = Buffer.from(k64 || "", "base64url").toString();
+      const [staff, clocks] = await Promise.all([sb("/rest/v1/staff?select=id,name"), sb(`/rest/v1/docs?coll=eq.log&data->>kind=eq.clock&data->>jobId=eq.${encodeURIComponent(jid)}&select=data`)]);
+      const by = {}; for (const { data: e } of clocks) { if (!e.in) continue; const h = Math.max(0, (new Date(e.out || Date.now()) - new Date(e.in)) / 36e5), n = ((staff.find((p) => p.id === e.by) || {}).name) || e.by; by[n] = by[n] || { hours: 0, days: new Set(), open: 0 }; by[n].hours += h; by[n].days.add(String(e.in).slice(0, 10)); if (!e.out) by[n].open++; }
+      const data = JSON.stringify(Object.fromEntries(Object.entries(by).map(([n, v]) => [n, { hours: Math.round(v.hours * 100) / 100, days: [...v.days].sort(), open: v.open }])));
+      const key = crypto.randomBytes(32), iv = crypto.randomBytes(12), c = crypto.createCipheriv("aes-256-gcm", key, iv), enc = Buffer.concat([c.update(data, "utf8"), c.final()]);
+      const ek = crypto.publicEncrypt({ key: pem, padding: crypto.constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" }, key);
+      return res.status(200).json({ ek: ek.toString("base64"), iv: iv.toString("base64"), tag: c.getAuthTag().toString("base64"), d: enc.toString("base64") });
+    }
     if (action === "crewday") {
       // a person's crew stops on a day; do=1 takes them off the schedule (the job stays, sync won't re-date it)
       if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
