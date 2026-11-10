@@ -3,11 +3,11 @@ planPool = function(){
   const later=planLS("later",false), out=[];
   for(const j of jobsArr()){
     if(j.stage==="cancelled"||j.stage==="quoted"||["lit","down"].includes(status(j))||!hasLL(j)||PLAN.skip.has(j.id)||tclReleased(j,PLAN.day)) continue;
-    const v=(j.visits||[]).find(x=>x.type==="install"&&!x.returnOf&&!isDone(j.id,x.id)&&(!x.date||(later&&x.date>PLAN.day))); if(!v) continue;
+    const v=(j.visits||[]).find(x=>x.type==="install"&&!x.returnOf&&!isDone(j.id,x.id)&&(!x.date||x.date<todayISO()||(later&&x.date>PLAN.day))); if(!v) continue;
     if(v.date&&(j.visits||[]).some(x=>x.type==="install"&&x.date===PLAN.day)) continue;
     const p=planPrice(j); if(p<=0) continue;
     const w=String(j.tclWhen||""), pr=j.priority||"";
-    const urg=(/this week|asap|urgent/i.test(w)?3:/next week/i.test(w)?1.5:0)+(pr==="HIGH"?2:pr==="MED"?0.7:0)-(v.date?0.5:0);
+    const urg=(/this week|asap|urgent/i.test(w)?3:/next week/i.test(w)?1.5:0)+(pr==="HIGH"?2:pr==="MED"?0.7:0)-(v.date&&v.date>PLAN.day?0.5:0)+(v.date&&v.date<todayISO()?1:0);
     out.push({j,v,p,urg});
   }
   return out;
