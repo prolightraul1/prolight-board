@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ProLight Season Board</title>
 <meta name="theme-color" content="#111916">
-<meta name="build" content="1793918222">
+<meta name="build" content="1794334786">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -4674,7 +4674,7 @@ function openHiddenMs(at){ return Math.round(OPENBG.ms + (OPENBG.t!=null ? at-OP
 function notDoneStops(days){
   const t=todayISO(), from=isoOf(new Date(Date.now()-(days||14)*864e5).toISOString()), out=[];
   for(const j of jobsArr()){ if(j.stage==="cancelled") continue;
-    for(const v of (j.visits||[])) if(v.date&&v.date<=t&&v.date>=from&&!isDone(j.id,v.id)) out.push({j,v,partial:partialMap.get(j.id+"|"+v.id)}); }
+    for(const v of (j.visits||[])) if(v.date&&v.date<=t&&v.date>=from&&!isDone(j.id,v.id)&&!(tclReleased(j,v.date)&&v.type!=="service")) out.push({j,v,partial:partialMap.get(j.id+"|"+v.id)}); }
   return out.sort((a,b)=>b.v.date.localeCompare(a.v.date)||String(teamName(crewOf(a.j,a.v))).localeCompare(String(teamName(crewOf(b.j,b.v)))));
 }
 const ND_VTYPE={install:"Install",takedown:"Takedown",service:"Service"};
@@ -4730,7 +4730,7 @@ const planCrewOn = c => planLS("crews",{})[c.id]!==false;
 function planPool(){
   const out=[];
   for(const j of jobsArr()){
-    if(j.stage==="cancelled"||j.stage==="quoted"||["lit","down"].includes(status(j))||!hasLL(j)||PLAN.skip.has(j.id)) continue;
+    if(j.stage==="cancelled"||j.stage==="quoted"||["lit","down"].includes(status(j))||!hasLL(j)||PLAN.skip.has(j.id)||tclReleased(j,PLAN.day)) continue;
     const v=(j.visits||[]).find(x=>x.type==="install"&&!x.returnOf&&!x.date&&!isDone(j.id,x.id)); if(!v) continue;
     const p=planPrice(j); if(p<=0) continue;
     const w=String(j.tclWhen||""), pr=j.priority||"";
@@ -4800,7 +4800,7 @@ function vPlan(){
   if(!S.ready) return h+skel(4);
   if(!S.me.owner) return h+`<p class="count">Only owners can plan routes.</p>`;
   const {res,seen,pool}=planAll();
-  h+=`<div class="plan-top"><span>Goal <b>${money0(T.min)}–${money0(T.max)}</b> per tech per day</span><span class="count">${pool} unscheduled job${pool===1?"":"s"} with a price and a pin</span>
+  h+=`<div class="plan-top"><span>Goal <b>${money0(T.min)}–${money0(T.max)}</b> per tech per day</span><span class="count">${pool} unscheduled ${PLAN.day>=TCL_RELEASED?"ProLight ":""}job${pool===1?"":"s"} with a price and a pin${PLAN.day>=TCL_RELEASED?" · TCL jobs went back to TCL on Nov 11":""}</span>
     <button type="button" class="linkbtn" data-act="plan-shuffle">Different suggestions</button>${PLAN.skip.size?`<button type="button" class="linkbtn" data-act="plan-unskip">Bring back ${PLAN.skip.size} skipped</button>`:""}</div>
     <div class="chips plan-crews">${crews().map(c=>`<button type="button" class="chip" data-act="plan-crew" data-v="${esc(c.id)}" aria-pressed="${planCrewOn(c)}">${esc(c.name)}</button>`).join("")}</div>`;
   for(const r of res){
@@ -5198,6 +5198,11 @@ wkMoney = function(d){
   const h=_wkMoney0(d), r=wkDayRev(d); if(!h||!r||r.crews<2) return h;
   return h.replace(/<\/div>$/, `<div class="wk-daytot">Day total <b class="mono">${money0(r.rev)}</b></div></div>`);
 };
+/* ---------- TCL jobs released back to TCL from Nov 11, 2026 ---------- */
+/* From this date our crews don't install TCL jobs: Plan a day only suggests ProLight jobs, and TCL installs on/after it
+   don't count as "not marked done". TCL money, history and fixes stay on the board. */
+const TCL_RELEASED = "2026-11-11";
+const tclReleased = (j, day) => j && j.source === "tcl" && String(day||"") >= TCL_RELEASED;
 
 /* ---------- render ---------- */
 function renderMain(){

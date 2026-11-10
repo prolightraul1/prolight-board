@@ -27,7 +27,7 @@ async function notDonePush(staff, crews, date) {
   const left = [];
   for (const j of jobs) {
     if (j.data.stage === "cancelled") continue;
-    for (const v of j.data.visits || []) if (v.date === date && !ok.has(j.id + "|" + v.id)) left.push({ crew: cname(nc(v.crew || j.data.crew)), client: ((clients.find((c) => c.id === j.data.clientId) || {}).data || {}).name || "a job" });
+    for (const v of j.data.visits || []) if (v.date === date && !ok.has(j.id + "|" + v.id) && !(j.data.source === "tcl" && date >= "2026-11-11" && v.type !== "service")) left.push({ crew: cname(nc(v.crew || j.data.crew)), client: ((clients.find((c) => c.id === j.data.clientId) || {}).data || {}).name || "a job" });
   }
   const me = staff.filter((p) => p.active && /^raul\b/i.test(String(p.name || "").trim()));
   const byCrew = {}; for (const l of left) (byCrew[l.crew] = byCrew[l.crew] || []).push(l.client);

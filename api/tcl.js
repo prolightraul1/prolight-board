@@ -9,6 +9,8 @@ const SB_URL = process.env.SUPABASE_URL || "https://xjjwhmrkeqrmkttombxx.supabas
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const KEY_HASH = "bd115d01e3ddd902260cc5735bb209cb4af59c2d895dd6000a807ec32eb14d1b";
 const ORIGIN = "https://tcl-reinstalls.vercel.app";
+// TCL jobs went back to TCL on Nov 11, 2026: from then on TCL's own crews install, so we never undo "installed" there and don't add new TCL jobs
+const RELEASED = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" }) >= "2026-11-11";
 const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const clean = (v) => String(v || "").replace(/\n?Open in Drive ↗/g, "").replace(/\r/g, "").trim();
 const blank = (v) => !v || /^(Not added|None yet|Not written yet|Nothing listed yet|—|-)$/i.test(String(v).trim()) || /^(Not added|None yet|Not written yet|Nothing listed yet)/.test(String(v).trim());
@@ -72,6 +74,7 @@ async function apply(list, opts = {}) {
     try {
       const cl = clients.filter((c) => norm(c.data.name) === norm(name));
       let job = jobs.find((j) => cl.some((c) => c.id === j.data.clientId) && j.data.source === "tcl") || jobs.find((j) => cl.some((c) => c.id === j.data.clientId));
+      if (!job && RELEASED()) { r.skipped = "new TCL job after release"; out.push(r); continue; }
       if (!job) {
         const slug = norm(name).replace(/ /g, "-").slice(0, 40), cid = "tc-" + slug, jid = "tj-" + slug;
         const cdata = { name, address: s.addr, phone: "", email: "", gate: "", notes: "", source: "tcl", createdAt: now };
@@ -107,7 +110,7 @@ async function apply(list, opts = {}) {
         const ok = (v) => [v, ...(j.visits || []).filter((x) => x.returnOf === v.id)].some((x) => logs.some((l) => real(l) && l.data.jobId === job.id && l.data.visitId === x.id));
         const complete = base.length > 0 && base.every(ok);
         if (!s.installed && complete) markOnTcl.push({ name, id: t.id || t.slug || "" });
-        if (s.installed && !complete) unmarkOnTcl.push({ name, id: t.id || t.slug || "", syntheticDone: logs.some((l) => !real(l) && l.data.jobId === job.id) });
+        if (s.installed && !complete && !RELEASED()) unmarkOnTcl.push({ name, id: t.id || t.slug || "", syntheticDone: logs.some((l) => !real(l) && l.data.jobId === job.id) });
         // when TCL no longer shows it installed and our crew never checked it off, drop the check-off the sync made earlier
         if (!dry && !s.installed && !complete) for (const l of logs.filter((l) => !real(l) && l.data.jobId === job.id)) { await sb(`/rest/v1/docs?coll=eq.log&id=eq.${encodeURIComponent(l.id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } }); r.changes.push("check-off from TCL removed"); }
       }
