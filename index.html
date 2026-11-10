@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ProLight Season Board</title>
 <meta name="theme-color" content="#111916">
-<meta name="build" content="1794334786">
+<meta name="build" content="1794343007">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -4802,7 +4802,7 @@ function vPlan(){
   const {res,seen,pool}=planAll();
   h+=`<div class="plan-top"><span>Goal <b>${money0(T.min)}–${money0(T.max)}</b> per tech per day</span><span class="count">${pool} unscheduled ${PLAN.day>=TCL_RELEASED?"ProLight ":""}job${pool===1?"":"s"} with a price and a pin${PLAN.day>=TCL_RELEASED?" · TCL jobs went back to TCL on Nov 11":""}</span>
     <button type="button" class="linkbtn" data-act="plan-shuffle">Different suggestions</button>${PLAN.skip.size?`<button type="button" class="linkbtn" data-act="plan-unskip">Bring back ${PLAN.skip.size} skipped</button>`:""}</div>
-    <div class="chips plan-crews">${crews().map(c=>`<button type="button" class="chip" data-act="plan-crew" data-v="${esc(c.id)}" aria-pressed="${planCrewOn(c)}">${esc(c.name)}</button>`).join("")}</div>`;
+    <div class="chips plan-crews"><button type="button" class="chip" data-act="plan-later" aria-pressed="${planLS("later",false)}" title="Also suggest jobs already booked for a later day; scheduling one moves it up">Include jobs scheduled later</button>${crews().map(c=>`<button type="button" class="chip" data-act="plan-crew" data-v="${esc(c.id)}" aria-pressed="${planCrewOn(c)}">${esc(c.name)}</button>`).join("")}</div>`;
   for(const r of res){
     const c=r.c;
     h+=`<section class="dcard plan-crew"><header><span class="dot" style="background:${crewColor(c.id)||"var(--ink-2)"}"></span><b>${esc(c.name)}</b>
@@ -4811,10 +4811,10 @@ function vPlan(){
       ${r.have.length?`<p class="count" style="margin:0">Already on ${esc(fmtDay(d,{weekday:"short"}))}: ${r.have.length} stop${r.have.length===1?"":"s"} · ${money0(r.haveRev)}</p>`:""}
       ${r.full?`<p class="count" style="margin:0">This crew's day is already full.</p>`:!r.opts.length?`<p class="count" style="margin:0">No good route left for this crew. Try another day, more techs, or bring back skipped jobs.</p>`:
       r.opts.map((o,i)=>{ const per=o.rev/r.n, ok=o.rev>=r.min&&o.rev<=r.max*1.08;
-        return `<div class="plan-opt ${(PLAN.pick[c.id]||0)===i?"on":""}"><div class="po-head"><b>Option ${i+1}</b><span class="po-rev ${ok?"ok":"off"}">${money0(o.rev)}</span><span class="count">${money0(per)}/tech · ${o.stops.length} stop${o.stops.length===1?"":"s"} · ${o.ride?`${o.moves?o.moves+" move · ":"one spot · "}+${o.drive} min for ${esc(teamName(o.ride.by))}`:`${o.drive} min driving`}${o.big?` · big job, about ${o.days} days`:""}</span></div>
+        return `<div class="plan-opt ${PLAN.pick[c.id]===i?"on":""}"><div class="po-head"><b>Option ${i+1}</b><span class="po-rev ${ok?"ok":"off"}">${money0(o.rev)}</span><span class="count">${money0(per)}/tech · ${o.stops.length} stop${o.stops.length===1?"":"s"} · ${o.ride?`${o.moves?o.moves+" move · ":"one spot · "}+${o.drive} min for ${esc(teamName(o.ride.by))}`:`${o.drive} min driving`}${o.big?` · big job, about ${o.days} days`:""}</span></div>
           <ol class="po-stops">${o.stops.map(s=>{ const also=[...(seen.get(s.j.id)||[])].filter(x=>x!==c.id);
-            return `<li><button type="button" class="po-name" data-act="job" data-id="${esc(s.j.id)}">${esc(clientOf(s.j).name||"Job")}</button><span class="count">${money0(s.p)}${s.j.source==="tcl"?" · TCL":""}${s.j.tclWhen?" · "+esc(s.j.tclWhen):""}${s.j.priority==="HIGH"?` · <b style="color:var(--amber)">high</b>`:""}${also.length?` · also in ${esc(also.map(teamName).join(", "))}`:""}</span><button type="button" class="po-x" data-act="plan-skip" data-id="${esc(s.j.id)}" title="Leave this job out of suggestions" aria-label="Leave out">×</button></li>`; }).join("")}</ol>${planMapSlot(r,o,i)}
-          <div class="bar"><button type="button" class="btn amber small" data-act="plan-use" data-id="${esc(c.id)}" data-v="${i}">Schedule this for ${esc(c.name)}</button>${(PLAN.pick[c.id]||0)!==i?`<button type="button" class="btn small" data-act="plan-pick" data-id="${esc(c.id)}" data-v="${i}">Hold for this crew</button>`:""}</div></div>`; }).join("")}
+            return `<li><button type="button" class="po-name" data-act="job" data-id="${esc(s.j.id)}">${esc(clientOf(s.j).name||"Job")}</button><span class="count">${money0(s.p)}${s.j.source==="tcl"?" · TCL":""}${s.v.date&&s.v.date!==PLAN.day?` · <b style="color:var(--amber-text,#ffcf78)">moves up from ${esc(fmtDay(s.v.date,{weekday:"short",month:"short",day:"numeric"}))}</b>`:""}${s.j.tclWhen?" · "+esc(s.j.tclWhen):""}${s.j.priority==="HIGH"?` · <b style="color:var(--amber)">high</b>`:""}${also.length?` · also in ${esc(also.map(teamName).join(", "))}`:""}</span><button type="button" class="po-x" data-act="plan-skip" data-id="${esc(s.j.id)}" title="Leave this job out of suggestions" aria-label="Leave out">×</button></li>`; }).join("")}</ol>${planMapSlot(r,o,i)}
+          <div class="bar"><button type="button" class="btn amber small" data-act="plan-use" data-id="${esc(c.id)}" data-v="${i}">Schedule this for ${esc(c.name)}</button>${PLAN.pick[c.id]!==i?`<button type="button" class="btn small" data-act="plan-pick" data-id="${esc(c.id)}" data-v="${i}">Hold for this crew</button>`:""}</div></div>`; }).join("")}
     </section>`;
   }
   return h+`<p class="count">Routes start and end at the shop. Driving time is a straight-line estimate at ${MPH} mph. Nothing is scheduled until you tap Schedule, and you can still drag stops around on Week afterward.</p>`;
@@ -5203,6 +5203,32 @@ wkMoney = function(d){
    don't count as "not marked done". TCL money, history and fixes stay on the board. */
 const TCL_RELEASED = "2026-11-11";
 const tclReleased = (j, day) => j && j.source === "tcl" && String(day||"") >= TCL_RELEASED;
+/* ---------- Plan a day: every crew sees every job; optionally pull jobs booked for later days ---------- */
+planPool = function(){
+  const later=planLS("later",false), out=[];
+  for(const j of jobsArr()){
+    if(j.stage==="cancelled"||j.stage==="quoted"||["lit","down"].includes(status(j))||!hasLL(j)||PLAN.skip.has(j.id)||tclReleased(j,PLAN.day)) continue;
+    const v=(j.visits||[]).find(x=>x.type==="install"&&!x.returnOf&&!isDone(j.id,x.id)&&(!x.date||(later&&x.date>PLAN.day))); if(!v) continue;
+    if(v.date&&(j.visits||[]).some(x=>x.type==="install"&&x.date===PLAN.day)) continue;
+    const p=planPrice(j); if(p<=0) continue;
+    const w=String(j.tclWhen||""), pr=j.priority||"";
+    const urg=(/this week|asap|urgent/i.test(w)?3:/next week/i.test(w)?1.5:0)+(pr==="HIGH"?2:pr==="MED"?0.7:0)-(v.date?0.5:0);
+    out.push({j,v,p,urg});
+  }
+  return out;
+};
+planAll = function(){
+  const day=PLAN.day, pool=planPool(), taken=new Set(), res=[], cs=crews().filter(planCrewOn);
+  // only an option you held keeps its jobs away from the other crews
+  for(const c of cs){ if(PLAN.pick[c.id]==null) continue; const have=stopsFor(day,c.id).filter(s=>s.v.type==="install"); const r=planOptions(c,pool,have); const o=r.opts[PLAN.pick[c.id]]; if(o) o.stops.forEach(s=>taken.add(s.j.id)); }
+  for(const c of cs){
+    const have=stopsFor(day,c.id).filter(s=>s.v.type==="install"), mine=new Set();
+    if(PLAN.pick[c.id]!=null){ const r0=planOptions(c,pool,have), o=r0.opts[PLAN.pick[c.id]]; if(o) o.stops.forEach(s=>mine.add(s.j.id)); }
+    res.push({c,have,...planOptions(c, pool.filter(x=>!taken.has(x.j.id)||mine.has(x.j.id)), have)});
+  }
+  const seen=new Map(); res.forEach(r=>r.opts.forEach(o=>o.stops.forEach(s=>{ if(!seen.has(s.j.id)) seen.set(s.j.id,new Set()); seen.get(s.j.id).add(r.c.id); })));
+  return {res,seen,pool:pool.length};
+};
 
 /* ---------- render ---------- */
 function renderMain(){
@@ -5381,6 +5407,7 @@ document.addEventListener("click", async ev=>{
     case "map-prices": MAP.prices=!MAP.prices; try{ localStorage.setItem("map-prices",MAP.prices?"1":""); }catch(e){} renderMain(); break;
     case "extra-crew": t.disabled=true; await toggleExtraCrew(id,v); break;
     case "pins": await openPins(); break;
+    case "plan-later": planSet("later",!planLS("later",false)); PLAN.pick={}; renderMain(); break;
     case "cpay-open": S.form=S.form||{}; S.form.cpay=id; renderDrawer(); break;
     case "cpay-close": if(S.form) S.form.cpay=null; renderDrawer(); break;
     case "cpay-save": await customPaySave(id,false); break;
