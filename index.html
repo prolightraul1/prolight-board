@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ProLight Season Board</title>
 <meta name="theme-color" content="#111916">
-<meta name="build" content="1794343172">
+<meta name="build" content="1794505046">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1124,8 +1124,8 @@ function mediaTag(m){
 }
 
 function vJobs(){
-  const F=[["active","Active"],["unassigned","Needs a crew"],["unsched","Needs a date"],["scheduled","Scheduled"],["lit","Installed"],["down","Taken down"],["tcl","TCL"],["pl","ProLight"],["combo","ProLight + ProWash"],["co-prolight","ProLight crews"],["co-shipshape","ShipShape crew"],["all","All"]].filter(([k])=>!crewView()||["active","unsched","scheduled","lit","down","all"].includes(k));
-  let list=jobsArr(); const q=S.q.jobs.trim().toLowerCase();
+  const F=[["active","Active"],["unassigned","Needs a crew"],["unsched","Needs a date"],["scheduled","Scheduled"],["lit","Installed"],["down","Taken down"],["tcl","TCL"],["pl","ProLight"],["combo","ProLight + ProWash"],["co-prolight","ProLight crews"],["co-shipshape","ShipShape crew"],["all","All"],["released","Released to TCL"]].filter(([k])=>!crewView()||["active","unsched","scheduled","lit","down","all"].includes(k));
+  let list=jobsArr().filter(j=>S.jf==="released"?j.releasedToTcl:!j.releasedToTcl); const q=S.q.jobs.trim().toLowerCase();
   if(q) list=list.filter(j=>{ const c=clientOf(j); return [c.name,addrOf(j),c.phone,j.tclRef,j.scope,j.notes,label(j)].join(" ").toLowerCase().includes(q); });
   const f=S.jf, st=j=>status(j);
   if(f==="active") list=list.filter(j=>!["down","cancelled"].includes(st(j)));
@@ -1149,7 +1149,7 @@ function jobRow(j){
   return `<button type="button" class="row" data-act="job" data-id="${esc(j.id)}">
     <span class="bulb ${BULB[st]}"></span>
     <span class="m"><span class="n">${esc(c.name||"Customer")}</span><span class="s">${esc(addrOf(j)||"No address")}</span></span>
-    <span class="r"><span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span>${crewObj(j.crew)&&crews().filter(c=>c.co===coOf(j.crew)).length>1?`<span class="count" style="font-size:12px">${esc(teamName(j.crew))}</span>`:""}<span class="st ${st}">${STATUS[st]}${nv?` · <span class="mono">${VTYPE[nv.type]} ${fmtDay(nv.date)}</span>`:(j.tclWhen&&!["lit","down"].includes(st)?` · ${esc(j.tclWhen)}`:"")}</span></span>
+    <span class="r"><span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span>${crewObj(j.crew)&&crews().filter(c=>c.co===coOf(j.crew)).length>1?`<span class="count" style="font-size:12px">${esc(teamName(j.crew))}</span>`:""}<span class="st ${st}">${stLabel(st,typeof j==="undefined"?null:j)}${nv?` · <span class="mono">${VTYPE[nv.type]} ${fmtDay(nv.date)}</span>`:(j.tclWhen&&!["lit","down"].includes(st)?` · ${esc(j.tclWhen)}`:"")}</span></span>
   </button>`;
 }
 
@@ -1288,7 +1288,7 @@ function dJob(id){
   const j={id,...j0}, c=clientOf(j), a=addrOf(j), st=status(j), f=S.fin.get(id)||{};
   const visits=[...(j.visits||[])].sort((x,y)=>String(x.date||"9").localeCompare(String(y.date||"9")));
   const entries=logByJob.get(id)||[];
-  let b=`<div class="bar"><span class="bulb ${BULB[st]}"></span><span class="st ${st}">${STATUS[st]}</span><span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span>${j.tclRef&&!crewView()?`<span class="mono count">TCL #${esc(j.tclRef)}</span>`:""}</div>
+  let b=`<div class="bar"><span class="bulb ${BULB[st]}"></span><span class="st ${st}">${stLabel(st,typeof j==="undefined"?null:j)}</span><span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span>${j.tclRef&&!crewView()?`<span class="mono count">TCL #${esc(j.tclRef)}</span>`:""}</div>
   <div class="d-acts">${a?`<a class="btn" href="${esc(mapsUrl(a))}" target="_blank" rel="noopener">Directions ↗</a>`:""}${c.phone?`<button type="button" class="btn" data-act="copytext" data-v="${esc(c.phone)}">Copy phone</button>`:""}
     ${S.me.owner?`<button type="button" class="btn" data-act="edit-job" data-id="${esc(id)}">Edit job</button>`:""}<button type="button" class="btn" data-act="client" data-id="${esc(j.clientId)}">Client</button>${S.me.owner?`<button type="button" class="btn" data-act="svc-new" data-v="${esc(id)}">+ Service call</button>`:S.me.canLog?`<button type="button" class="btn" data-act="svc-report" data-v="${esc(id)}">Report a problem</button>`:""}${j.jobberUrl&&S.me.owner?`<a class="btn" href="${esc(j.jobberUrl)}" target="_blank" rel="noopener">Jobber #${esc(j.jobberNo||"")} ↗</a>`:""}</div>
   ${S.me.owner?`<div class="f f-who"><label>Who's doing this job</label>${assignUI(j.crew,"assign",`data-id="${esc(id)}"`)}${membersOf(j.crew).length?`<small>${esc(membersOf(j.crew).join(", "))}</small>`:""}${extraCrewsUI(j,id)}</div>`:""}
@@ -1450,7 +1450,7 @@ function mapCard(j){
   const c=clientOf(j), a=addrOf(j), pv=pendingVisit(j), st=status(j);
   const near = hasLL(j) ? jobsArr().filter(x=>x.id!==j.id && hasLL(x) && x.stage!=="cancelled" && !["lit","down"].includes(status(x))).map(x=>({x,d:miles(j,x)})).sort((p,q)=>p.d-q.d).slice(0,6) : [];
   return `<div class="side-card">
-    <div class="bar" style="flex-wrap:nowrap"><span class="bulb ${BULB[st]}"></span><span class="st ${st}">${STATUS[st]}</span><span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span><span class="grow"></span><button type="button" class="btn icon small" style="flex:none" data-act="map-unsel" aria-label="Close">×</button></div>
+    <div class="bar" style="flex-wrap:nowrap"><span class="bulb ${BULB[st]}"></span><span class="st ${st}">${stLabel(st,typeof j==="undefined"?null:j)}</span><span class="lbl ${j.source==="tcl"?"tcl":"pl"}">${esc(label(j))}</span><span class="grow"></span><button type="button" class="btn icon small" style="flex:none" data-act="map-unsel" aria-label="Close">×</button></div>
     <div><button type="button" class="t-name" data-act="job" data-id="${esc(j.id)}">${esc(c.name||"Customer")}</button><div class="t-addr">${esc(a)}</div>${j.geo==="street"?`<small class="count">Pin is on the street, not the exact house.</small>`:""}</div>
     <dl class="kv">${j.tclWhen&&!crewView()?`<dt>TCL target</dt><dd>${esc(j.tclWhen)}</dd>`:""}${pv&&pv.date?`<dt>${VTYPE[pv.type]}</dt><dd>${fmtDay(pv.date,{weekday:"short",month:"short",day:"numeric"})} · ${esc(teamName(crewOf(j,pv)))}</dd>`:""}${j.scope?`<dt>Lights</dt><dd>${esc(j.scope)}</dd>`:""}</dl>
     ${S.me.owner?`<div class="f"><label>Crew</label>${assignUI(j.crew,"assign",`data-id="${esc(j.id)}"`)}</div>
@@ -3094,7 +3094,7 @@ function jobRow(j){
     <span class="bulb ${BULB[st]}"></span>
     <span class="m"><span class="n">${esc(c.name||"Customer")}${myFeeChip(j)}</span><span class="s">${tag}<span class="a">${esc(addrOf(j)||"No address")}</span></span></span>
     <span class="c-tag">${tag}</span><span class="c-crew">${esc(team)}</span>
-    <span class="r"><span class="pill ${st}">${STATUS[st]}</span>${when?`<span class="when">${esc(when)}</span>`:""}</span>
+    <span class="r"><span class="pill ${st}">${stLabel(st,typeof j==="undefined"?null:j)}</span>${when?`<span class="when">${esc(when)}</span>`:""}</span>
   </button>`;
 }
 const jobHead = () => `<div class="jhead" aria-hidden="true"><span>Customer</span><span>Whose job</span><span>Crew</span><span>Status · next</span></div>`;
@@ -5252,6 +5252,10 @@ dNotDone = function(){
     :`<p class="lede">Every stop from the last two weeks is checked off. ✓</p>`;
   return drawerShell("Last 14 days","Not marked done",`<p class="count">Stops on the schedule that nobody checked off. Mark them done, move them to a new day, or clear the date so they show up in Plan a day again.</p>${body}`);
 };
+/* ---------- TCL jobs we never did: released back to TCL, kept as history ---------- */
+/* Released jobs carry stage "cancelled" (so every list, the calendar, map, planner, money totals and exports skip them)
+   plus releasedToTcl:true. They only show under Jobs → "Released to TCL". */
+const stLabel = (st, j) => j && j.releasedToTcl ? "Released to TCL" : STATUS[st];
 
 /* ---------- render ---------- */
 function renderMain(){

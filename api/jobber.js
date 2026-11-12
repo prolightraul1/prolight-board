@@ -727,6 +727,15 @@ module.exports = async (req, res) => {
       if (rows.length) await putDocs(rows);
       return res.status(200).json({ mode, out });
     }
+    if (action === "releasetcl") {
+      // TCL jobs our crews never did (no check-off of any kind) → hidden as "Released to TCL", kept for history. q=go to apply.
+      if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
+      const [jobs, logs] = await Promise.all([allDocs("jobs"), sb("/rest/v1/docs?coll=eq.log&data->>kind=in.(done,partial)&select=data")]);
+      const touched = new Set(logs.map((l) => l.data.jobId)), now = new Date().toISOString();
+      const pick = jobs.filter((j) => j.data.source === "tcl" && j.data.stage !== "cancelled" && !j.data.releasedToTcl && !touched.has(j.id));
+      if (req.query.q === "go") await putDocs(pick.map((j) => ({ coll: "jobs", id: j.id, data: { ...j.data, stagePrev: j.data.stage || "", stage: "cancelled", releasedToTcl: true, releasedAt: now, updatedAt: now } })));
+      return res.status(200).json({ applied: req.query.q === "go", released: pick.length, keptTclJobs: jobs.filter((j) => j.data.source === "tcl" && j.data.stage !== "cancelled").length - pick.length, scheduled: pick.filter((j) => (j.data.visits || []).some((v) => v.date)).length });
+    }
     if (action === "crewday") {
       // a person's crew stops on a day; do=1 takes them off the schedule (the job stays, sync won't re-date it)
       if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
