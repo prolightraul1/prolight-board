@@ -698,8 +698,8 @@ module.exports = async (req, res) => {
       const pays = fins.filter((f) => f.data && f.data.party === "tcl"), paidJobs = new Set(pays.flatMap((p) => p.data.jobs || []));
       const rows = jobs.filter((j) => j.data.source === "tcl" && j.data.stage !== "cancelled").map((j) => { const f = fin.get(j.id) || {}, price = +f.price || 0, extras = (f.extras || []).reduce((t, x) => t + (x.price != null && x.price !== "" ? (+x.qty || 0) * +x.price : 0), 0), d = done.get(j.id) || [], base = (j.data.visits || []).filter((v) => v.type === "install" && !v.returnOf);
         return { id: j.id, name: (cl.get(j.data.clientId) || {}).name || "", price, extras, incoming: Math.round((price * rate + extras) * 100) / 100, anyInstallDone: base.some((v) => d.some((x) => x.v === v.id)) || d.length > 0, allDone: base.length > 0 && base.every((v) => [v, ...(j.data.visits || []).filter((x) => x.returnOf === v.id)].some((x) => d.some((y) => y.v === x.id))), onlySynth: d.length > 0 && d.every((x) => x.synth), paid: paidJobs.has(j.id) || !!f.collected }; });
-      const data = JSON.stringify({ rate, paidTotal: pays.reduce((t, p) => t + (+p.data.amount || 0), 0), rows });
-      const key = crypto.randomBytes(32), iv = crypto.randomBytes(12), c = crypto.createCipheriv("aes-256-gcm", key, iv), enc = Buffer.concat([c.update(data, "utf8"), c.final()]);
+      const data = require("zlib").gzipSync(JSON.stringify({ rate, paidTotal: pays.reduce((t, p) => t + (+p.data.amount || 0), 0), rows: rows.map((r) => [r.name, r.price, r.extras, r.incoming, +r.anyInstallDone, +r.allDone, +r.onlySynth, +r.paid]) }));
+      const key = crypto.randomBytes(32), iv = crypto.randomBytes(12), c = crypto.createCipheriv("aes-256-gcm", key, iv), enc = Buffer.concat([c.update(data), c.final()]);
       const ek = crypto.publicEncrypt({ key: pem, padding: crypto.constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" }, key);
       return res.status(200).json({ ek: ek.toString("base64"), iv: iv.toString("base64"), tag: c.getAuthTag().toString("base64"), d: enc.toString("base64") });
     }
