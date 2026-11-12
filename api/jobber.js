@@ -688,6 +688,21 @@ module.exports = async (req, res) => {
       const ek = crypto.publicEncrypt({ key: pem, padding: crypto.constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" }, key);
       return res.status(200).json({ ek: ek.toString("base64"), iv: iv.toString("base64"), tag: c.getAuthTag().toString("base64"), d: enc.toString("base64") });
     }
+    if (action === "tclmoney") {
+      // our board's TCL money per job (what TCL owes us), encrypted to the caller (q = base64url public key)
+      if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
+      const pem = Buffer.from(String(req.query.q || ""), "base64url").toString();
+      const [jobs, fins, clients, logs] = await Promise.all([allDocs("jobs"), allDocs("fin"), allDocs("clients"), sb("/rest/v1/docs?coll=eq.log&data->>kind=eq.done&select=id,data")]);
+      const fin = new Map(fins.map((f) => [f.id, f.data])), cl = new Map(clients.map((c) => [c.id, c.data])), set = (fin.get("settings") || {});
+      const rate = (+set.tclRate || 40) / 100, done = new Map(); for (const l of logs) { const k = l.data.jobId; if (!done.has(k)) done.set(k, []); done.get(k).push({ v: l.data.visitId, synth: String(l.id).startsWith("dr") }); }
+      const pays = fins.filter((f) => f.data && f.data.party === "tcl"), paidJobs = new Set(pays.flatMap((p) => p.data.jobs || []));
+      const rows = jobs.filter((j) => j.data.source === "tcl" && j.data.stage !== "cancelled").map((j) => { const f = fin.get(j.id) || {}, price = +f.price || 0, extras = (f.extras || []).reduce((t, x) => t + (x.price != null && x.price !== "" ? (+x.qty || 0) * +x.price : 0), 0), d = done.get(j.id) || [], base = (j.data.visits || []).filter((v) => v.type === "install" && !v.returnOf);
+        return { id: j.id, name: (cl.get(j.data.clientId) || {}).name || "", price, extras, incoming: Math.round((price * rate + extras) * 100) / 100, anyInstallDone: base.some((v) => d.some((x) => x.v === v.id)) || d.length > 0, allDone: base.length > 0 && base.every((v) => [v, ...(j.data.visits || []).filter((x) => x.returnOf === v.id)].some((x) => d.some((y) => y.v === x.id))), onlySynth: d.length > 0 && d.every((x) => x.synth), paid: paidJobs.has(j.id) || !!f.collected }; });
+      const data = JSON.stringify({ rate, paidTotal: pays.reduce((t, p) => t + (+p.data.amount || 0), 0), rows });
+      const key = crypto.randomBytes(32), iv = crypto.randomBytes(12), c = crypto.createCipheriv("aes-256-gcm", key, iv), enc = Buffer.concat([c.update(data, "utf8"), c.final()]);
+      const ek = crypto.publicEncrypt({ key: pem, padding: crypto.constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" }, key);
+      return res.status(200).json({ ek: ek.toString("base64"), iv: iv.toString("base64"), tag: c.getAuthTag().toString("base64"), d: enc.toString("base64") });
+    }
     if (action === "crewday") {
       // a person's crew stops on a day; do=1 takes them off the schedule (the job stays, sync won't re-date it)
       if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
