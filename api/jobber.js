@@ -703,6 +703,30 @@ module.exports = async (req, res) => {
       const ek = crypto.publicEncrypt({ key: pem, padding: crypto.constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" }, key);
       return res.status(200).json({ ek: ek.toString("base64"), iv: iv.toString("base64"), tag: c.getAuthTag().toString("base64"), d: enc.toString("base64") });
     }
+    if (action === "setdone") {
+      // q = mark|unmark~Name,Name  → check off (or undo) every install day on those jobs; check-off date = the visit's date if past, else now
+      if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
+      const [mode, namesTxt] = String(req.query.q || "").split("~"), names = String(namesTxt || "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+      const [jobs, clients, logs, staff] = await Promise.all([allDocs("jobs"), allDocs("clients"), sb("/rest/v1/docs?coll=eq.log&data->>kind=eq.done&select=id,data"), sb("/rest/v1/staff?select=id,name,active")]);
+      const raul = (staff.find((p) => p.active && /^raul\b/i.test(p.name || "")) || {}).id || "";
+      const cl = new Map(clients.map((c) => [c.id, c.data])), out = [], rows = [], today = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+      for (const n of names) {
+        const js = jobs.filter((j) => j.data.stage !== "cancelled" && String((cl.get(j.data.clientId) || {}).name || "").toLowerCase().includes(n));
+        if (!js.length) { out.push({ name: n, error: "not found" }); continue; }
+        for (const j of js) {
+          const base = (j.data.visits || []).filter((v) => v.type === "install" && !v.returnOf), r = { job: j.id, name: (cl.get(j.data.clientId) || {}).name, source: j.data.source || "prolight", changed: [] };
+          if (mode === "mark") for (const v of base) {
+            if (logs.some((l) => l.data.jobId === j.id && (l.data.visitId === v.id || (j.data.visits || []).some((x) => x.returnOf === v.id && x.id === l.data.visitId)))) continue;
+            const day = v.date && v.date <= today ? v.date : today, at = new Date(day + "T17:00:00-05:00").toISOString();
+            rows.push({ coll: "log", id: "dm" + j.id + v.id, data: { jobId: j.id, visitId: v.id, kind: "done", by: raul, at, note: "Checked off by the office" } }); r.changed.push("done " + day);
+          }
+          if (mode === "unmark") for (const l of logs.filter((l) => l.data.jobId === j.id)) { await sb(`/rest/v1/docs?coll=eq.log&id=eq.${encodeURIComponent(l.id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } }); r.changed.push("undone " + String(l.data.at || "").slice(0, 10)); }
+          out.push(r);
+        }
+      }
+      if (rows.length) await putDocs(rows);
+      return res.status(200).json({ mode, out });
+    }
     if (action === "crewday") {
       // a person's crew stops on a day; do=1 takes them off the schedule (the job stays, sync won't re-date it)
       if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
