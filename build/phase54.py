@@ -1,0 +1,4 @@
+# Money: TCL counts only what we installed (jobs went back to TCL). Applied after phase53.py.
+rep('  T.tcl.due=T.tcl.earned-T.tcl.paid;', '  T.tcl.booked=T.tcl.earned; T.tcl.due=T.tcl.earned-T.tcl.paid;')
+rep('''T.tcl.due,"balance due on installed jobs",[["Earned (installed)",money2(T.tcl.earned)],["Paid to us",money2(T.tcl.paid)],["Still to install",money2(T.tcl.booked-T.tcl.earned)],["Whole season",money2(T.tcl.booked)]]''', '''T.tcl.due,"still owed on jobs we installed",[["Installed by us",money2(T.tcl.earned)+` · ${T.tcl.rows.filter(r=>r.done).length} jobs`],["Paid to us",money2(T.tcl.paid)],["Still owed",money2(T.tcl.due)]]''')
+rep('''<span>${money2(T.net.earned)} earned on installed jobs · ${money2(T.net.booked-T.net.earned)} still to install</span>''', '''<span>${money2(T.net.earned)} earned on installed jobs · ${money2(T.net.booked-T.net.earned)} still to install on our own jobs · TCL counts only what we installed</span>''')

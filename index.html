@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ProLight Season Board</title>
 <meta name="theme-color" content="#111916">
-<meta name="build" content="1794505046">
+<meta name="build" content="1794505174">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1922,7 +1922,7 @@ function moneyTotals(){
     ss:{rows:ss, booked:sum(ss,r=>r.s.ss), earned:sum(ss.filter(r=>r.done),r=>r.s.ss), paid:sum(ledger("shipshape"),p=>+p.amount), paidSet:sPaid},
     own:{rows:own, booked:sum(own,r=>r.s.price), earned:sum(own.filter(r=>r.done),r=>r.s.price), paid:sum(own.filter(r=>r.f.collected),r=>r.s.price)},
     noPrice:R.filter(r=>!r.s.price).length };
-  T.tcl.due=T.tcl.earned-T.tcl.paid; T.ss.due=T.ss.earned-T.ss.paid; T.own.due=T.own.earned-T.own.paid;
+  T.tcl.booked=T.tcl.earned; T.tcl.due=T.tcl.earned-T.tcl.paid; T.ss.due=T.ss.earned-T.ss.paid; T.own.due=T.own.earned-T.own.paid;
   T.net={booked:T.tcl.booked-T.ss.booked+T.own.booked, earned:T.tcl.earned-T.ss.earned+T.own.earned};
   T.legacyT=tcl.filter(r=>r.f.collected&&!tPaid.has(r.j.id)).length; T.legacyS=ss.filter(r=>r.f.ssPaid&&!sPaid.has(r.j.id)).length;
   return T;
@@ -1942,9 +1942,9 @@ function mOverview(T){
   const card=(title,logo,big,bigLbl,lines,party,paid,earned)=>`<section class="mcard"><header><div><span class="eyebrow">${title}</span><div class="mbig">${money2(big)}</div><span class="count" style="font-size:13px">${bigLbl}</span></div>${logo}</header>
     ${pctBar(paid,earned)}<dl class="kv">${lines.map(([k,v])=>`<dt>${k}</dt><dd class="mono">${v}</dd>`).join("")}</dl>
     ${party?`<div class="bar"><button type="button" class="btn small amber" data-act="pay-new" data-v="${party}">Record ${party==="tcl"?"payment from TCL":"payment to ShipShape"}</button><button type="button" class="btn small" data-act="mtab" data-v="${party==="tcl"?"tcl":"ss"}">Statement</button></div>`:""}</section>`;
-  return `<div class="mhero"><div><span class="eyebrow">ProLight keeps this season</span><div class="mhero-v">${money2(T.net.booked)}</div><span>${money2(T.net.earned)} earned on installed jobs · ${money2(T.net.booked-T.net.earned)} still to install</span></div></div>
+  return `<div class="mhero"><div><span class="eyebrow">ProLight keeps this season</span><div class="mhero-v">${money2(T.net.booked)}</div><span>${money2(T.net.earned)} earned on installed jobs · ${money2(T.net.booked-T.net.earned)} still to install on our own jobs · TCL counts only what we installed</span></div></div>
   <div class="mgrid">
-    ${card("TCL owes ProLight",`<img src="/brand/tcl.png" alt="" class="mlogo">`,T.tcl.due,"balance due on installed jobs",[["Earned (installed)",money2(T.tcl.earned)],["Paid to us",money2(T.tcl.paid)],["Still to install",money2(T.tcl.booked-T.tcl.earned)],["Whole season",money2(T.tcl.booked)]],"tcl",T.tcl.paid,T.tcl.earned)}
+    ${card("TCL owes ProLight",`<img src="/brand/tcl.png" alt="" class="mlogo">`,T.tcl.due,"still owed on jobs we installed",[["Installed by us",money2(T.tcl.earned)+` · ${T.tcl.rows.filter(r=>r.done).length} jobs`],["Paid to us",money2(T.tcl.paid)],["Still owed",money2(T.tcl.due)]],"tcl",T.tcl.paid,T.tcl.earned)}
     ${card("ProLight owes ShipShape",`<img src="/brand/shipshape.png" alt="" class="mlogo ss">`,T.ss.due,"balance on installed jobs",[["Earned (installed)",money2(T.ss.earned)],["Paid to them",money2(T.ss.paid)],["Still to install",money2(T.ss.booked-T.ss.earned)],["Whole season",money2(T.ss.booked)]],"shipshape",T.ss.paid,T.ss.earned)}
     ${card("ProLight's own jobs","",T.own.due,"to collect on installed jobs",[["Installed",money2(T.own.earned)],["Collected",money2(T.own.paid)],["Still to install",money2(T.own.booked-T.own.earned)],["Whole season",money2(T.own.booked)]],"",T.own.paid,T.own.earned)}
   </div>
