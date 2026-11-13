@@ -462,7 +462,7 @@ async function sync(trigger, quick) {
       { const w = Math.round((k.washTotal || 0) * 100) / 100; if ((+d.washTotal || 0) !== w && (w || d.washTotal)) { d.washTotal = w; d.updatedAt = now; if (!rows.some((r) => r.coll === "jobs" && r.id === existing.id)) rows.push({ coll: "jobs", id: existing.id, data: d }); ch = true; } }
       if (f && f.price && k.washTotal && price > 0 && Math.abs(+f.price - (+j.total || 0)) < 0.01 && Math.abs(+f.price - price) >= 0.01) { rows.push({ coll: "fin", id: existing.id, data: { ...f, price } }); ch = true; }
       else if ((!f || !f.price) && price > 0) { rows.push({ coll: "fin", id: existing.id, data: { ...(f || { invoiceNo: "", collected: false, ssPaid: false }), price, privateNote: (f && f.privateNote) || "From Jobber #" + j.jobNumber } }); ch = true; }
-      if (j.completedAt && !done.has(existing.id)) { rows.push({ coll: "log", id: "jbdone-" + wid, data: { jobId: existing.id, visitId: (v && v.id) || "inst", kind: "done", by: "jobber", at: j.completedAt } }); ch = true; }
+      // a job closed in Jobber without a completed visit (e.g. a duplicate closed out) is not an install; completed visits are handled by completions()
       if (ch) res.updated++;
       if (!(d.mockups || []).length && d.jobberMediaV !== 4) media.push([j, wid, existing.id, d]);
       continue;
@@ -766,6 +766,19 @@ module.exports = async (req, res) => {
       const dd = { ...d.data, stagePrev: d.data.stage || "", stage: "cancelled", duplicateOf: keep, updatedAt: now };
       await putDocs([{ coll: "jobs", id: keep, data: kd }, { coll: "jobs", id: drop, data: dd }]);
       return res.status(200).json({ kept: keep, hidden: drop, linkedJobber: kd.jobberAlt });
+    }
+    if (action === "unmerge") {
+      // q = keepId~hideId : swap a merge (show keep again, hide the other) and drop check-offs the sync made on the hidden one from a closed Jobber job
+      if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
+      const [keep, hide] = String(req.query.q || "").split("~");
+      const [k, h] = await Promise.all([keep, hide].map((id) => sb(`/rest/v1/docs?coll=eq.jobs&id=eq.${encodeURIComponent(id)}&select=data`).then((r) => r[0]))); if (!k || !h) return res.status(404).json({ error: "job not found" });
+      const now = new Date().toISOString(), widH = (String(h.data.jobberUrl || "").match(/work_orders\/(\d+)/) || [])[1], widK = (String(k.data.jobberUrl || "").match(/work_orders\/(\d+)/) || [])[1];
+      const kd = { ...k.data, stage: k.data.stagePrev || "booked", duplicateOf: undefined, jobberAlt: [...new Set([...(k.data.jobberAlt || []).filter((x) => x !== widK), ...(widH ? [widH] : [])])], updatedAt: now }; delete kd.stagePrev;
+      const hd = { ...h.data, stagePrev: h.data.stage || "", stage: "cancelled", duplicateOf: keep, jobberAlt: (h.data.jobberAlt || []).filter((x) => x !== widK), updatedAt: now };
+      const logs = await sb(`/rest/v1/docs?coll=eq.log&data->>jobId=eq.${encodeURIComponent(hide)}&data->>kind=eq.done&select=id,data`);
+      for (const l of logs.filter((l) => l.data.by === "jobber")) await sb(`/rest/v1/docs?coll=eq.log&id=eq.${encodeURIComponent(l.id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
+      await putDocs([{ coll: "jobs", id: keep, data: kd }, { coll: "jobs", id: hide, data: hd }]);
+      return res.status(200).json({ shown: keep, hidden: hide, removedCheckoffs: logs.filter((l) => l.data.by === "jobber").length, visits: (kd.visits || []).map((v) => v.type + ":" + (v.date || "-")) });
     }
     if (action === "crewday") {
       // a person's crew stops on a day; do=1 takes them off the schedule (the job stays, sync won't re-date it)
