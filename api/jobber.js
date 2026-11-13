@@ -804,12 +804,13 @@ module.exports = async (req, res) => {
     if (action === "jbundone") {
       // q = logId[,logId] : remove those Jobber-made check-offs and remember them so the sync won't re-add them
       if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
-      const ids = String(req.query.q || "").split(",").filter((x) => /^jb(v|done)-/.test(x));
+      const items = String(req.query.q || "").split(",").map((x) => x.split("@")), ids = items.map((x) => x[0]).filter((x) => /^jb(v|done)-\d+$/.test(x));
       const cur = ((await sb("/rest/v1/docs?coll=eq.settings&id=eq.jobber-undone&select=data"))[0] || {}).data || {};
-      await putDocs([{ coll: "settings", id: "jobber-undone", data: { ids: [...new Set([...(cur.ids || []), ...ids])], updatedAt: new Date().toISOString() } }]);
+      await putDocs([{ coll: "settings", id: "jobber-undone", data: { ids: [...new Set([...(cur.ids || []).filter((x) => /^jb(v|done)-\d+$/.test(x)), ...ids])], updatedAt: new Date().toISOString() } }]);
       for (const id of ids) await sb(`/rest/v1/docs?coll=eq.log&id=eq.${encodeURIComponent(id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
-      const jid = String(req.query.job || ""); if (jid) await putDocs(ids.map((id) => ({ coll: "log", id: "jbu-" + id, data: { kind: "jbundo", jobId: jid, logId: id, at: new Date().toISOString() } })));
-      return res.status(200).json({ remembered: ids, reopenQueued: !!jid });
+      const q2 = items.filter((x) => x[1] && /^jb(v|done)-\d+$/.test(x[0])); if (q2.length) await putDocs(q2.map(([id, jid]) => ({ coll: "log", id: "jbu-" + id, data: { kind: "jbundo", jobId: jid, logId: id, at: new Date().toISOString() } })));
+      // tidy: drop malformed ids saved earlier
+      return res.status(200).json({ remembered: ids, reopenQueued: q2.length });
     }
     if (action === "crewday") {
       // a person's crew stops on a day; do=1 takes them off the schedule (the job stays, sync won't re-date it)
