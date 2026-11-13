@@ -430,12 +430,15 @@ async function sync(trigger, quick) {
   const [boardJobs, boardClients, boardFin, boardLog] = await Promise.all(["jobs", "clients", "fin", "log"].map(allDocs));
   const byWeb = new Map(), clientByName = new Map(), clientByJobber = new Map();
   for (const d of boardJobs) { const m = String(d.data.jobberUrl || "").match(/work_orders\/(\d+)/); if (m) byWeb.set(m[1], d); }
+  // a Jobber job that duplicates one already on the board is linked to it (jobberAlt) instead of becoming a second board job
+  for (const d of boardJobs) for (const alt of d.data.jobberAlt || []) if (!byWeb.has(alt)) byWeb.set(alt, d);
   for (const c of boardClients) {
     if (c.data.source === "tcl") continue;
     if (c.data.jobberClientId) clientByJobber.set(c.data.jobberClientId, c);
     if (!clientByName.has(norm(c.data.name))) clientByName.set(norm(c.data.name), c);
   }
   const settings = await allDocs("settings"), crews = ((settings.find((d) => d.id === "board") || {}).data || {}).crews || [];
+  const ignored = new Set((((settings.find((d) => d.id === "jobber-ignore") || {}).data || {}).ids) || []);
   const staff = await sb("/rest/v1/staff?select=id,name,crew,active").catch(() => []);
   const crewFor = crewFinder(staff, crews);
   const autoCrew = (j) => { for (const n of assigneesOf(j)) if (AUTO_CREW.includes(n)) { const c = crewFor(n); if (c) return c; } return ""; };
@@ -464,8 +467,15 @@ async function sync(trigger, quick) {
       if (!(d.mockups || []).length && d.jobberMediaV !== 4) media.push([j, wid, existing.id, d]);
       continue;
     }
+    // jobs deleted on the board stay deleted
+    if (ignored.has(wid)) { res.ignored = (res.ignored || 0) + 1; continue; }
     const cname = (j.client && j.client.name) || "Customer", jcid = j.client && j.client.id;
     let client = clientByJobber.get(jcid) || clientByName.get(norm(cname));
+    // same client + same price as a ProLight job already on the board → it's the same job entered twice in Jobber: link, don't copy
+    if (client && price > 0) {
+      const twin = boardJobs.find((d) => d.data.clientId === client.id && d.data.source !== "tcl" && d.data.stage !== "cancelled" && Math.abs((+((fin.get(d.id) || {}).price) || 0) - price) < 1);
+      if (twin) { const d = JSON.parse(JSON.stringify(twin.data)); d.jobberAlt = [...new Set([...(d.jobberAlt || []), wid])]; d.updatedAt = now; twin.data = d; byWeb.set(wid, twin); rows.push({ coll: "jobs", id: twin.id, data: d }); res.dupLinked = (res.dupLinked || 0) + 1; (res.dupNames = res.dupNames || []).push(cname); continue; }
+    }
     const a = addr(j.property);
     if (!client) {
       client = { id: "jbc-" + wid, data: { name: cname, address: a, phone: "", email: "", gate: "", notes: "", source: "prolight", importedFrom: "Jobber", jobberClientId: jcid || "", createdAt: now } };
@@ -745,6 +755,17 @@ module.exports = async (req, res) => {
       const groups = {};
       for (const j of jobs) { if (j.data.stage === "cancelled" || j.data.source === "tcl") continue; const c = cl.get(j.data.clientId) || {}; const k = norm(c.name) + "|" + Math.round(+((fin.get(j.id) || {}).price) || 0); (groups[k] = groups[k] || []).push({ id: j.id, wo: (String(j.data.jobberUrl || "").match(/work_orders\/(\d+)/) || [])[1] || "", created: String(j.data.createdAt || "").slice(0, 10), date: ((j.data.visits || []).find((v) => v.type === "install") || {}).date || "", done: done.has(j.id) }); }
       return res.status(200).json(Object.entries(groups).filter(([k, v]) => v.length > 1 && k.split("|")[1] !== "0").map(([k, v]) => ({ name: k.split("|")[0], jobs: v })));
+    }
+    if (action === "mergedup") {
+      // q = keepId~dropId : hide the duplicate (stage cancelled, duplicateOf) and link its Jobber job to the one we keep
+      if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
+      const [keep, drop] = String(req.query.q || "").split("~");
+      const [k, d] = await Promise.all([keep, drop].map((id) => sb(`/rest/v1/docs?coll=eq.jobs&id=eq.${encodeURIComponent(id)}&select=data`).then((r) => r[0]))); if (!k || !d) return res.status(404).json({ error: "job not found" });
+      const now = new Date().toISOString(), wid = (String(d.data.jobberUrl || "").match(/work_orders\/(\d+)/) || [])[1];
+      const kd = { ...k.data, jobberAlt: [...new Set([...(k.data.jobberAlt || []), ...(wid ? [wid] : []), ...(d.data.jobberAlt || [])])], updatedAt: now };
+      const dd = { ...d.data, stagePrev: d.data.stage || "", stage: "cancelled", duplicateOf: keep, updatedAt: now };
+      await putDocs([{ coll: "jobs", id: keep, data: kd }, { coll: "jobs", id: drop, data: dd }]);
+      return res.status(200).json({ kept: keep, hidden: drop, linkedJobber: kd.jobberAlt });
     }
     if (action === "crewday") {
       // a person's crew stops on a day; do=1 takes them off the schedule (the job stays, sync won't re-date it)
