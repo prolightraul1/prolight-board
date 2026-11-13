@@ -112,6 +112,8 @@ module.exports = async (req, res) => {
         if (full || now.min % 2 === 0) { const h = await hq.run(full ? "full" : "changes"); if (h && (h.sent || h.error || h.retry || h.test !== undefined)) out.hq = h; }
       } catch (e) { out.hqError = String(e.message || e).slice(0, 160); }
     }
+    // board un-check → reopen the Jobber visit
+    try { const u = await require("./jobber.js").pushUndos({ max: 4 }); if (u && (u.undone || (u.errors || []).length)) out.jobberUndo = u; } catch (e) { out.jobberUndoError = String(e.message || e).slice(0, 160); }
     // board install dates → Jobber visits
     try { const jd = await require("./jobber.js").pushDates({ max: 4 }); if (jd && ((jd.moved || []).length || (jd.errors || []).length || jd.seeded)) out.jobberDates = jd; } catch (e) { out.jobberDatesError = String(e.message || e).slice(0, 160); }
     // board check-offs → Jobber (visit completed + notes, photos, videos)

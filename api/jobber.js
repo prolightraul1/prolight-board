@@ -499,13 +499,21 @@ async function sync(trigger, quick) {
   }
   try {
     const doneSince = new Date(Date.now() - (quick ? 35 : 75) * 864e5).toISOString();
-    const c = completions(await fetchDoneVisits(token, doneSince), [...boardJobs, ...rows.filter((r) => r.coll === "jobs").map((r) => ({ id: r.id, data: r.data }))], boardClients, [...boardLog, ...rows.filter((r) => r.coll === "log").map((r) => ({ id: r.id, data: r.data }))], byWeb);
+    const doneVisits = await fetchDoneVisits(token, doneSince);
+    const c = completions(doneVisits, [...boardJobs, ...rows.filter((r) => r.coll === "jobs").map((r) => ({ id: r.id, data: r.data }))], boardClients, [...boardLog, ...rows.filter((r) => r.coll === "log").map((r) => ({ id: r.id, data: r.data }))], byWeb);
     // a check-off you undid on the board stays undone, even if Jobber still shows the visit complete
     const undone = new Set((((settings.find((d) => d.id === "jobber-undone") || {}).data || {}).ids) || []);
     c.rows = c.rows.filter((r) => !undone.has(r.id));
     rows.push(...c.rows); res.completed = c.rows.length; if (c.names.length) res.completedNames = c.names;
     for (const id of c.dels) { await sb(`/rest/v1/docs?coll=eq.log&id=eq.${encodeURIComponent(id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } }); }
     if (c.dels.length) res.uncompleted = c.dels.length;
+    // a visit reopened in Jobber unchecks the board check-off Jobber had made (only inside the window we fully read)
+    if (doneVisits.length < 590) {
+      const stillDone = new Set(doneVisits.map((v) => "jbv-" + webId({ id: v.id })));
+      const reopened = boardLog.filter((l) => /^jbv-/.test(l.id) && l.data.kind === "done" && String(l.data.at || "") >= doneSince && !stillDone.has(l.id));
+      for (const l of reopened) await sb(`/rest/v1/docs?coll=eq.log&id=eq.${encodeURIComponent(l.id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
+      if (reopened.length) res.reopenedInJobber = reopened.length;
+    }
   } catch (e) { res.completedError = String(e.message || e).slice(0, 200); }
   for (let i = 0; i < rows.length; i += 200) await putDocs(rows.slice(i, i + 200));
   // Photos: a few jobs per run so each sync stays quick; the rest come on the next sync.
@@ -965,6 +973,36 @@ module.exports = async (req, res) => {
 };
 module.exports.config = { maxDuration: 60 };
 module.exports.pushToJobber = pushToJobber;
+
+/* Board → Jobber un-complete: undoing a check-off on the board leaves a "jbundo" request; reopen the matching Jobber visit. */
+async function pushUndos(opts = {}) {
+  const reqs = await sb("/rest/v1/docs?coll=eq.log&data->>kind=eq.jbundo&select=id,data&limit=10"); if (!reqs.length) return { undone: 0 };
+  const conn = await getInt("jobber"); if (!conn || !conn.refresh_token) return { skipped: "Jobber not connected" };
+  const token = await accessToken(), out = { undone: 0, errors: [] };
+  for (const r of reqs.slice(0, opts.max || 5)) {
+    const q = r.data;
+    try {
+      const jr = (await sb(`/rest/v1/docs?coll=eq.jobs&id=eq.${encodeURIComponent(q.jobId)}&select=data`))[0], job = jr && jr.data;
+      const wids = job ? [(String(job.jobberUrl || "").match(/work_orders\/(\d+)/) || [])[1], ...(job.jobberAlt || [])].filter(Boolean) : [];
+      let visitId = null;
+      const m = String(q.logId || "").match(/^jbv-(\d+)$/); if (m) visitId = Buffer.from("gid://Jobber/Visit/" + m[1]).toString("base64");
+      if (!visitId) for (const wid of wids) {
+        const jd = await gql(token, `query($id:EncodedId!){ job(id:$id){ visits(first:30){ nodes{ id completedAt } } } }`, { id: gidJob(wid) });
+        const doneV = ((jd.job && jd.job.visits.nodes) || []).filter((v) => v.completedAt).sort((a, b) => String(b.completedAt).localeCompare(String(a.completedAt)));
+        if (doneV.length) { visitId = doneV[0].id; break; }
+      }
+      if (visitId) {
+        const res = await gql(token, `mutation($v:EncodedId!){ visitUncomplete(visitId:$v){ visit{ id } userErrors{ message } } }`, { v: visitId });
+        const ue = ((res.visitUncomplete || {}).userErrors || []).map((e) => e.message).join("; ");
+        if (ue && !/not complete|already/i.test(ue)) throw new Error(ue);
+        out.undone++;
+      }
+      await sb(`/rest/v1/docs?coll=eq.log&id=eq.${encodeURIComponent(r.id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
+    } catch (e) { out.errors.push({ job: q.jobId, msg: String(e.message || e).slice(0, 160) }); if ((q.tries || 0) >= 3) await sb(`/rest/v1/docs?coll=eq.log&id=eq.${encodeURIComponent(r.id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } }); else await putDocs([{ coll: "log", id: r.id, data: { ...q, tries: (q.tries || 0) + 1 } }]); }
+  }
+  return out;
+}
+module.exports.pushUndos = pushUndos;
 
 /* Board → Jobber install dates: when an install day is moved on the board, move the matching Jobber visit.
    The first run only records where every job stands (no edits). Clearing a date on the board leaves Jobber alone. */
