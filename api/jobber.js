@@ -780,6 +780,14 @@ module.exports = async (req, res) => {
       await putDocs([{ coll: "jobs", id: keep, data: kd }, { coll: "jobs", id: hide, data: hd }]);
       return res.status(200).json({ shown: keep, hidden: hide, removedCheckoffs: logs.filter((l) => l.data.by === "jobber").length, visits: (kd.visits || []).map((v) => v.type + ":" + (v.date || "-")) });
     }
+    if (action === "logsfor") {
+      // check-off history for one job (q = jobId): who/what created each done/undone entry (no customer data)
+      if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
+      const jid = String(req.query.q || "");
+      const [logs, audit] = await Promise.all([sb(`/rest/v1/docs?coll=eq.log&data->>jobId=eq.${encodeURIComponent(jid)}&select=id,data,updated_at`), sb(`/rest/v1/audit?select=at,kind,doc_id,info&order=at.desc&limit=400&at=gte.${encodeURIComponent(new Date(Date.now() - 20 * 864e5).toISOString())}`).catch(() => [])]);
+      const mine = audit.filter((a) => JSON.stringify(a.info || {}).includes(jid) || String(a.doc_id || "").includes(jid)).slice(0, 30).map((a) => ({ at: a.at, kind: a.kind, doc: a.doc_id, what: JSON.stringify(a.info || {}).slice(0, 160) }));
+      return res.status(200).json({ logs: logs.map((l) => ({ id: l.id, kind: l.data.kind, by: String(l.data.by || "").slice(0, 8), at: l.data.at, note: l.data.note || "", visit: l.data.visitId, saved: l.updated_at })), audit: mine });
+    }
     if (action === "crewday") {
       // a person's crew stops on a day; do=1 takes them off the schedule (the job stays, sync won't re-date it)
       if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
