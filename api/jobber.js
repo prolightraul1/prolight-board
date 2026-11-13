@@ -808,7 +808,8 @@ module.exports = async (req, res) => {
       const cur = ((await sb("/rest/v1/docs?coll=eq.settings&id=eq.jobber-undone&select=data"))[0] || {}).data || {};
       await putDocs([{ coll: "settings", id: "jobber-undone", data: { ids: [...new Set([...(cur.ids || []), ...ids])], updatedAt: new Date().toISOString() } }]);
       for (const id of ids) await sb(`/rest/v1/docs?coll=eq.log&id=eq.${encodeURIComponent(id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
-      return res.status(200).json({ remembered: ids });
+      const jid = String(req.query.job || ""); if (jid) await putDocs(ids.map((id) => ({ coll: "log", id: "jbu-" + id, data: { kind: "jbundo", jobId: jid, logId: id, at: new Date().toISOString() } })));
+      return res.status(200).json({ remembered: ids, reopenQueued: !!jid });
     }
     if (action === "crewday") {
       // a person's crew stops on a day; do=1 takes them off the schedule (the job stays, sync won't re-date it)
