@@ -317,6 +317,8 @@ function completions(visits, boardJobs, boardClients, boardLog, byWeb) {
     let board = byWeb.get(webId(j));
     if ((!board || !board.data || !board.data.clientId) && /^\s*tcl\b/i.test(title)) { const cid = tclClients.get(norm(tclName(title))) || tclClients.get(norm(tclName(j.title))); board = cid && jobOfClient.get(cid); }
     if (!board || !board.data || !board.data.clientId) continue;
+    // TCL jobs went back to TCL (Nov 11): our crews check off their own TCL work on the board; Jobber never does it for them
+    if (board.data.source === "tcl") continue;
     const visits = board.data.visits || [], inst = visits.find((x) => x.type === "install") || { id: "inst" }, down = visits.find((x) => x.type === "takedown");
     let target = null;
     if (!doneKey.has(board.id + "|" + inst.id)) target = inst.id;
@@ -498,6 +500,9 @@ async function sync(trigger, quick) {
   try {
     const doneSince = new Date(Date.now() - (quick ? 35 : 75) * 864e5).toISOString();
     const c = completions(await fetchDoneVisits(token, doneSince), [...boardJobs, ...rows.filter((r) => r.coll === "jobs").map((r) => ({ id: r.id, data: r.data }))], boardClients, [...boardLog, ...rows.filter((r) => r.coll === "log").map((r) => ({ id: r.id, data: r.data }))], byWeb);
+    // a check-off you undid on the board stays undone, even if Jobber still shows the visit complete
+    const undone = new Set((((settings.find((d) => d.id === "jobber-undone") || {}).data || {}).ids) || []);
+    c.rows = c.rows.filter((r) => !undone.has(r.id));
     rows.push(...c.rows); res.completed = c.rows.length; if (c.names.length) res.completedNames = c.names;
     for (const id of c.dels) { await sb(`/rest/v1/docs?coll=eq.log&id=eq.${encodeURIComponent(id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } }); }
     if (c.dels.length) res.uncompleted = c.dels.length;
@@ -787,6 +792,15 @@ module.exports = async (req, res) => {
       const [logs, audit] = await Promise.all([sb(`/rest/v1/docs?coll=eq.log&data->>jobId=eq.${encodeURIComponent(jid)}&select=id,data,updated_at`), sb(`/rest/v1/audit?select=at,kind,doc_id,info&order=at.desc&limit=400&at=gte.${encodeURIComponent(new Date(Date.now() - 20 * 864e5).toISOString())}`).catch(() => [])]);
       const mine = audit.filter((a) => JSON.stringify(a.info || {}).includes(jid) || String(a.doc_id || "").includes(jid)).slice(0, 30).map((a) => ({ at: a.at, kind: a.kind, doc: a.doc_id, what: JSON.stringify(a.info || {}).slice(0, 160) }));
       return res.status(200).json({ logs: logs.map((l) => ({ id: l.id, kind: l.data.kind, by: String(l.data.by || "").slice(0, 8), at: l.data.at, note: l.data.note || "", visit: l.data.visitId, saved: l.updated_at })), audit: mine });
+    }
+    if (action === "jbundone") {
+      // q = logId[,logId] : remove those Jobber-made check-offs and remember them so the sync won't re-add them
+      if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
+      const ids = String(req.query.q || "").split(",").filter((x) => /^jb(v|done)-/.test(x));
+      const cur = ((await sb("/rest/v1/docs?coll=eq.settings&id=eq.jobber-undone&select=data"))[0] || {}).data || {};
+      await putDocs([{ coll: "settings", id: "jobber-undone", data: { ids: [...new Set([...(cur.ids || []), ...ids])], updatedAt: new Date().toISOString() } }]);
+      for (const id of ids) await sb(`/rest/v1/docs?coll=eq.log&id=eq.${encodeURIComponent(id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
+      return res.status(200).json({ remembered: ids });
     }
     if (action === "crewday") {
       // a person's crew stops on a day; do=1 takes them off the schedule (the job stays, sync won't re-date it)

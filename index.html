@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ProLight Season Board</title>
 <meta name="theme-color" content="#111916">
-<meta name="build" content="1794590070">
+<meta name="build" content="1794593949">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -5265,6 +5265,17 @@ deleteJob = async function(){
     await S.db.doc("jobs/"+id).delete(); try{ await S.db.doc("fin/"+id).delete(); }catch(e){}
     toast(wid?"Job deleted · it won't come back from Jobber":"Job deleted"); closeDrawer();
   }catch(e){ fail(e,"delete this job"); }
+};
+/* ---------- Undoing a check-off that came from Jobber sticks ---------- */
+/* A Jobber-made check-off (log id jbv-… / jbdone-…) that you undo is remembered, so the Jobber sync won't add it back
+   even though Jobber still shows the visit complete. */
+delEntry = async function(id){
+  try{
+    if(/^jb(v|done)-/.test(String(id))){ let ids=[]; try{ const s=await S.db.doc("settings/jobber-undone").get(); ids=((s&&s.data&&s.data())||{}).ids||[]; }catch(e){}
+      await S.db.doc("settings/jobber-undone").set({ids:[...new Set([...ids,id])],updatedAt:new Date().toISOString()}); }
+    await S.db.doc("log/"+id).delete();
+    if(/^jb(v|done)-/.test(String(id))) toast("Undone · it stays undone even though Jobber shows it complete");
+  }catch(e){ fail(e,"change that"); }
 };
 
 /* ---------- render ---------- */
