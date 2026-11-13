@@ -736,6 +736,16 @@ module.exports = async (req, res) => {
       if (req.query.q === "go") await putDocs(pick.map((j) => ({ coll: "jobs", id: j.id, data: { ...j.data, stagePrev: j.data.stage || "", stage: "cancelled", releasedToTcl: true, releasedAt: now, updatedAt: now } })));
       return res.status(200).json({ applied: req.query.q === "go", released: pick.length, keptTclJobs: jobs.filter((j) => j.data.source === "tcl" && j.data.stage !== "cancelled").length - pick.length, scheduled: pick.filter((j) => (j.data.visits || []).some((v) => v.date)).length });
     }
+    if (action === "dups") {
+      // ProLight jobs that look like the same job twice: same client, same price, neither cancelled (names only in output)
+      if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
+      const [jobs, fins, clients, logs] = await Promise.all([allDocs("jobs"), allDocs("fin"), allDocs("clients"), sb("/rest/v1/docs?coll=eq.log&data->>kind=eq.done&select=data")]);
+      const fin = new Map(fins.map((f) => [f.id, f.data])), cl = new Map(clients.map((c) => [c.id, c.data])), done = new Set(logs.map((l) => l.data.jobId));
+      const norm = (s) => String(s || "").toLowerCase().replace(/^(mr|mrs|ms|dr)\.?\s+/, "").replace(/[^a-z0-9]+/g, " ").trim();
+      const groups = {};
+      for (const j of jobs) { if (j.data.stage === "cancelled" || j.data.source === "tcl") continue; const c = cl.get(j.data.clientId) || {}; const k = norm(c.name) + "|" + Math.round(+((fin.get(j.id) || {}).price) || 0); (groups[k] = groups[k] || []).push({ id: j.id, wo: (String(j.data.jobberUrl || "").match(/work_orders\/(\d+)/) || [])[1] || "", created: String(j.data.createdAt || "").slice(0, 10), date: ((j.data.visits || []).find((v) => v.type === "install") || {}).date || "", done: done.has(j.id) }); }
+      return res.status(200).json(Object.entries(groups).filter(([k, v]) => v.length > 1 && k.split("|")[1] !== "0").map(([k, v]) => ({ name: k.split("|")[0], jobs: v })));
+    }
     if (action === "crewday") {
       // a person's crew stops on a day; do=1 takes them off the schedule (the job stays, sync won't re-date it)
       if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
