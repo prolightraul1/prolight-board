@@ -36,7 +36,7 @@ const dayShare = (j,v) => (v&&v.type==="install"&&!v.returnOf) ? 1/Math.max(1,in
 const payShare = (j,v) => { const iv=instVisits(j); if(iv.length<=1) return 1; const last=[...iv].sort((a,b)=>String(a.date||"9999").localeCompare(String(b.date||"9999"))).pop(); return v.id===last.id?1:0; };
 function finishedInstalls(){
   const out=new Map(), firstDone=new Map();
-  for(const e of [...S.log.values()].filter(e=>e.kind==="done"&&e.at).sort((a,b)=>a.at.localeCompare(b.at))){ const j0=S.jobs.get(e.jobId); if(!j0) continue; const v=(j0.visits||[]).find(x=>x.id===e.visitId)||{}; if(v.type==="takedown"||firstDone.has(e.jobId)) continue; firstDone.set(e.jobId,{e,v}); }
+  for(const e of [...S.log.values()].filter(e=>e.kind==="done"&&e.at).sort((a,b)=>a.at.localeCompare(b.at))){ const j0=S.jobs.get(e.jobId); if(!j0||j0.stage==="cancelled") continue; const v=(j0.visits||[]).find(x=>x.id===e.visitId)||{}; if(v.type==="takedown"||firstDone.has(e.jobId)) continue; firstDone.set(e.jobId,{e,v}); }
   for(const [jid,f] of firstDone){
     const j={id:jid,...S.jobs.get(jid)}, iv=instVisits(j);
     if(iv.length<=1){ out.set(jid,{j,v:f.v,day:isoOf(f.e.at)}); continue; }
