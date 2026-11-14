@@ -1,0 +1,16 @@
+name: Site diag
+on: workflow_dispatch
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Database timing
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          K=$(curl -s https://prolight-boardv1.vercel.app/config.js | grep -o 'eyJ[A-Za-z0-9._-]*' | head -1)
+          S=https://xjjwhmrkeqrmkttombxx.supabase.co
+          for p in "/auth/v1/health" "/rest/v1/staff?select=id&limit=1" "/rest/v1/docs?select=id&coll=eq.settings&limit=1" "/rest/v1/docs?select=id&coll=eq.log&limit=1"; do
+            curl -sS -o /tmp/b -w "$p -> HTTP %{http_code} in %{time_total}s\n" --max-time 40 -H "apikey: $K" -H "Authorization: Bearer $K" "$S$p" 2>&1 | tail -1; head -c 160 /tmp/b | tr '\n' ' '; echo
+          done
+          for a in "tick" "health?action=problems&hours=1"; do curl -sS -o /tmp/b -w "/api/$a -> HTTP %{http_code} in %{time_total}s\n" --max-time 70 -H "Authorization: Bearer $CRON_SECRET" "https://prolight-boardv1.vercel.app/api/$a" 2>&1 | tail -1; head -c 300 /tmp/b | tr '\n' ' '; echo; done
