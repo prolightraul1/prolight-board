@@ -109,15 +109,15 @@ module.exports = async (req, res) => {
       try {
         const hq = require("./_lib/hq");
         const full = now.min >= 21 * 60 && now.min < 21 * 60 + 10 && (await firstTime("hq-full:" + now.date));
-        if (full || now.min % 2 === 0) { const h = await hq.run(full ? "full" : "changes"); if (h && (h.sent || h.error || h.retry || h.test !== undefined)) out.hq = h; }
+        if (full || now.min % 10 === 3) { const h = await hq.run(full ? "full" : "changes"); if (h && (h.sent || h.error || h.retry || h.test !== undefined)) out.hq = h; }
       } catch (e) { out.hqError = String(e.message || e).slice(0, 160); }
     }
     // board un-check → reopen the Jobber visit
-    try { const u = await require("./jobber.js").pushUndos({ max: 4 }); if (u && (u.undone || (u.errors || []).length)) out.jobberUndo = u; } catch (e) { out.jobberUndoError = String(e.message || e).slice(0, 160); }
+    if (now.min % 2 === 1) try { const u = await require("./jobber.js").pushUndos({ max: 4 }); if (u && (u.undone || (u.errors || []).length)) out.jobberUndo = u; } catch (e) { out.jobberUndoError = String(e.message || e).slice(0, 160); }
     // board install dates → Jobber visits
-    try { const jd = await require("./jobber.js").pushDates({ max: 4 }); if (jd && ((jd.moved || []).length || (jd.errors || []).length || jd.seeded)) out.jobberDates = jd; } catch (e) { out.jobberDatesError = String(e.message || e).slice(0, 160); }
+    if (now.min % 5 === 0) try { const jd = await require("./jobber.js").pushDates({ max: 4 }); if (jd && ((jd.moved || []).length || (jd.errors || []).length || jd.seeded)) out.jobberDates = jd; } catch (e) { out.jobberDatesError = String(e.message || e).slice(0, 160); }
     // board check-offs → Jobber (visit completed + notes, photos, videos)
-    try { const jp = await require("./jobber.js").pushToJobber({ max: 3 }); if (jp && (jp.completed?.length || jp.notes || jp.errors?.length)) out.jobber = jp; } catch (e) { out.jobberError = String(e.message || e).slice(0, 160); }
+    if (now.min % 3 === 2) try { const jp = await require("./jobber.js").pushToJobber({ max: 3 }); if (jp && (jp.completed?.length || jp.notes || jp.errors?.length)) out.jobber = jp; } catch (e) { out.jobberError = String(e.message || e).slice(0, 160); }
     return res.status(200).json(out);
   } catch (e) {
     return res.status(200).json({ error: e.message, ...out });
