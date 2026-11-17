@@ -19,10 +19,14 @@ const jobCrews = j => { const jj={id:j.id,...(S.jobs.get(j.id)||j)}, ins=(jj.vis
 /* a job can carry a custom split: fin.custom.shares = { staffId: fraction of the job's work they did }.
    Then each listed person's % plan applies to their fraction (no other splitting), and anyone not listed gets no job % on it. */
 const customShares = j => { const c=(S.fin.get(j.id)||{}).custom; return c&&c.shares&&Object.keys(c.shares).length?c.shares:null; };
-const feePct = (pl, j, who) => { if(!(pl.mgmtPct>0)) return 0; const f=S.fin.get(j.id)||{}, self=selfTotal(pl);
-  const cs=customShares(j); if(cs){ const sh=+cs[who||S.me.id]||0; return pl.mgmtPct+(self-pl.mgmtPct)*sh; }
-  if(f.selfInstall===true) return self; if(!isSelf(j)) return pl.mgmtPct;
-  const n=Math.max(1,jobCrews(j).length); return n===1 ? self : Math.round((pl.mgmtPct+(self-pl.mgmtPct)/n)*100)/100; };
+/* From Thu Nov 12, 2026 Raul only gets the 3% management fee on jobs he marks as managed (fin.manage).
+   Jobs finished before that date keep it. The install % and sales commission are not affected. */
+const NOMGMT_FROM = "2026-11-12";
+const mgmtOn = j => { const f=S.fin.get(j.id)||{}; if(f.manage===true) return true; if(f.manage===false) return false; const d=installedOn({id:j.id,...(S.jobs.get(j.id)||j)}); return !!d && d<NOMGMT_FROM; };
+const feePct = (pl, j, who) => { if(!(pl.mgmtPct>0)) return 0; const f=S.fin.get(j.id)||{}, labor=selfTotal(pl)-pl.mgmtPct, m=mgmtOn(j)?pl.mgmtPct:0;
+  const cs=customShares(j); if(cs){ const sh=+cs[who||S.me.id]||0; return m+labor*sh; }
+  if(f.selfInstall===true) return m+labor; if(!isSelf(j)) return m;
+  const n=Math.max(1,jobCrews(j).length); return n===1 ? m+labor : Math.round((m+labor/n)*100)/100; };
 /* job %: "pool" plans (techs on 4%) split their % evenly across every pool tech who worked the job;
    "crew" plans (e.g. Sam's 10% of installs he does) split by the number of crews on the job. */
 function techPct(id,j,v,day){ const pl=planFor(id,day); if(!(pl.jobPct>0)) return 0; const cs=customShares(j); if(cs) return pl.jobPct*(+cs[id]||0);
