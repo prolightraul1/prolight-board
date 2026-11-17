@@ -2,21 +2,23 @@
 function myStatementData(){
   const W=payWeek(), id=S.me.id, p=W.people.find(x=>x.id===id)||{mgmtJobs:[],sales:[],mgmt:0,comm:0,jobPay:0,regPay:0,otPay:0,hrs:0,jobs:[]};
   const pl=planFor(id,W.days[0]);
-  const why=x=>{ const cs=jobCrews(x.j).map(teamName), f=S.fin.get(x.j.id)||{};
+  const why=x=>{ const cs=jobCrews(x.j).map(teamName), f=S.fin.get(x.j.id)||{}, ded=(f.deduct||[]).length?` · on ${money2(jobBase(x.j))} after ${(f.deduct||[]).map(d=>`${d.label||"costs"} ${money2(+d.amount||0)}`).join(", ")}`:"";
+    if(f.customLabor!=null&&f.customLabor!=="") return `Custom labor ${money2(+f.customLabor)}${mgmtOn(x.j)?` + ${pl.mgmtPct||3}% management (${money2(jobBase(x.j)*(pl.mgmtPct||3)/100)})`:""}${ded}`;
     if(!x.self) return "Management fee"+(cs.length?` (installed by ${cs.join(" + ")})`:"");
     if(f.selfInstall===true) return "Installed it myself (marked on the job)";
     const m=mgmtOn(x.j)?`${pl.mgmtPct||3}% + `:""; return cs.length>1?`Installed with ${cs.filter(c=>!/^raul\b/i.test(c)).join(" + ")}: ${m}10% ÷ ${cs.length} crews`:`Installed it myself (Raul crew only)${m?": 3% + 10%":": 10%"}`; };
+  const customLabor=p.mgmtJobs.reduce((t,x)=>{ const f=S.fin.get(x.j.id)||{}; return t+(f.customLabor!=null&&f.customLabor!==""?+f.customLabor||0:0); },0);
   const fees=p.mgmtJobs.slice().sort((a,b)=>String(a.day).localeCompare(String(b.day))).map(x=>({day:x.day,client:clientOf(x.j).name||"",kind:x.j.source==="tcl"?"TCL":"ProLight",price:x.base,pct:x.pct,why:why(x),amt:x.amt}));
   const sales=p.sales.slice().sort((a,b)=>String(a.earnedOn).localeCompare(String(b.earnedOn))).map(s=>({day:s.earnedOn,client:clientOf(s.job).name||"",lead:leadLabel(s.type),base:s.base,pct:s.pct,amt:s.comm}));
   const hourly=(p.regPay||0)+(p.otPay||0);
-  return {W,name:staffName(id),plan:planText(pl),fees,sales,feeTot:p.mgmt||0,commTot:p.comm||0,jobPay:p.jobPay||0,hourly,hrs:p.hrs||0,total:(p.mgmt||0)+(p.comm||0)+(p.jobPay||0)+hourly};
+  return {W,name:staffName(id),plan:planText(pl),customLabor,fees,sales,feeTot:p.mgmt||0,commTot:p.comm||0,jobPay:p.jobPay||0,hourly,hrs:p.hrs||0,total:(p.mgmt||0)+(p.comm||0)+(p.jobPay||0)+hourly};
 }
 function myStatementPrint(){
   const D=myStatementData(), w=window.open("","_blank"); if(!w){ toast("Allow pop-ups to print"); return; }
   const wk=`${fmtDay(D.W.days[0],{month:"long",day:"numeric"})} – ${fmtDay(D.W.days[6],{month:"long",day:"numeric",year:"numeric"})}`;
   w.document.write(`<!doctype html><meta charset="utf-8"><title>Pay statement ${esc(D.name)} ${esc(D.W.days[0])}</title><style>body{font:13px system-ui,sans-serif;margin:32px;color:#111}h1{margin:0 0 2px;font-size:22px}h2{margin:24px 0 0;font-size:15px}table{border-collapse:collapse;width:100%;margin-top:8px}th,td{border-bottom:1px solid #ddd;padding:6px 8px;text-align:left;vertical-align:top}th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#555}td.r,th.r{text-align:right}tfoot td{font-weight:700;border-top:2px solid #111}.sum{display:grid;grid-template-columns:repeat(4,auto);gap:4px 24px;justify-content:start;margin-top:14px}.sum b{font-size:18px}small{color:#555}</style>
     <h1>Pay statement · ${esc(D.name)}</h1><div>ProLight Tallahassee · pay week ${esc(wk)}</div><div><small>Pay plan: ${esc(D.plan)} · +10% on jobs I install alone (split by crew when shared) · from Nov 12 the 3% management fee only applies to jobs I manage · sales commission 10% inbound / 14% outbound</small></div>
-    <div class="sum"><span>Management &amp; install<br><b>${money2(D.feeTot)}</b></span><span>Sales commission<br><b>${money2(D.commTot)}</b></span>${D.hourly||D.jobPay?`<span>Other<br><b>${money2(D.hourly+D.jobPay)}</b></span>`:""}<span>Total owed<br><b>${money2(D.total)}</b></span></div>
+    <div class="sum"><span>Management &amp; install<br><b>${money2(D.feeTot)}</b></span>${D.customLabor?`<span>Custom labor (included)<br><b>${money2(D.customLabor)}</b></span>`:""}<span>Sales commission<br><b>${money2(D.commTot)}</b></span>${D.hourly||D.jobPay?`<span>Other<br><b>${money2(D.hourly+D.jobPay)}</b></span>`:""}<span>Total owed<br><b>${money2(D.total)}</b></span></div>
     <h2>Management &amp; install fees · installs finished this week</h2>
     ${D.fees.length?`<table><thead><tr><th>Finished</th><th>Customer</th><th>Job</th><th class="r">Job price</th><th class="r">%</th><th>How it's figured</th><th class="r">Pay</th></tr></thead><tbody>${D.fees.map(f=>`<tr><td>${esc(fmtDay(f.day,{month:"short",day:"numeric"}))}</td><td>${esc(f.client)}</td><td>${f.kind}</td><td class="r">${money2(f.price)}</td><td class="r">${f.pct}%</td><td>${esc(f.why)}</td><td class="r">${money2(f.amt)}</td></tr>`).join("")}</tbody><tfoot><tr><td colspan="6">Total</td><td class="r">${money2(D.feeTot)}</td></tr></tfoot></table>`:`<p><small>No installs finished this week.</small></p>`}
     <h2>Sales commission · earned this week</h2>

@@ -22,8 +22,11 @@ const customShares = j => { const c=(S.fin.get(j.id)||{}).custom; return c&&c.sh
 /* From Thu Nov 12, 2026 Raul only gets the 3% management fee on jobs he marks as managed (fin.manage).
    Jobs finished before that date keep it. The install % and sales commission are not affected. */
 const NOMGMT_FROM = "2026-11-12";
+const isRaulId = id => /^raul\b/i.test(String(staffName(id)||"").trim());
 const mgmtOn = j => { const f=S.fin.get(j.id)||{}; if(f.manage===true) return true; if(f.manage===false) return false; const d=installedOn({id:j.id,...(S.jobs.get(j.id)||j)}); return !!d && d<NOMGMT_FROM; };
 const feePct = (pl, j, who) => { if(!(pl.mgmtPct>0)) return 0; const f=S.fin.get(j.id)||{}, labor=selfTotal(pl)-pl.mgmtPct, m=mgmtOn(j)?pl.mgmtPct:0;
+  // a custom labor amount ($) on the job replaces the install % for Raul
+  if(f.customLabor!=null&&f.customLabor!==""&&(who||S.me.id)&&isRaulId(who||S.me.id)) return m+(+f.customLabor||0)/Math.max(1,jobBase(j))*100;
   const cs=customShares(j); if(cs){ const sh=+cs[who||S.me.id]||0; return m+labor*sh; }
   if(f.selfInstall===true) return m+labor; if(!isSelf(j)) return m;
   const n=Math.max(1,jobCrews(j).length); return n===1 ? m+labor : Math.round((m+labor/n)*100)/100; };
@@ -50,7 +53,9 @@ function finishedInstalls(){
   }
   return out;
 }
-const jobBase = j => +((S.fin.get(j.id)||{}).price)||0; // full job price, TCL jobs included
+/* costs taken off the top before anyone's % (e.g. a lift rental): fin.deduct = [{label, amount}] */
+const netPrice = f => Math.max(0,(+((f||{}).price)||0) - ((f||{}).deduct||[]).reduce((t,x)=>t+(+x.amount||0),0));
+const jobBase = j => netPrice(S.fin.get(j.id)); // job price after costs off the top, TCL jobs included
 // who did the install: anyone clocked in on the job; if nobody, the crew on that visit
 function jobWorkers(j,v,day){
   const clocked=new Set(); for(const e of S.log.values()) if(e.kind==="clock"&&!e.general&&e.jobId===j.id&&e.by) clocked.add(e.by);

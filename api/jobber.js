@@ -812,6 +812,15 @@ module.exports = async (req, res) => {
       // tidy: drop malformed ids saved earlier
       return res.status(200).json({ remembered: ids, reopenQueued: q2.length });
     }
+    if (action === "setprice") {
+      // q = jobId~price[~Label:amount,Label:amount] : set the job price and costs taken off the top
+      if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
+      const [jid, price, ded] = String(req.query.q || "").split("~"), f = ((await sb(`/rest/v1/docs?coll=eq.fin&id=eq.${encodeURIComponent(jid)}&select=data`))[0] || {}).data || {};
+      const deduct = ded ? ded.split(",").map((x) => { const [label, amount] = x.split(":"); return { label, amount: +amount || 0 }; }) : f.deduct || [];
+      const nf = { ...f, price: +price || f.price, deduct, priceSetAt: new Date().toISOString() };
+      await putDocs([{ coll: "fin", id: jid, data: nf }]);
+      return res.status(200).json({ job: jid, price: nf.price, deduct, net: nf.price - deduct.reduce((t, x) => t + x.amount, 0) });
+    }
     if (action === "crewday") {
       // a person's crew stops on a day; do=1 takes them off the schedule (the job stays, sync won't re-date it)
       if (!process.env.CRON_SECRET || req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Not allowed" });
