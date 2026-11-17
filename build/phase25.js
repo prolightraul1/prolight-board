@@ -8,12 +8,16 @@ function myFee(j){
 }
 const myFeeChip = j => { const f=myFee(j); if(!f||!f.price||(!f.pct&&!f.before)) return ""; return `<span class="fee-chip ${f.earned?"ok":""} ${f.self?"self":""}" title="${f.self?"You installed it":"Your management fee"}">${f.before?"before 3%":`${f.self?"🔧 ":""}${f.pct}% · ${money2(f.fee)}`}</span>`; };
 const price0 = j => jobBase(j);
+async function setLaborBlank(jid,on){
+  const f=S.fin.get(jid)||{};
+  try{ await S.db.doc("fin/"+jid).set({...f,customLabor:on?"blank":null}); toast(on?"Labor left blank for your boss":"Back to the automatic install %"); }catch(e){ fail(e,"save that"); }
+}
 async function setCustomLabor(jid,v){
   const f=S.fin.get(jid)||{}, n=String(v).trim()===""?null:Number(String(v).replace(/[^0-9.]/g,""));
   try{ await S.db.doc("fin/"+jid).set({...f,customLabor:n}); toast(n==null?"Back to the automatic install %":`Custom labor ${money2(n)} on this job`); }catch(e){ fail(e,"save that"); }
 }
 function feeLabel(j,f){
-  const fn=S.fin.get(j.id)||{}; if(fn.customLabor!=null&&fn.customLabor!=="") return `Custom labor ${money2(+fn.customLabor)}${f.manage?" + 3% management":""}`;
+  const fn=S.fin.get(j.id)||{}; if(fn.customLabor==="blank") return `${f.manage?"3% management · ":""}labor to be decided by your boss`; if(fn.customLabor!=null&&fn.customLabor!=="") return `Custom labor ${money2(+fn.customLabor)}${f.manage?" + 3% management":""}`;
   const n=jobCrews(j).length, shared=f.self&&n>1&&(S.fin.get(j.id)||{}).selfInstall!==true, m=f.manage?"3% + ":"";
   if(f.self) return shared?`Installed with ${n-1} other crew${n>2?"s":""} (${m}your share of 10%)`:`Installed it yourself (${m}10%)`;
   return f.manage?"Management fee":"No management fee on this job · sales only";
@@ -32,7 +36,9 @@ function myFeeBlock(j){
   return `<section class="blk fee-blk"><span class="eyebrow">Your pay on this job · only you see this</span>
     <div class="fee-row"><b>${f.before?"$0.00":money2(f.fee)}</b><span>${f.before?`Installed ${esc(fmtDay(f.inst))}, before your 3% started`:`${feeLabel(j,f)} · ${f.pct}% of ${money2(f.price)} · ${f.earned?`earned ${esc(fmtDay(f.inst))}`:"you get it when the install is checked off"}`}</span></div>
     ${(()=>{ const fn=S.fin.get(j.id)||{}, d=fn.deduct||[]; return d.length?`<p class="count" style="margin:2px 0">Price ${money2(+fn.price||0)} − ${d.map(x=>`${esc(x.label||"cost")} ${money2(+x.amount||0)}`).join(" − ")} = <b>${money2(price0(j))}</b> · everyone's % is figured on that</p>`:""; })()}
-    <label class="fee-self">Custom labor $ <input inputmode="decimal" data-custom-labor="${esc(j.id)}" value="${esc((S.fin.get(j.id)||{}).customLabor??"")}" placeholder="auto" style="width:96px;min-height:34px;text-align:right"> <small>replaces your install % on this job; leave blank for automatic</small></label>
+    ${(S.fin.get(j.id)||{}).customLabor==="blank"?`<label class="fee-self"><input type="checkbox" data-labor-blank="${esc(j.id)}" checked> Labor left blank for your boss to decide <small>(shows as a blank line on your pay statement)</small></label>`
+      :`<label class="fee-self">Custom labor $ <input inputmode="decimal" data-custom-labor="${esc(j.id)}" value="${esc((S.fin.get(j.id)||{}).customLabor??"")}" placeholder="auto" style="width:96px;min-height:34px;text-align:right"> <small>replaces your install % on this job; leave blank for automatic</small></label>
+      <label class="fee-self"><input type="checkbox" data-labor-blank="${esc(j.id)}"> Leave labor blank for my boss to decide</label>`}
     ${f.comm?`<div class="fee-row" style="margin-top:2px"><b style="font-size:18px">+ ${money2(f.comm)}</b><span>sales commission (you sold it) · total ${money2(f.fee+f.comm)}</span></div>`:""}
     ${f.mgmtPct?`<label class="fee-self"><input type="checkbox" data-manage="${esc(j.id)}" ${f.manage?"checked":""}> I'm managing this job <small>(+${f.mgmtPct}% management fee · from Nov 12 it's off unless you turn it on; earlier jobs keep it)</small></label>`:""}
     ${f.mgmtPct?`<label class="fee-self"><input type="checkbox" data-self-install="${esc(j.id)}" ${f.self?"checked":""}> I installed this job myself <small>(3% + 10% = ${SELF_PCT}% when you're the only crew; with other crews it's 3% + your share of 10%)${f.auto?" · on automatically, it's on the Raul crew":""}</small></label>`:""}</section>`;
