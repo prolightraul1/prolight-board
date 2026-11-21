@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ProLight Season Board</title>
 <meta name="theme-color" content="#111916">
-<meta name="build" content="1794954138">
+<meta name="build" content="1795267527">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -933,7 +933,7 @@ const DEFAULT_CREWS = [
   {id:"pl1",name:"ProLight Crew 1",co:"prolight",members:[],chat:""},
   {id:"pl2",name:"ProLight Crew 2",co:"prolight",members:[],chat:""},
   {id:"shipshape",name:"ShipShape",co:"shipshape",members:[],chat:""}];
-const VTYPE = {install:"Install",takedown:"Takedown",service:"Service"};
+const VTYPE = new Proxy({install:"Install",takedown:"Takedown",service:"Service"},{get:(o,k)=>typeof k==="string"?(Object.prototype.hasOwnProperty.call(o,k)?o[k]:"Visit"):o[k]});
 const STAGES = [["lead","Lead"],["quoted","Quote sent"],["booked","Booked"],["cancelled","Cancelled"]];
 const STATUS = {lead:"Lead",quoted:"Quote sent",booked:"Booked",scheduled:"Scheduled",partial:"Partly done",lit:"Installed",down:"Taken down",cancelled:"Cancelled"};
 const BULB = {lead:"",quoted:"blue",booked:"blue",scheduled:"dim",partial:"dim",lit:"on",down:"green",cancelled:"red"};

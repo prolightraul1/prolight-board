@@ -11,6 +11,7 @@ const seed=[
   {coll:'jobs',id:'j3',data:{clientId:'c1',stage:'scheduled',crew:'pl1',scope:'Missed yesterday',visits:[{id:'v1',type:'install',date:iso(new Date(t.getTime()-864e5)),crew:'pl1',time:'10:00'}]}},
   {coll:'jobs',id:'j6',data:{clientId:'c1',stage:'booked',crew:'pl1',jobberUrl:'https://secure.getjobber.com/work_orders/999',visits:[{id:'v1',type:'install'}]}},
   {coll:'jobs',id:'j5',data:{clientId:'c2',stage:'scheduled',crew:'pl1',visits:[{id:'v1',type:'install',date:tom,crew:'X2',crews:['X3']}]}},
+  {coll:'jobs',id:'j7',data:{clientId:'c2',stage:'scheduled',crew:'pl1',scope:'Visit with odd type',visits:[{id:'v1',date:today,crew:'pl1',order:3},{id:'v2',type:'repair',date:today,crew:'pl1',order:4}]}},
   {coll:'fin',id:'j1',data:{price:1200}},{coll:'fin',id:'j2',data:{price:9000,tclLog:[{at:new Date().toISOString(),k:'price',from:8800,to:9000}]}},
   {coll:'fin',id:'hq-export',data:{live:true,liveAt:new Date().toISOString(),sent:{},log:[{at:new Date().toISOString(),mode:'changes',sent:3,inserted:3,updated:0,errors:[]},{at:new Date().toISOString(),mode:'test',ok:true,status:200}]}},
   {coll:'fin',id:'payroll',data:{rates:{'u-raul':{plans:[{from:'2026-01-01',rate:0,jobPct:0,mgmtPct:3}]},'u-mike':{plans:[{from:'2026-01-01',rate:20,jobPct:4,mgmtPct:0}]}}}},
