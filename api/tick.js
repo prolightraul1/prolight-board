@@ -41,6 +41,9 @@ async function notDonePush(staff, crews, date) {
 module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(200).json({ skipped: "not set up" });
+  // anyone can reach this address, so only the first call in each minute does any work (one cheap insert decides it)
+  const minuteKey = "tick:" + new Date().toISOString().slice(0, 16);
+  if (!(await firstTime(minuteKey).catch(() => false))) return res.status(200).json({ skipped: "already ran this minute" });
   const out = { did: [] };
   try {
     const [staff, crews, board] = await Promise.all([staffAll(), crewsAll(), sb("/rest/v1/docs?coll=eq.settings&id=eq.board&select=data")]);
