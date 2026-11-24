@@ -14,3 +14,11 @@ jobs:
             curl -sS -o /tmp/b -w "$p -> HTTP %{http_code} in %{time_total}s\n" --max-time 40 -H "apikey: $K" -H "Authorization: Bearer $K" "$S$p" 2>&1 | tail -1; head -c 160 /tmp/b | tr '\n' ' '; echo
           done
           for a in "tick" "health?action=problems&hours=1"; do curl -sS -o /tmp/b -w "/api/$a -> HTTP %{http_code} in %{time_total}s\n" --max-time 70 -H "Authorization: Bearer $CRON_SECRET" "https://prolight-boardv1.vercel.app/api/$a" 2>&1 | tail -1; head -c 300 /tmp/b | tr '\n' ' '; echo; done
+      - name: Security headers
+        run: |
+          U=https://prolight-boardv1.vercel.app
+          curl -sI $U/ | grep -iE "x-frame|content-security|strict-transport|permissions-policy" || echo "no security headers"
+          echo "CSP meta in page: $(curl -s $U/ | grep -c 'http-equiv="Content-Security-Policy"')"
+          echo "geocode without sign-in: HTTP $(curl -s -o /dev/null -w '%{http_code}' "$U/api/geocode?q=x")"
+          K=$(curl -s $U/config.js | grep -o 'eyJ[A-Za-z0-9._-]*' | head -1)
+          echo "pin_login wrong PIN: $(curl -s -X POST -H "apikey: $K" -H "Authorization: Bearer $K" -H 'Content-Type: application/json' -d '{"p_pin":"000001"}' https://xjjwhmrkeqrmkttombxx.supabase.co/rest/v1/rpc/pin_login | head -c 80 | sed 's/[0-9a-f]\{8\}-[0-9a-f-]*@/<lookalike>@/')"
