@@ -79,6 +79,7 @@ GATE_CSS = '''
 .gate-pad button{width:72px;height:72px;border-radius:50%;border:0;background:var(--night-2);color:var(--night-ink);font-size:26px;font-weight:600}
 .gate-pad button:active{background:#2a3832}
 .gate-err{color:#f28b80!important;min-height:1.2em}
+#ts-box{display:flex;justify-content:center;margin-top:10px}
 .gate-back{justify-self:start;background:none;border:0;color:var(--night-dim);font-weight:700;font-size:15px;padding:4px 0}
 .gate-form{display:grid;gap:12px;width:100%;text-align:left}
 .gate-form label{display:grid;gap:4px;font-weight:700;font-size:14px}
@@ -342,5 +343,34 @@ exec(open(pathlib.Path(__file__).with_name('phase55.py')).read())
 exec(open(pathlib.Path(__file__).with_name('phase56.py')).read())
 exec(open(pathlib.Path(__file__).with_name('phase57.py')).read())
 exec(open(pathlib.Path(__file__).with_name('phase58.py')).read())
+exec(open(pathlib.Path(__file__).with_name('phase59.py')).read())
+# ===== Add new phase lines ABOVE this line. The security policy below must stay last. =====
+
+# ---------- Content-Security-Policy (update 17) ----------
+# Written into the page itself (not vercel.json) so the inline script's hash can never drift from
+# the page it belongs to. vercel.json adds the parts a <meta> policy can't do (frame-ancestors).
+import hashlib, base64
+_inline = re.findall(r'<script>([\s\S]*?)</script>', s)
+_hashes = " ".join("'sha256-%s'" % base64.b64encode(hashlib.sha256(x.encode("utf-8")).digest()).decode() for x in _inline)
+_SB = "https://xjjwhmrkeqrmkttombxx.supabase.co"
+CSP = "; ".join([
+    "default-src 'self'",
+    # exact files only, not whole CDNs (anyone can publish to npm, which both CDNs serve)
+    "script-src 'self' %s https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js https://unpkg.com/leaflet@1.9.4/dist/leaflet.js https://challenges.cloudflare.com/turnstile/v0/" % _hashes,
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com/leaflet@1.9.4/",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: blob: %s https://tile.openstreetmap.org https://unpkg.com/leaflet@1.9.4/" % _SB,
+    "media-src 'self' blob: %s" % _SB,
+    "connect-src 'self' %s %s https://api.weather.gov" % (_SB, _SB.replace("https://", "wss://")),
+    "frame-src https://*.daily.co https://challenges.cloudflare.com",
+    "worker-src 'self'",
+    "manifest-src 'self'",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'self'",
+])
+_meta = '<meta charset="utf-8">\n'
+if s.count(_meta) != 1: sys.exit("CSP: expected one charset meta")
+s = s.replace(_meta, _meta + '<meta http-equiv="Content-Security-Policy" content="%s">\n' % CSP)
 OUT.write_text(s)
 print("wrote", OUT, len(s), "bytes")

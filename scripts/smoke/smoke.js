@@ -29,6 +29,7 @@ const srv=http.createServer((q,s)=>{ let p=decodeURIComponent(q.url.split('?')[0
     await ctx.route(/supabase-js/, r=>r.fulfill({contentType:'text/javascript',body:fs.readFileSync(__dirname+'/mock-supabase.js','utf8')}));
     await ctx.route(/config\.js$/, r=>r.fulfill({contentType:'text/javascript',body:'window.PROLIGHT_CONFIG={supabaseUrl:"https://mock.supabase.co",supabaseAnonKey:"k"}'}));
     await ctx.route(/\/api\//, r=>r.fulfill({contentType:'application/json',body:'{}'}));
+    await ctx.addInitScript(()=>document.addEventListener('securitypolicyviolation',e=>{ (window.__CSP=window.__CSP||[]).push(e.effectiveDirective+' '+(e.blockedURI||'inline')+' '+(e.sourceFile||'').split('/').pop()+':'+e.lineNumber); }));
     const p=await ctx.newPage(), errs=[]; p.on('pageerror',e=>errs.push(e.message+' '+String(e.stack||'').split('\n').slice(1,3).join(' ')));
     await p.goto('http://localhost:8799/'); await p.waitForSelector('#gate',{state:'hidden',timeout:20000}); await p.waitForFunction(()=>typeof S!=='undefined'&&S.ready,null,{timeout:20000}); await p.waitForTimeout(400);
     for(const v of VIEWS){ await p.evaluate(v=>{ S.view=v; renderMain(); },v).catch(e=>errs.push(v+': '+e.message)); await p.waitForTimeout(150); }
@@ -53,6 +54,7 @@ const srv=http.createServer((q,s)=>{ let p=decodeURIComponent(q.url.split('?')[0
         delete document.hidden; delete document.visibilityState; noteLoad(); const e=EVQ.find(x=>x.type==='load'||x.type==='slow-load'); return e?{type:e.type,hiddenMs:e.hiddenMs}:null; });
       if(!o||o.type!=='load'||!(o.hiddenMs>=90000)) errs.push('open time counted background time '+JSON.stringify(o));
     }
+    { const v=await p.evaluate(()=>window.__CSP||[]).catch(()=>[]); if(v.length) errs.push('CSP blocked: '+JSON.stringify([...new Set(v)].slice(0,8))); }
     console.log(`${who.uid}${who.es?' es':''} ${who.w}px: ${errs.length?'ERRORS '+JSON.stringify(errs):'ok'}`); bad+=errs.length; await ctx.close();
   }
   await b.close(); srv.close(); process.exit(bad?1:0);

@@ -65,8 +65,9 @@
       if (ME) ME.look = look;
     },
     async setPin(id, pin) {
-      const { error } = await sb.rpc("staff_set_pin", { p_id: id, p_pin: pin });
+      const { data, error } = await sb.rpc("staff_set_pin", { p_id: id, p_pin: pin });
       if (error) throw new Error(error.message);
+      if (data) throw new Error(data); // e.g. "That PIN is already taken"
     },
     async statement() {
       const { data, error } = await sb.rpc("partner_statement");
@@ -168,7 +169,8 @@
       location.reload();
     },
     geocode: async (q) => {
-      const r = await fetch("/api/geocode?q=" + encodeURIComponent(q));
+      const { data } = await sb.auth.getSession();
+      const r = await fetch("/api/geocode?q=" + encodeURIComponent(q), { headers: { Authorization: "Bearer " + (data.session ? data.session.access_token : "") } });
       if (!r.ok) return null;
       return r.json();
     },
@@ -519,9 +521,41 @@
       setTimeout(resolve, 300); // let the board load underneath right away
     });
   }
+  /* Captcha (Cloudflare Turnstile). Only runs once a site key is in config.js; Supabase checks the
+     token on every sign-in once captcha is switched on in Auth > Attack Protection. */
+  const CAPTCHA_KEY = (window.PROLIGHT_CONFIG || {}).turnstileSiteKey || "";
+  let tsLoad = null;
+  function turnstileLib() {
+    if (window.turnstile) return Promise.resolve(window.turnstile);
+    return tsLoad || (tsLoad = new Promise((ok, no) => {
+      const s = document.createElement("script");
+      s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"; s.async = true;
+      s.onload = () => (window.turnstile ? ok(window.turnstile) : no(new Error("captcha")));
+      s.onerror = () => { tsLoad = null; no(new Error("captcha")); };
+      document.head.appendChild(s);
+    }));
+  }
+  async function captchaToken() {
+    if (!CAPTCHA_KEY) return undefined;
+    const ts = await turnstileLib();
+    let box = document.getElementById("ts-box");
+    if (!box) { box = document.createElement("div"); box.id = "ts-box"; ($("#gate") || document.body).appendChild(box); }
+    return new Promise((ok, no) => {
+      const id = ts.render(box, {
+        sitekey: CAPTCHA_KEY, appearance: "interaction-only", action: "pin-login",
+        callback: (t) => { ok(t); setTimeout(() => { try { ts.remove(id); } catch (e) {} }, 0); },
+        "error-callback": () => { try { ts.remove(id); } catch (e) {} no(new Error("captcha")); },
+        "timeout-callback": () => { try { ts.remove(id); } catch (e) {} no(new Error("captcha")); },
+      });
+    });
+  }
+  if (CAPTCHA_KEY) turnstileLib().catch(() => {}); // warm it up while the PIN is typed
+
   async function signInAs(person, pin) {
-    const { error } = await sb.auth.signInWithPassword({ email: person.email, password: pin });
-    if (error) return /rate|many/i.test(error.message) ? "Too many tries. Wait a few minutes and try again." : "That PIN didn't match. Try again.";
+    let captcha;
+    try { captcha = await captchaToken(); } catch (e) { return "Couldn't check that you're a person. Check your connection and try again."; }
+    const { error } = await sb.auth.signInWithPassword({ email: person.email, password: pin, options: captcha ? { captchaToken: captcha } : undefined });
+    if (error) return /rate|many/i.test(error.message) ? "Too many tries. Wait a few minutes and try again." : /captcha/i.test(error.message) ? "Couldn't check that you're a person. Try again." : "That PIN didn't match. Try again.";
     try { localStorage.setItem("prolight-day", dayKey()); localStorage.removeItem("prolight-last"); } catch (e) {}
     freshSignIn = true; lastPin = pin;
     await afterSignIn();
@@ -536,7 +570,7 @@
     if (needs) return setupOwner();
     pinPad("Enter your PIN", "", async (pin) => {
       const { data: email, error: e2 } = await sb.rpc("pin_login", { p_pin: pin });
-      if (e2) return /many|belongs/i.test(e2.message) ? e2.message : "Couldn't check that PIN. Check your connection.";
+      if (e2) return /many/i.test(e2.message) ? "Too many tries. Wait a few minutes and try again." : "Couldn't check that PIN. Check your connection.";
       if (!email) return "That PIN didn't match. Try again.";
       return signInAs({ email }, pin);
     }, true);

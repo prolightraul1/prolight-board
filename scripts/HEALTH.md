@@ -14,6 +14,7 @@ What the scheduled health check does on each run.
    - Edit the sources in `build/`. Never hand-edit index.html: it is generated.
    - `base.html` is the original app. Each `phaseN.py` patches it with `rep(old,new)`, and `phaseN.js` holds new code.
    - Prefer adding a small new `phaseNN.py` (and `.js` if needed), hooked into `build/build.py` after the last one, over editing old phases.
+   - Put the new `exec(...)` line ABOVE the "Add new phase lines ABOVE this line" marker. The Content-Security-Policy block must stay last in build.py: it hashes the final inline script. Never add inline `onclick=`-style handlers or `<script>` tags inside strings; use `addEventListener`. A `csp` event in the activity log means the policy blocked something: fix the code or add the origin in build.py.
    - Then run `python3 build/build.py`.
    - Server code lives in `api/` and the shared client in `platform.js`.
 4. Test with `node scripts/smoke/smoke.js`. It must print `ok` for all three users. Add a check to it for the bug you fixed.
